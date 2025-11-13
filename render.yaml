@@ -1,0 +1,64 @@
+services:
+  - type: web
+    name: laravel-app
+    env: docker
+    plan: free
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        # Make sure you have set this key in your Render dashboard!
+        sync: false
+      - key: APP_URL
+        value: https://ups-ims.onrender.com
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        value: ups-inv-ups.e.aivencloud.com
+      - key: DB_PORT
+        value: 18696
+      - key: DB_DATABASE
+        value: defaultdb
+      - key: DB_USERNAME
+        value: avnadmin
+      - key: DB_PASSWORD
+        value: AVNS_WsfAJsK31b0gO8Q7cpQ
+        sync: false
+      # Tenant DB connections for switcher
+      - key: UPS_DB_HOST
+        value: ups-inv-ups.e.aivencloud.com
+      - key: UPS_DB_PORT
+        value: 18696
+      - key: UPS_DB_DATABASE
+        value: defaultdb
+      - key: UPS_DB_USERNAME
+        value: avnadmin
+      - key: UPS_DB_PASSWORD
+        value: AVNS_WsfAJsK31b0gO8Q7cpQ
+        sync: false
+
+      - key: URS_DB_HOST
+        value: urs-urs.k.aivencloud.com
+      - key: URS_DB_PORT
+        value: 25011
+      - key: URS_DB_DATABASE
+        value: defaultdb
+      - key: URS_DB_USERNAME
+        value: avnadmin
+      - key: URS_DB_PASSWORD
+        value: AVNS_Yf6c_j4aWZ6jRwLNoyU
+        sync: false
+
+      - key: UCS_DB_HOST
+        value: ucs-ucs.k.aivencloud.com
+      - key: UCS_DB_PORT
+        value: 16680
+      - key: UCS_DB_DATABASE
+        value: defaultdb
+      - key: UCS_DB_USERNAME
+        value: avnadmin
+      - key: UCS_DB_PASSWORD
+        value: AVNS_KAsxBDBWxhiK2FawHHp
+        sync: false

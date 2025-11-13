@@ -1,0 +1,30 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f8f9fa;
+    color: #212529;
+    margin: 0;
+    padding: 0;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border-radius: 0.375rem;
+    background-color: #fff;
+}
+
+.card-header {
+    border-bottom: 1px solid #e9ecef;
+    font-weight: bold;
+}
+
+/* global.css */
+input {
+    border-radius: 0.5rem !important; /* Add !important to prioritize this style */
+}
+
+input:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
