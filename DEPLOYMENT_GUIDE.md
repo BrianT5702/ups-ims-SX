@@ -8,10 +8,11 @@ This guide covers multiple deployment options for your Laravel 11 application.
 
 ### Technology Stack
 - **Framework**: Laravel 11 (PHP 8.2+)
+- **PHP Version**: PHP 8.3 recommended (required for Docker builds due to dependencies)
 - **Frontend**: Livewire 3.5, Tailwind CSS, Alpine.js, Vite
 - **Database**: MySQL (Multi-tenant: UPS, URS, UCS)
 - **Web Server**: Apache (via Docker) or Nginx
-- **Container**: Docker ready
+- **Container**: Docker ready (uses PHP 8.3)
 
 ### Application Features
 - Multi-tenant inventory management
@@ -239,7 +240,8 @@ Deploy on a VPS (DigitalOcean, AWS EC2, Linode, etc.) with Apache/Nginx.
 
 #### Server Requirements
 - **OS**: Ubuntu 22.04 LTS (recommended) or similar Linux
-- **PHP**: 8.2+ with extensions: pdo_mysql, mbstring, zip, exif, gd, curl, openssl
+- **PHP**: 8.3+ recommended (8.2+ minimum, but 8.3 required for Docker due to dependencies)
+- **PHP Extensions**: pdo_mysql, mbstring, zip, exif, gd, curl, openssl
 - **Web Server**: Apache 2.4+ or Nginx 1.18+
 - **Database**: MySQL 5.7+ or MariaDB 10.3+ (remote databases work too)
 - **Node.js**: 20.x (for building assets)
@@ -257,10 +259,10 @@ Deploy on a VPS (DigitalOcean, AWS EC2, Linode, etc.) with Apache/Nginx.
    # Update system
    sudo apt update && sudo apt upgrade -y
    
-   # Install PHP and extensions
-   sudo apt install -y php8.2 php8.2-cli php8.2-fpm php8.2-mysql \
-       php8.2-mbstring php8.2-xml php8.2-curl php8.2-zip \
-       php8.2-gd php8.2-bcmath php8.2-opcache
+   # Install PHP and extensions (PHP 8.3 recommended for Docker compatibility)
+   sudo apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-mysql \
+       php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip \
+       php8.3-gd php8.3-bcmath php8.3-opcache
    
    # Install Composer
    curl -sS https://getcomposer.org/installer | php
@@ -271,7 +273,7 @@ Deploy on a VPS (DigitalOcean, AWS EC2, Linode, etc.) with Apache/Nginx.
    sudo apt install -y nodejs
    
    # Install Apache
-   sudo apt install -y apache2 libapache2-mod-php8.2
+   sudo apt install -y apache2 libapache2-mod-php8.3
    sudo a2enmod rewrite
    ```
 
@@ -639,5 +641,5 @@ If you encounter issues:
 
 **Last Updated**: 2024
 **Laravel Version**: 11.0
-**PHP Version**: 8.2+
+**PHP Version**: 8.2+ (8.3 recommended, required for Docker builds)
 
