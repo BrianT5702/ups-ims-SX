@@ -75,49 +75,44 @@
             <h3>Customer Import Format:</h3>
             <p>Required columns (Excel column reference):</p>
             <ul>
-                <li>B: Account</li>
-                <li>C: Customer Name</li>
-                <li>D: Address Line 1</li>
-                <li>E: Address Line 2</li>
-                <li>H: Phone Number</li>
+                <li>A: Account</li>
+                <li>B: Name</li>
+                <li>C: Address Line 1</li>
             </ul>
             <p>Optional columns:</p>
             <ul>
-                <li>F: Address Line 3</li>
-                <li>G: Address Line 4</li>
+                <li>D: Address Line 2</li>
+                <li>E: Address Line 3</li>
+                <li>F: Address Line 4</li>
+                <li>G: Contact Person Name</li>
+                <li>H: Phone Number</li>
                 <li>I: Fax Number</li>
                 <li>J: Email</li>
+                <li>K: Class (mapped to Pricing Tier)</li>
                 <li>L: Area</li>
                 <li>M: Term</li>
                 <li>N: Business Registration No</li>
                 <li>O: GST Registration No</li>
                 <li>P: Currency (default: RM)</li>
-                <!-- Pricing tier is per-item in DO; no customer-level pricing tier -->
             </ul>
+            <p><strong>Note:</strong> Import starts from row 6. Contact Person Name (Column G) is read but not stored in the database.</p>
         </div>
         
         <div id="supplier-format-info" style="display: none; margin-top: 10px; padding: 10px; background-color: #f0f0f0;">
             <h3>Supplier Import Format:</h3>
             <p>Required columns (Excel column reference):</p>
             <ul>
-                <li>B: Supplier Code</li>
-                <li>C: Supplier Name</li>
-                <li>D: Address Line 1</li>
-                <li>E: Address Line 2</li>
+                <li>B: Account</li>
+                <li>C: Name</li>
+                <li>D: Address</li>
             </ul>
             <p>Optional columns:</p>
             <ul>
-                <li>F: Address Line 3</li>
-                <li>G: Address Line 4</li>
-                <li>H: Phone Number</li>
-                <li>I: Fax Number</li>
-                <li>J: Email</li>
-                <li>K: Contact Person</li>
-                <li>L: Payment Term</li>
-                <li>M: Business Registration No</li>
-                <li>N: GST Registration No</li>
-                <li>O: Currency (default: RM)</li>
+                <li>F: Business Registration No</li>
+                <li>G: GST Registration No</li>
+                <li>I: Tel & Fax (can be separated by "/" or "|" or ",")</li>
             </ul>
+            <p><strong>Note:</strong> Import starts from row 9. Data starts from column B. If Tel & Fax (Column I) contains both values, separate them with "/" or "|".</p>
         </div>
         
         <div style="margin-top: 15px;">

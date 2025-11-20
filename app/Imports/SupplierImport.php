@@ -24,40 +24,56 @@ class SupplierImport implements ToModel, WithStartRow
     public function model(array $row)
     {
         try {
+            // Required fields: Account (B), Name (C), Address (D)
+            // Note: Excel columns start from B, so indices are offset (B=1, C=2, D=3, etc.)
             if (empty($row[1]) || empty($row[2]) || empty($row[3])) {
                 Log::warning("Skipping row due to missing required fields: " . json_encode($row));
                 $this->failureCount++;
                 return null;
             }
     
-            $termMappings = [
-                'COD' => 'C.O.D',
-                'C.O.D' => 'C.O.D',
-                '30 DAYS' => '30 DAYS',
-                '60 DAYS' => '60 DAYS',
-                'CASH' => 'CASH',
-                'NET 30 DAY' => 'NET 30 DAY'
-            ];
-    
-            $termValue = strtoupper(trim($row[12] ?? ''));
-            $term = $termMappings[$termValue] ?? null;
-
+            // Column mapping: B=Account, C=Name, D=Address, F=Business Reg No, G=GST Reg No, I=Tel & Fax
             $supplier = new Supplier;
-            $supplier->account = $row[1];
-            $supplier->sup_name = $row[2];
-            $supplier->address_line1 = $row[3];
-            $supplier->address_line2 = $row[4];
-            $supplier->address_line3 = $row[5] ?? null;
-            $supplier->address_line4 = $row[6] ?? null;
-            $supplier->phone_num = $row[7] ?? null;
-            $supplier->fax_num = $row[8] ?? null;
-            $supplier->email = $row[9] ?? null;
-            $supplier->area = $row[11] ?? null;
-            $supplier->term = $term;
-            $supplier->business_registration_no = $row[13] ?? null;
-            $supplier->gst_registration_no = $row[14] ?? null;
-            // Currency comes from column O (index 14); accept both RM and MYR, default to RM
-            $supplier->currency = $this->normalizeCurrency($row[14] ?? null);
+            $supplier->account = $row[1];  // Column B
+            $supplier->sup_name = $row[2];  // Column C
+            $supplier->address_line1 = $row[3];  // Column D
+            $supplier->address_line2 = null;
+            $supplier->address_line3 = null;
+            $supplier->address_line4 = null;
+            $supplier->business_registration_no = $row[5] ?? null;  // Column F
+            $supplier->gst_registration_no = $row[6] ?? null;  // Column G
+            
+            // Column I: Tel & Fax - try to parse if it contains both
+            $telFax = trim($row[8] ?? '');
+            if (!empty($telFax)) {
+                // Try to split by common separators
+                if (strpos($telFax, '/') !== false) {
+                    $parts = explode('/', $telFax, 2);
+                    $supplier->phone_num = trim($parts[0]) ?: null;
+                    $supplier->fax_num = trim($parts[1]) ?: null;
+                } elseif (strpos($telFax, '|') !== false) {
+                    $parts = explode('|', $telFax, 2);
+                    $supplier->phone_num = trim($parts[0]) ?: null;
+                    $supplier->fax_num = trim($parts[1]) ?: null;
+                } elseif (strpos($telFax, ',') !== false) {
+                    $parts = explode(',', $telFax, 2);
+                    $supplier->phone_num = trim($parts[0]) ?: null;
+                    $supplier->fax_num = trim($parts[1]) ?: null;
+                }else {
+                    // If no separator, assume it's phone number
+                    $supplier->phone_num = $telFax;
+                    $supplier->fax_num = null;
+                }
+            } else {
+                $supplier->phone_num = null;
+                $supplier->fax_num = null;
+            }
+            
+            $supplier->email = null;
+            $supplier->area = null;
+            $supplier->term = null;
+            // Default currency to RM
+            $supplier->currency = 'RM';
             $supplier->created_at = now();
             $supplier->save();
     
@@ -77,7 +93,7 @@ class SupplierImport implements ToModel, WithStartRow
 
     public function startRow(): int
     {
-        return 6; // Skip the header row
+        return 9; // Start from row 9
     }
 
     public function __destruct()

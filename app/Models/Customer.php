@@ -35,6 +35,7 @@ class Customer extends BaseModel
         'gst_registration_no',
         'salesman_id',
         'currency',
+        'pricing_tier',
     ];
 
     public function deliveryOrders()
