@@ -132,21 +132,37 @@
             }
             
             .container { 
-                width: 100%; 
+                width: 100% !important; 
                 border: none !important; 
                 box-shadow: none !important;
-                margin: 0; 
-                padding: 20px; 
-                min-height: calc(11in - 1.5cm);
-                display: flex !important;
-                flex-direction: column !important;
+                margin: 0 !important; 
+                padding: 0 !important; 
+                min-height: auto !important;
+                display: block !important;
                 position: relative;
             }
             
             .content {
-                padding: 0;
-                margin-bottom: 0;
-                flex: 1 1 auto;
+                padding: 0 !important;
+                margin: 0 !important;
+                flex: none !important;
+            }
+            
+            /* Ensure pages-container takes full width in print */
+            .pages-container {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            /* Print pages should match exactly what's shown in preview */
+            .pages-container .print-page {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 20px !important;
+                box-sizing: border-box !important;
+                min-height: calc(11in - 1.5cm) !important;
             }
             
             .signature-section { 
@@ -156,27 +172,21 @@
                 border-top: 1px solid #000 !important;
                 padding: 16px 0 12px !important;
                 margin: 0 !important;
-                margin-top: var(--signature-spacer, auto) !important;
+                margin-top: auto !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
                 page-break-after: avoid !important;
                 width: 100%;
                 box-sizing: border-box;
                 flex: 0 0 auto;
-            /* Force signature to bottom of last page */
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            z-index: 10;
-        }
+                position: relative !important;
+                background: white;
+            }
         
-        /* Amount in words positioning */
+        /* Amount in words positioning - use normal flow to match screen preview */
         div[style*="font-style: italic"] {
-            position: absolute !important;
+            position: relative !important;
             background: white !important;
-            z-index: 10 !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
         }
@@ -184,14 +194,27 @@
             .items-table tr { page-break-inside: avoid; }
             /* Do NOT use footer-group to avoid repeating totals on every page */
             .items-table tfoot { display: table-row-group; }
-            /* Ensure signature section prints and stays on last page bottom */
+            /* Ensure signature section prints and stays on last page bottom - use normal flow */
             .signature-section { 
                 display: flex !important; 
                 justify-content: space-between !important; 
                 align-items: flex-end !important; 
                 page-break-inside: avoid !important; 
                 break-inside: avoid !important; 
-                visibility: visible !important; 
+                visibility: visible !important;
+                position: relative !important;
+            }
+            
+            /* Ensure paginated pages signature uses normal flow */
+            .pages-container .print-page-footer .signature-section {
+                position: relative !important;
+            }
+            
+            /* Ensure amount, totals, and remark in paginated pages use normal flow */
+            .pages-container [data-page-amount],
+            .pages-container [data-page-total],
+            .pages-container [data-page-remark] {
+                position: relative !important;
             }
             /* Enforce column widths in print mode */
             .items-table { table-layout: fixed !important; }
@@ -211,6 +234,31 @@
             /* Hide the on-screen reminder in print */
             .print-reminder { display: none !important; }
             #zoom-warning { display: none !important; }
+            .page-counter { display: none !important; }
+            
+            /* Ensure print-source is hidden and pages-container is visible in print */
+            #print-source {
+                display: none !important;
+            }
+            
+            .pages-container {
+                display: flex !important;
+            }
+            
+            /* Remove border/shadow from pages-container pages in print to match print styling */
+            .pages-container .print-page {
+                border: none !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 20px !important;
+                position: relative !important;
+            }
+            
+            /* Ensure print-page-body and print-page-footer use normal flow */
+            .pages-container .print-page-body,
+            .pages-container .print-page-footer {
+                position: relative !important;
+            }
         }
         .items-table { font-size: 0.92em; }
         .items-table th { 
@@ -238,6 +286,65 @@
             width: 100%;
         }
 
+        @media print {
+            /* Remove gap between pages in print to prevent blank pages */
+            .pages-container {
+                gap: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            /* Ensure print pages have no extra spacing */
+            .pages-container .print-page {
+                margin: 0 !important;
+                margin-bottom: 0 !important;
+            }
+            
+            .pages-container .print-page:not(:last-child) {
+                margin-bottom: 0 !important;
+            }
+        }
+
+        /* Page counter display */
+        .page-counter {
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #0d6efd;
+            background: #e7f3ff;
+            border: 2px solid #0d6efd;
+            border-radius: 4px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .page-counter.show {
+            display: block;
+        }
+
+        /* Make pages-container pages match container styling on screen for accurate preview */
+        .pages-container .print-page {
+            background-color: #fff;
+            border: 1px solid #000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 0 auto 28px;
+            max-width: 1000px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .pages-container .print-page:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Make signature padding in pages-container match print (no horizontal padding since page has padding) */
+        .pages-container .print-page-footer .signature-section {
+            padding: 16px 0 12px !important;
+        }
+
         .pages-container[data-measuring="true"] .print-page {
             min-height: auto !important;
         }
@@ -252,8 +359,66 @@
             break-inside: avoid;
         }
 
+        /* Last page shouldn't force a page break after */
+        .print-page--last {
+            page-break-after: auto;
+        }
+
+        /* Page number indicator on each page (screen only) */
+        .print-page::before {
+            content: 'Page ' attr(data-page-number) ' of ' attr(data-total-pages);
+            position: absolute;
+            top: -25px;
+            left: 0;
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+
+        @media print {
+            .print-page::before {
+                display: none;
+            }
+        }
+
         .print-page--first {
             margin-top: 20px;
+        }
+
+        @media print {
+            /* Remove top margin from first page in print to prevent blank page */
+            .print-page--first {
+                margin-top: 0 !important;
+                page-break-before: auto !important;
+            }
+            
+            /* Ensure first page doesn't have unnecessary page break */
+            .pages-container > .print-page:first-child {
+                page-break-before: auto !important;
+                margin-top: 0 !important;
+            }
+            
+            /* Ensure signature stays with content on the same page */
+            .print-page-footer {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            .print-page-footer .signature-section {
+                page-break-before: avoid !important;
+                page-break-after: avoid !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            /* Ensure last page content stays together with signature */
+            .print-page--last .print-page-body {
+                page-break-after: avoid !important;
+            }
         }
 
         .print-page--last {
@@ -272,11 +437,17 @@
             padding-top: 18px;
             flex: 0 0 auto;
         }
+
+        /* Ensure signature template is always hidden - it's only used for cloning */
+        #signature-template {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
     <div class="print-reminder">✓ Optimized for Letter Size (8.5" × 11") paper</div>
     <div id="zoom-warning">⚠️ Browser zoom is not 100%! Press Ctrl+0 (Cmd+0 on Mac) to reset zoom for accurate printing.</div>
+    <div id="page-counter" class="page-counter">Calculating pages...</div>
     <div class="container">
         <button onclick="history.back()" class="back-button">Back</button>
         <div class="content">
@@ -355,6 +526,15 @@
                                 <td>{{ $index + 1 }}</td>
                                 <td>
                                     {{ $item->custom_item_name ?? ($item->item->item_name ?? 'N/A') }}
+                                    @if(!empty($item->item->details))
+                                        <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
+                                            @foreach(explode("\n", $item->item->details) as $line)
+                                                @if(trim($line) !== '')
+                                                    <div>• {{ $line }}</div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
                                     @if(!empty($item->more_description))
                                         <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
                                             @foreach(explode("\n", $item->more_description) as $line)
@@ -576,11 +756,29 @@
                 return px;
             }
 
-            function getPageHeight(force) {
-                if (force || !pageHeightCache) {
+            function getPageHeight(force, isPrintContext) {
+                // Force recalculation when in print mode or when forced
+                var isPrintMode = isPrintContext || (window.matchMedia && window.matchMedia('print').matches);
+                if (force || !pageHeightCache || isPrintMode) {
+                    // Use a more accurate method that accounts for print DPI
+                    // In print mode, browsers use different DPI, so we need to recalculate
                     var letterPx = measurePx('11in');
                     var marginPx = measurePx('0.75cm');
-                    pageHeightCache = Math.max(1, Math.round(letterPx - (marginPx * 2)));
+                    var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
+                    
+                    if (isPrintMode) {
+                        // For print, use more conservative height to ensure content fits
+                        // Account for print DPI differences and browser rendering variations
+                        // Letter size: 11in = 279.4mm, margins: 0.75cm each = 1.5cm total
+                        // Printable area: 279.4mm - 15mm = 264.4mm
+                        // Convert to pixels at 96 DPI: (264.4 / 25.4) * 96 ≈ 998px
+                        // But in print, browsers may use 300 DPI, so we need to be more conservative
+                        // Use 7% reduction for print to ensure everything fits
+                        pageHeightCache = Math.round(calculatedHeight * 0.93);
+                    } else {
+                        // For screen preview, use 5% reduction
+                        pageHeightCache = Math.round(calculatedHeight * 0.95);
+                    }
                 }
                 return pageHeightCache;
             }
@@ -674,8 +872,12 @@
                     var remarkSource = document.getElementById('remark-source');
                     var totalsSource = document.getElementById('totals-source');
                     var amountSource = document.getElementById('amount-source');
-                    var pageHeight = getPageHeight(force);
-                    var tolerance = 4;
+                    // Check if we're in print context (either print media query or beforeprint event)
+                    var isPrintMode = window.matchMedia && window.matchMedia('print').matches;
+                    var pageHeight = getPageHeight(force, isPrintMode);
+                    // Use a larger tolerance in print mode to account for DPI differences
+                    var tolerance = isPrintMode ? 15 : 4;
+                    var usableHeight = pageHeight; // Already reduced in getPageHeight
                     var isFirstPage = true;
                     var activePage = null;
 
@@ -700,7 +902,7 @@
                         ensurePage();
                         activePage.tbody.appendChild(clone);
 
-                        if (activePage.page.offsetHeight > (pageHeight - tolerance)) {
+                        if (activePage.page.offsetHeight > (usableHeight - tolerance)) {
                             activePage.tbody.removeChild(clone);
                             activePage = null;
                             ensurePage();
@@ -728,7 +930,17 @@
                         } else if (attr === 'data-page-amount') {
                             clone.style.marginTop = '6px';
                         }
-                        if (activePage.page.offsetHeight > (pageHeight - tolerance)) {
+                        // Check if page overflows, accounting for signature footer
+                        var pageHeight = activePage.page.offsetHeight;
+                        if (pageHeight > (usableHeight - tolerance)) {
+                            // If this is the amount (last element), allow slight overflow to keep signature together
+                            var isLastElement = (attr === 'data-page-amount');
+                            if (isLastElement && pageHeight <= (usableHeight + 30)) {
+                                // Allow slight overflow on last page to keep signature together
+                                // This prevents signature from being pushed to a new page
+                                return;
+                            }
+                            
                             activePage.body.removeChild(clone);
                             activePage = null;
                             ensurePage();
@@ -757,17 +969,37 @@
 
                     renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
                     if (renderedPages.length > 0) {
-                        renderedPages.forEach(function (page) { page.classList.remove('print-page--last'); });
+                        var totalPages = renderedPages.length;
+                        renderedPages.forEach(function (page, index) {
+                            page.classList.remove('print-page--last');
+                            // Add page number attributes for display
+                            page.setAttribute('data-page-number', index + 1);
+                            page.setAttribute('data-total-pages', totalPages);
+                        });
                         renderedPages[renderedPages.length - 1].classList.add('print-page--last');
                     }
 
+                    // Make pages-container visible and hide print-source
                     pagesContainer.style.visibility = '';
                     pagesContainer.style.position = '';
                     pagesContainer.style.left = '';
                     pagesContainer.style.right = '';
                     pagesContainer.style.top = '';
+                    pagesContainer.style.display = 'flex'; // Ensure it's visible
                     pagesContainer.removeAttribute('data-measuring');
                     source.style.display = 'none';
+
+                    // Update page counter
+                    var pageCounter = document.getElementById('page-counter');
+                    if (pageCounter) {
+                        var pageCount = renderedPages.length;
+                        if (pageCount > 0) {
+                            pageCounter.textContent = 'Total Pages: ' + pageCount + (pageCount === 1 ? ' page' : ' pages');
+                            pageCounter.classList.add('show');
+                        } else {
+                            pageCounter.classList.remove('show');
+                        }
+                    }
                 } finally {
                     building = false;
                 }
@@ -797,12 +1029,16 @@
                 if (mq.addEventListener) {
                     mq.addEventListener('change', function (e) {
                         if (e.matches) {
+                            // Clear cache and force recalculation when entering print mode
+                            pageHeightCache = null;
                             paginateQuotation(true);
                         }
                     });
                 } else if (mq.addListener) {
                     mq.addListener(function (e) {
                         if (e.matches) {
+                            // Clear cache and force recalculation when entering print mode
+                            pageHeightCache = null;
                             paginateQuotation(true);
                         }
                     });
@@ -810,7 +1046,21 @@
             }
 
             window.addEventListener('beforeprint', function () {
-                paginateQuotation(true);
+                // Clear cache and force recalculation with print context
+                // Use a small delay to ensure print media query is active
+                pageHeightCache = null;
+                setTimeout(function() {
+                    paginateQuotation(true);
+                }, 10);
+            });
+            
+            // Also listen for afterprint to restore screen view
+            window.addEventListener('afterprint', function () {
+                // Recalculate for screen view after printing
+                pageHeightCache = null;
+                setTimeout(function() {
+                    paginateQuotation(true);
+                }, 10);
             });
         })();
     </script>

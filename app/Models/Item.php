@@ -22,10 +22,13 @@ class Item extends BaseModel
         'sup_id',
         'cat_id',
         'brand_id',
+        'family_id',
+        'group_id',
         'warehouse_id',
         'location_id',
         'image',
         'memo',
+        'details',
     ];
 
     /**
@@ -50,6 +53,22 @@ class Item extends BaseModel
     public function brand()
     {
         return $this->belongsTo(Brand::class, 'brand_id');
+    }
+
+    /**
+     * Get the family associated with the item.
+     */
+    public function family()
+    {
+        return $this->belongsTo(Family::class, 'family_id');
+    }
+
+    /**
+     * Get the group associated with the item.
+     */
+    public function group()
+    {
+        return $this->belongsTo(Group::class, 'group_id');
     }
 
     public function warehouse()

@@ -231,8 +231,67 @@
         .pages-container {
             display: none;
             flex-direction: column;
-            gap: 30px;
+            gap: 28px;
             width: 100%;
+        }
+
+        @media print {
+            /* Remove gap between pages in print to prevent blank pages */
+            .pages-container {
+                gap: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            /* Ensure print pages have no extra spacing */
+            .pages-container .print-page {
+                margin: 0 !important;
+                margin-bottom: 0 !important;
+            }
+            
+            .pages-container .print-page:not(:last-child) {
+                margin-bottom: 0 !important;
+            }
+        }
+
+        /* Page counter display */
+        .page-counter {
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #0d6efd;
+            background: #e7f3ff;
+            border: 2px solid #0d6efd;
+            border-radius: 4px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .page-counter.show {
+            display: block;
+        }
+
+        /* Make pages-container pages match container styling on screen for accurate preview */
+        .pages-container .print-page {
+            background-color: #fff;
+            border: 1px solid #000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 0 auto 28px;
+            max-width: 1000px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .pages-container .print-page:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Make signature padding in pages-container match print (no horizontal padding since page has padding) */
+        .pages-container .print-page-footer .signature-section {
+            padding: 16px 0 12px !important;
         }
 
         .pages-container[data-measuring="true"] .print-page {
@@ -249,13 +308,77 @@
             break-inside: avoid;
         }
 
+        /* Last page shouldn't force a page break after */
+        .print-page--last {
+            page-break-after: auto;
+        }
+
+        /* Page number indicator on each page (screen only) */
+        .print-page::before {
+            content: 'Page ' attr(data-page-number) ' of ' attr(data-total-pages);
+            position: absolute;
+            top: -25px;
+            left: 0;
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+
+        @media print {
+            .print-page::before {
+                display: none;
+            }
+        }
+
         .print-page--first {
             margin-top: 20px;
         }
 
-        .print-page--last {
-            page-break-after: auto;
+        @media print {
+            /* Remove top margin from first page in print to prevent blank page */
+            .print-page--first {
+                margin-top: 0 !important;
+                page-break-before: auto !important;
+            }
+            
+            /* Ensure first page doesn't have unnecessary page break */
+            .pages-container > .print-page:first-child {
+                page-break-before: auto !important;
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+            }
+            
+            /* Ensure pages-container first child has no top margin/padding */
+            .pages-container:first-child .print-page--first {
+                margin-top: 0 !important;
+                padding-top: 20px !important;
+            }
+            
+            /* Ensure signature stays with content on the same page */
+            .print-page-footer {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                orphans: 3; /* Keep at least 3 lines with previous content */
+                widows: 3; /* Keep at least 3 lines on next page */
+            }
+            
+            .print-page-footer .signature-section {
+                page-break-before: avoid !important; /* Keep signature with content - same as quotations */
+                page-break-after: avoid !important; /* Prevent signature from being pushed to next page */
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            /* Ensure last page content stays together with signature (same as quotations) */
+            .print-page--last .print-page-body {
+                page-break-after: avoid !important;
+            }
         }
+
 
         .print-page-body {
             display: flex;
@@ -323,28 +446,45 @@
     }
     
     .container {
-        margin: 0;
-        padding: 20px;
-        min-height: calc(11in - 1.5cm);
-        display: flex !important;
-        flex-direction: column !important;
-        border: none !important;
+        width: 100% !important; 
+        border: none !important; 
         box-shadow: none !important;
+        margin: 0 !important; 
+        padding: 0 !important; 
+        min-height: auto !important;
+        display: block !important;
         position: relative;
     }
     
     .content {
-        padding: 0;
-        margin-bottom: 0;
-        flex: 1 1 auto;
+        padding: 0 !important;
+        margin: 0 !important;
+        flex: none !important;
+    }
+    
+    /* Ensure pages-container takes full width in print */
+    .pages-container {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Print pages should match exactly what's shown in preview */
+    .pages-container .print-page {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        box-sizing: border-box !important;
+        min-height: calc(11in - 1.5cm) !important;
     }
 
-    .print-page {
-        page-break-after: always;
-    }
 
-    .print-page--last {
-        page-break-after: auto;
+    
+    /* Prevent blank first page - ensure first page has no page break before */
+    .pages-container > .print-page:first-child {
+        page-break-before: auto !important;
+        margin-top: 0 !important;
     }
 
     #remark-wrapper {
@@ -450,19 +590,71 @@
             }
 
             .container {
-                width: 100%; 
-                border: none;
-                margin: 0;
-                padding: 20px;
-                min-height: calc(11in - 1.5cm); /* Match PO/Quotation so signature can stick to bottom */
-                padding-bottom: 0; /* Remove bottom padding in print */
-                display: flex !important;
-                flex-direction: column !important;
+                width: 100% !important; 
+                border: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                min-height: auto !important;
+                display: block !important;
             }
 
             /* Hide the on-screen reminder in print */
             .print-reminder { display: none !important; }
             #zoom-warning { display: none !important; }
+            .page-counter { display: none !important; }
+            
+            /* Ensure print-source is hidden and pages-container is visible in print */
+            #print-source {
+                display: none !important;
+            }
+            
+            .pages-container {
+                display: flex !important;
+            }
+            
+            /* Remove border/shadow from pages-container pages in print to match print styling */
+            .pages-container .print-page {
+                border: none !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 20px !important;
+                position: relative !important;
+            }
+            
+            /* Ensure print-page-body and print-page-footer use normal flow */
+            .pages-container .print-page-body,
+            .pages-container .print-page-footer {
+                position: relative !important;
+            }
+            
+            /* Ensure signature section prints on every page - use normal flow */
+            .signature-section { 
+                display: flex !important; 
+                justify-content: space-between !important; 
+                align-items: flex-end !important; 
+                page-break-inside: avoid !important; 
+                break-inside: avoid !important; 
+                visibility: visible !important;
+                position: relative !important;
+            }
+            
+            /* Ensure signature template is always hidden - it's only used for cloning */
+            #signature-template {
+                display: none !important;
+            }
+            
+            /* Ensure paginated pages signature uses normal flow and is visible on all pages */
+            .pages-container .print-page-footer .signature-section {
+                position: relative !important;
+                display: flex !important;
+                visibility: visible !important;
+            }
+            
+            /* Ensure signature footer is visible on all pages */
+            .pages-container .print-page-footer {
+                display: block !important;
+                visibility: visible !important;
+            }
 
             /* Ensure table header repeats on each page */
             .items-table thead {
@@ -507,6 +699,7 @@
 <body>
     <div class="print-reminder">✓ Optimized for Letter Size (8.5" × 11") paper</div>
     <div id="zoom-warning">⚠️ Browser zoom is not 100%! Press Ctrl+0 (Cmd+0 on Mac) to reset zoom for accurate printing.</div>
+    <div id="page-counter" class="page-counter">Calculating pages...</div>
     <div class="container">
         <button onclick="goBack()" class="back-button">Back</button>
         <script>
@@ -590,6 +783,15 @@
                                 <td>{{ $item->qty }} {{ $item->item->um ?? 'UNIT' }}</td>
                                 <td>
                                     {{ $item->custom_item_name ?? ($item->item->item_name ?? 'N/A') }}
+                                    @if(!empty($item->item->details))
+                                        <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
+                                            @foreach(explode("\n", $item->item->details) as $line)
+                                                @if(trim($line) !== '')
+                                                    <div>• {{ $line }}</div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
                                     @if(!empty($item->more_description))
                                         <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
                                             @foreach(explode("\n", $item->more_description) as $line)
@@ -687,6 +889,7 @@
 
         function triggerPrint() {
             try { paginateDeliveryOrder(true); } catch (e) {}
+            // Mark as printed before opening print dialog
             fetch('{{ route('delivery-orders.mark-printed', $deliveryOrder->id) }}', {
                 method: 'POST',
                 headers: {
@@ -695,13 +898,13 @@
                     'Content-Type': 'application/json'
                 }
             }).then(function() {
-                setTimeout(function(){
+                setTimeout(function(){ 
                     try { paginateDeliveryOrder(true); } catch (e) {}
                     setTimeout(function(){ window.print(); }, 150);
                 }, 50);
             }).catch(function(error) {
                 console.error('Failed to mark as printed:', error);
-                setTimeout(function(){
+                setTimeout(function(){ 
                     try { paginateDeliveryOrder(true); } catch (e) {}
                     setTimeout(function(){ window.print(); }, 150);
                 }, 50);
@@ -714,6 +917,66 @@
             var pageHeightCache = null;
             var scheduled = false;
             var building = false;
+            
+            // Function to update vertical line positions - make it accessible globally
+            // Need different calculation methods for screen preview vs print mode
+            window.updateVerticalLines = function() {
+                var pagesContainer = document.getElementById('pages-container');
+                if (!pagesContainer) return;
+                
+                // Check if we're in print mode
+                var isPrintMode = window.matchMedia && window.matchMedia('print').matches;
+                
+                var renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
+                renderedPages.forEach(function (page) {
+                    var tableArea = page.querySelector('.table-area');
+                    var footer = page.querySelector('.print-page-footer');
+                    var header = page.querySelector('.page-header');
+                    
+                    var start = 0;
+                    var end = 0;
+                    
+                    if (tableArea) {
+                        if (isPrintMode) {
+                            // In print mode: tableArea.offsetTop is relative to print-page-body
+                            // We need to add body's offsetTop to get position relative to print-page
+                            var body = page.querySelector('.print-page-body');
+                            var bodyOffset = body ? body.offsetTop : 0;
+                            start = bodyOffset + tableArea.offsetTop;
+                        } else {
+                            // In screen preview: use getBoundingClientRect for accurate positioning
+                            var pageRect = page.getBoundingClientRect();
+                            var tableRect = tableArea.getBoundingClientRect();
+                            start = tableRect.top - pageRect.top;
+                        }
+                    } else if (header) {
+                        if (isPrintMode) {
+                            var body = page.querySelector('.print-page-body');
+                            var bodyOffset = body ? body.offsetTop : 0;
+                            start = bodyOffset + header.offsetHeight;
+                        } else {
+                            var pageRect = page.getBoundingClientRect();
+                            var headerRect = header.getBoundingClientRect();
+                            start = headerRect.bottom - pageRect.top;
+                        }
+                    }
+                    
+                    if (footer) {
+                        if (isPrintMode) {
+                            // In print mode: use offsetTop
+                            end = page.offsetHeight - footer.offsetTop;
+                        } else {
+                            // In screen preview: use getBoundingClientRect
+                            var pageRect = page.getBoundingClientRect();
+                            var footerRect = footer.getBoundingClientRect();
+                            end = pageRect.bottom - footerRect.top;
+                        }
+                    }
+                    
+                    page.style.setProperty('--vline-start', start + 'px');
+                    page.style.setProperty('--vline-end', Math.max(0, end) + 'px');
+                });
+            };
 
             function measurePx(value) {
                 var probe = document.createElement('div');
@@ -726,11 +989,25 @@
                 return px;
             }
 
-            function getPageHeight(force) {
-                if (force || !pageHeightCache) {
+            function getPageHeight(force, isPrintContext) {
+                // Force recalculation when in print mode or when forced
+                var isPrintMode = isPrintContext || (window.matchMedia && window.matchMedia('print').matches);
+                if (force || !pageHeightCache || isPrintMode) {
+                    // Use a more accurate method that accounts for print DPI
+                    // In print mode, browsers use different DPI, so we need to recalculate
                     var letterPx = measurePx('11in');
                     var marginPx = measurePx('0.75cm');
-                    pageHeightCache = Math.max(1, Math.round(letterPx - (marginPx * 2)));
+                    var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
+                    
+                    if (isPrintMode) {
+                        // For print, use more conservative height to ensure content fits
+                        // Account for print DPI differences and browser rendering variations
+                        // Use 7% reduction for print to ensure everything fits (same as quotations)
+                        pageHeightCache = Math.round(calculatedHeight * 0.93);
+                    } else {
+                        // For screen preview, use 5% reduction (same as quotations)
+                        pageHeightCache = Math.round(calculatedHeight * 0.95);
+                    }
                 }
                 return pageHeightCache;
             }
@@ -824,8 +1101,12 @@
 
                     var rows = Array.from(itemsTable.querySelectorAll('tbody tr'));
                     var remarkSource = document.getElementById('remark-source');
-                    var pageHeight = getPageHeight(force);
-                    var tolerance = 4;
+                    // Check if we're in print context (either print media query or beforeprint event)
+                    var isPrintMode = window.matchMedia && window.matchMedia('print').matches;
+                    var pageHeight = getPageHeight(force, isPrintMode);
+                    // Use a larger tolerance in print mode to account for DPI differences (same as quotations)
+                    var tolerance = isPrintMode ? 15 : 4;
+                    var usableHeight = pageHeight; // Already reduced in getPageHeight
                     var isFirstPage = true;
                     var activePage = null;
                     pagesContainer.innerHTML = '';
@@ -849,7 +1130,9 @@
                         ensurePage();
                         activePage.tbody.appendChild(clone);
 
-                        if (activePage.page.offsetHeight > (pageHeight - tolerance)) {
+                        // Use same check as quotations - check page height directly
+                        // The signature is already part of the page, so offsetHeight includes it
+                        if (activePage.page.offsetHeight > (usableHeight - tolerance)) {
                             activePage.tbody.removeChild(clone);
                             activePage = null;
                             ensurePage();
@@ -868,11 +1151,21 @@
 
                         ensurePage();
                         activePage.body.appendChild(remarkClone);
-                        if (activePage.page.offsetHeight > (pageHeight - tolerance)) {
-                            activePage.body.removeChild(remarkClone);
-                            activePage = null;
-                            ensurePage();
-                            activePage.body.appendChild(remarkClone);
+                        // Check if page overflows, accounting for signature footer
+                        // Use same approach as quotations - check page height with tolerance
+                        var currentPageHeight = activePage.page.offsetHeight;
+                        if (currentPageHeight > (usableHeight - tolerance)) {
+                            // Allow slight overflow to keep signature together (same as quotations)
+                            // This prevents signature from being pushed to a new page
+                            if (currentPageHeight <= (usableHeight + 30)) {
+                                // Allow slight overflow to keep everything on same page
+                                // This prevents creating an extra page with just signature
+                            } else {
+                                activePage.body.removeChild(remarkClone);
+                                activePage = null;
+                                ensurePage();
+                                activePage.body.appendChild(remarkClone);
+                            }
                         }
                     }
 
@@ -887,30 +1180,73 @@
                     });
 
                     renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
-                    renderedPages.forEach(function (page) {
-                        var tableArea = page.querySelector('.table-area');
-                        var footer = page.querySelector('.print-page-footer');
-                        var header = page.querySelector('.page-header');
-                        var headerHeight = header ? header.offsetHeight : 0;
-                        var start = tableArea ? tableArea.offsetTop : headerHeight;
-                        var end = footer ? footer.offsetTop : page.offsetHeight;
-                        page.style.setProperty('--vline-start', start + 'px');
-                        page.style.setProperty('--vline-end', Math.max(0, page.offsetHeight - end) + 'px');
-                    });
-
                     if (renderedPages.length > 0) {
-                        renderedPages.forEach(function (page) { page.classList.remove('print-page--last'); });
+                        var totalPages = renderedPages.length;
+                        renderedPages.forEach(function (page, index) {
+                            page.classList.remove('print-page--last');
+                            // Add page number attributes for display
+                            page.setAttribute('data-page-number', index + 1);
+                            page.setAttribute('data-total-pages', totalPages);
+                        });
                         renderedPages[renderedPages.length - 1].classList.add('print-page--last');
                     }
+                    
+                    // Update vertical lines after pagination completes
+                    // Force a layout recalculation by accessing offsetHeight to ensure accurate measurements
+                    if (renderedPages.length > 0) {
+                        renderedPages[0].offsetHeight; // Force layout recalculation
+                    }
+                    
+                    if (window.updateVerticalLines) {
+                        window.updateVerticalLines();
+                        // Also update after delays to ensure layout is fully settled
+                        setTimeout(window.updateVerticalLines, 100);
+                        setTimeout(window.updateVerticalLines, 200);
+                    }
 
+                    if (renderedPages.length > 0) {
+                        var totalPages = renderedPages.length;
+                        renderedPages.forEach(function (page, index) {
+                            // Add page number attributes for display
+                            page.setAttribute('data-page-number', index + 1);
+                            page.setAttribute('data-total-pages', totalPages);
+                        });
+                    }
+
+                    // Update vertical lines after pagination completes and pages are marked
+                    // Force a layout recalculation by accessing offsetHeight to ensure accurate measurements
+                    if (renderedPages.length > 0) {
+                        renderedPages[0].offsetHeight; // Force layout recalculation
+                    }
+                    
+                    if (window.updateVerticalLines) {
+                        window.updateVerticalLines();
+                        // Also update after delays to ensure layout is fully settled
+                        setTimeout(window.updateVerticalLines, 100);
+                        setTimeout(window.updateVerticalLines, 200);
+                    }
+
+                    // Make pages-container visible and hide print-source
                     pagesContainer.style.visibility = '';
                     pagesContainer.style.position = '';
                     pagesContainer.style.left = '';
                     pagesContainer.style.right = '';
                     pagesContainer.style.top = '';
+                    pagesContainer.style.display = 'flex'; // Ensure it's visible
                     pagesContainer.removeAttribute('data-measuring');
-                    pagesContainer.style.display = 'flex';
                     source.style.display = 'none';
+
+                    // Update page counter
+                    var pageCounter = document.getElementById('page-counter');
+                    if (pageCounter) {
+                        var pageCount = renderedPages.length;
+                        if (pageCount > 0) {
+                            pageCounter.textContent = 'Total Pages: ' + pageCount + (pageCount === 1 ? ' page' : ' pages');
+                            pageCounter.classList.add('show');
+                        } else {
+                            pageCounter.classList.remove('show');
+                        }
+                    }
                 } finally {
                     building = false;
                 }
@@ -940,20 +1276,73 @@
                 if (mq.addEventListener) {
                     mq.addEventListener('change', function (e) {
                         if (e.matches) {
+                            // Clear cache and force recalculation when entering print mode
+                            pageHeightCache = null;
                             paginateDeliveryOrder(true);
+                            // Recalculate vertical lines after print styles are applied
+                            // Use multiple timeouts to ensure layout is fully settled
+                            setTimeout(function() {
+                                if (window.updateVerticalLines) {
+                                    window.updateVerticalLines();
+                                }
+                            }, 100);
+                            setTimeout(function() {
+                                if (window.updateVerticalLines) {
+                                    window.updateVerticalLines();
+                                }
+                            }, 200);
                         }
                     });
                 } else if (mq.addListener) {
                     mq.addListener(function (e) {
                         if (e.matches) {
+                            // Clear cache and force recalculation when entering print mode
+                            pageHeightCache = null;
                             paginateDeliveryOrder(true);
+                            // Recalculate vertical lines after print styles are applied
+                            setTimeout(function() {
+                                if (window.updateVerticalLines) {
+                                    window.updateVerticalLines();
+                                }
+                            }, 100);
+                            setTimeout(function() {
+                                if (window.updateVerticalLines) {
+                                    window.updateVerticalLines();
+                                }
+                            }, 200);
                         }
                     });
                 }
             }
 
             window.addEventListener('beforeprint', function () {
-                paginateDeliveryOrder(true);
+                // Clear cache and force recalculation with print context
+                // Use a small delay to ensure print media query is active
+                pageHeightCache = null;
+                setTimeout(function() {
+                    paginateDeliveryOrder(true);
+                    // Recalculate vertical lines after print layout is applied
+                    // Need to wait for print styles to be fully applied and layout to settle
+                    setTimeout(function() {
+                        if (window.updateVerticalLines) {
+                            window.updateVerticalLines();
+                        }
+                    }, 100);
+                    setTimeout(function() {
+                        if (window.updateVerticalLines) {
+                            window.updateVerticalLines();
+                        }
+                    }, 200);
+                }, 10);
+            });
+            
+            // Also listen for afterprint to restore screen view
+            window.addEventListener('afterprint', function () {
+                // Recalculate for screen view after printing
+                pageHeightCache = null;
+                setTimeout(function() {
+                    paginateDeliveryOrder(true);
+                }, 10);
             });
         })();
     </script>

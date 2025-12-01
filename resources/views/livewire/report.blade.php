@@ -3,8 +3,14 @@
         <h2 class="text-2xl font-bold mb-4">Generate Inventory Report</h2>
         
         @if($errorMessage)
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                {{ $errorMessage }}
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+                <strong>Error:</strong> {{ $errorMessage }}
+            </div>
+        @endif
+        
+        @if (session()->has('error'))
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+                <strong>Error:</strong> {{ session('error') }}
             </div>
         @endif
 
@@ -33,6 +39,17 @@
                 </label>
             </div>
         </div>
+
+        <!--         <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">Show Grouping Headers (GROUP/BRAND/TYPE)</label>
+            <label class="inline-flex items-center">
+                <input type="checkbox" 
+                    wire:model="showGrouping" 
+                    class="rounded border-gray-300">
+                <span class="ml-2">Show GROUP/BRAND/TYPE headers in report</span>
+            </label>
+            <p class="text-xs text-gray-500 mt-1">Note: Grouping is automatically disabled for datasets with more than 3000 items to improve performance</p>
+        </div> -->
 
         <div class="mb-4">
             <label class="block text-sm font-medium mb-2">Select Columns</label>
@@ -68,5 +85,51 @@
                 <span>Generating...</span>
             </div>
         </button>
+
+        <script>
+            document.addEventListener('livewire:init', () => {
+                Livewire.on('download-pdf', (event) => {
+                    const content = event[0].content;
+                    const filename = event[0].filename;
+                    
+                    // Decode base64 content
+                    const binaryString = atob(content);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    
+                    // Create blob and download
+                    const blob = new Blob([bytes], { type: 'application/pdf' });
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                });
+                
+                Livewire.on('download-html', (event) => {
+                    const content = event[0].content;
+                    const filename = event[0].filename;
+                    
+                    // Decode base64 content
+                    const htmlString = atob(content);
+                    
+                    // Create blob and download
+                    const blob = new Blob([htmlString], { type: 'text/html' });
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                });
+            });
+        </script>
     </div>
 </div>

@@ -53,11 +53,14 @@
                 @can('Manage User')
                     <a href="{{route('users')}}" class="block px-2 py-1 hover:bg-gray-300">User</a>    
                 @endcan    
-                @can('Manage Brand')     
-                    <a href="{{route('brands')}}" class="block px-2 py-1 hover:bg-gray-300">Brand</a>
-                @endcan
                 @can('Manage Category')
                     <a href="{{route('categories')}}" class="block px-2 py-1 hover:bg-gray-300">Category</a>
+                @endcan
+                @can('Manage Family')
+                    <a href="#" class="block px-2 py-1 hover:bg-gray-300">Family</a>
+                @endcan
+                @can('Manage Group')
+                    <a href="#" class="block px-2 py-1 hover:bg-gray-300">Group</a>
                 @endcan
                 @can('Manage Customer')
                     <a href="{{route('customers')}}" class="block px-2 py-1 hover:bg-gray-300">Customer</a>

@@ -89,28 +89,38 @@ chmod -R 775 /var/www/html/storage/logs\n\
 \n\
 wait_for_connection() {\n\
   local CONNECTION=\"$1\"\n\
-  local MAX_TRIES=12\n\
+  local MAX_TRIES=3\n\
   local COUNT=0\n\
-  echo "Waiting for database connection: ${CONNECTION}"\n\
-  until php -r "try { require 'vendor/autoload.php'; $app=require 'bootstrap/app.php'; $kernel=$app->make(Illuminate\\Contracts\\Console\\Kernel::class); $kernel->bootstrap(); Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}')->getPdo(); echo 'ok'; } catch (Throwable $e) { exit(1); }" > /dev/null 2>&1; do\n\
-    COUNT=$((COUNT+1))\n\
-    if (( COUNT >= MAX_TRIES )); then\n\
-      echo "WARNING: ${CONNECTION} not ready after $MAX_TRIES attempts. Continuing startup..."\n\
-      break\n\
+  echo "Testing database connection: ${CONNECTION}"\n\
+  while [ $COUNT -lt $MAX_TRIES ]; do\n\
+    if php -r "try { require 'vendor/autoload.php'; $app=require 'bootstrap/app.php'; $kernel=$app->make(Illuminate\\Contracts\\Console\\Kernel::class); $kernel->bootstrap(); $db=Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}'); $db->getPdo(); echo 'ok'; exit(0); } catch (Throwable \$e) { echo \$e->getMessage(); exit(1); }" > /dev/null 2>&1; then\n\
+      echo "✓ ${CONNECTION} connection successful"\n\
+      return 0\n\
     fi\n\
-    echo "${CONNECTION} not ready. Retrying in 5 seconds... ($COUNT/$MAX_TRIES)"\n\
-    sleep 5\n\
+    COUNT=$((COUNT+1))\n\
+    if [ $COUNT -lt $MAX_TRIES ]; then\n\
+      echo "⚠ ${CONNECTION} connection failed. Retrying in 3 seconds... ($COUNT/$MAX_TRIES)"\n\
+      sleep 3\n\
+    fi\n\
   done\n\
-  if (( COUNT < MAX_TRIES )); then\n\
-    echo "${CONNECTION} connection successful"\n\
-  fi\n\
+  echo "WARNING: ${CONNECTION} connection failed after $MAX_TRIES attempts."\n\
+  echo "This might be due to:"\n\
+  echo "  - Aiven database IP whitelisting not configured for Render IPs"\n\
+  echo "  - Incorrect database credentials in environment variables"\n\
+  echo "  - Database server not accessible"\n\
+  echo "The application will continue, but database operations may fail."\n\
+  echo "Please check your environment variables in Render dashboard and Aiven settings."\n\
+  return 1\n\
 }\n\
 \n\
 # Ensure config is fresh\n\
 php artisan config:clear || true\n\
 \n\
-# Wait (with timeout) for UPS only to avoid blocking port\n\
-wait_for_connection ups\n\
+# Test database connections (non-blocking, continue even if they fail)\n\
+echo "Testing database connections..."\n\
+wait_for_connection ups || echo "Continuing despite UPS connection failure..."\n\
+wait_for_connection urs || echo "Continuing despite URS connection failure..."\n\
+wait_for_connection ucs || echo "Continuing despite UCS connection failure..."\n\
 \n\
 echo "Running migrations for UPS/URS/UCS..."\n\
 php artisan migrate --force --database=ups || true\n\

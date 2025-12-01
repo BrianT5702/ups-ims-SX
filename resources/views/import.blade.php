@@ -49,26 +49,24 @@
             <h3>Item Import Format:</h3>
             <p>Required columns (Excel column reference):</p>
             <ul>
-                <li>A: Category Name (uses "UNDEFINED" if not found)</li>
-                <li>B: Brand Name (uses "UNDEFINED" if not found)</li>
-                <li>C: Item Name</li>
+                <li>A: Stock Code (code1)</li>
+                <li>B: Description</li>
+                <li>F: Stock/Quantity (defaults to 0 if empty)</li>
             </ul>
-            <p>Other important columns:</p>
+            <p>Required classification columns:</p>
             <ul>
-                <li>D: Quantity (defaults to 0 if empty)</li>
-                <li>E: Cost (defaults to 0 if empty)</li>
-                <li>F: Cash Price (defaults to 0 if empty)</li>  
-                <li>G: Term Price (defaults to 0 if empty)</li>
-                <li>H: Customer Price (defaults to 0 if empty)</li>
-                <li>I: Stock Alert Level (defaults to 0 if empty)</li>
-                <li>J: Supplier Name (uses first supplier if not found)</li>
-                <li>K: Unit of Measure (defaults to "UNIT" if empty)</li>
-                <li>L: Item Code (auto-generated if empty)</li>
-                <li>M: Warehouse Name (uses first warehouse if not found)</li>
-                <li>N: Location Name (uses first location if not found)</li>
-                <!-- Image column no longer supported by importer -->
+                <li>C: Category (uses "UNDEFINED" if not found)</li>
+                <li>D: Family (uses "UNDEFINED" if not found)</li>
+                <li>E: Group (uses "UNDEFINED" if not found)</li>
             </ul>
-            <p><strong>Note:</strong> At minimum, the Item Name (column C) must be provided. Missing brands or categories will be set to "UNDEFINED".</p>
+            <p>Price columns (defaults to 0 if empty):</p>
+            <ul>
+                <li>G: Cost</li>
+                <li>H: Cash Price</li>
+                <li>I: Term Price</li>
+                <li>J: Customer Price</li>
+            </ul>
+            <p><strong>Note:</strong> Import starts from row 4. Header row is at row 3. Data starts from column A. At minimum, the Description (column B) must be provided. Missing category, family, or group will be set to "UNDEFINED". All price fields (Cost, Cash, Term, Customer) will be imported from the Excel file. Supplier, warehouse, and location will use default values.</p>
         </div>
         
         <div id="customer-format-info" style="display: none; margin-top: 10px; padding: 10px; background-color: #f0f0f0;">

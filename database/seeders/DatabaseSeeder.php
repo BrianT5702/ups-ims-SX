@@ -6,7 +6,8 @@ use App\Models\User;
 use App\Models\Customer;
 use App\Models\Supplier;
 use App\Models\Category;
-use App\Models\Brand;
+use App\Models\Family;
+use App\Models\Group;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -152,15 +153,30 @@ class DatabaseSeeder extends Seeder
             );
         }
         
-        // Inserting categories
+        // Inserting CATEGORIES (new structure from Excel)
         $categories = [
-            'ACCUMULATOR', 'ADAP-KOOL', 'BALL VALVE', 'BLOWER', 'CAPACITOR', 'CAPILLARY',
-            'CHECK VALVE', 'COMPRESSOR', 'CONDENG.UNIT', 'CONDENSER', 'COPPER ELBOW',
-            'COPPER PIPE', 'COPPER RED.', 'COPPER RED.T', 'COPPER TEE', 'COPPER TUBE', 'COUPLING',
-            'DOOR', 'EXP. VALVE', 'FILTER', 'FLARE NUT', 'FLOOR HEATER', 'GAS', 'GLOBE VALVE', 'GOMAX','HAND VALVE',
-            'HEATER', 'ICE FLAKER', 'ICE MACHINE', 'MOTOR', 'OIL', 'ORIFICE', 'PRESSURE CTR', 'RECEIVER',
-            'S/CURTAIN', 'S/VALVE', 'SAFETY VALVE', 'SCOTSMAN', 'SCROLL COMP', 'SEPARATOR',
-            'SIGHT GLASS', 'SOLENOID VAL', 'STRAINER', 'SUPERLON', 'TAIWAN GOODS', 'THERMOSTAT', 'UNION', 'VIBRATION', 'UNDEFINED'
+            '3 PHASE',
+            '45+',
+            '90+',
+            'ACCESSORIES',
+            'AIR-COND',
+            'AIR-COOL',
+            'CRANK HEATER',
+            'HAILIANG',
+            'HANDLE',
+            'HINGES',
+            'JINTIAN',
+            'MAXIELEBAR',
+            'OPEN TYPE',
+            'RARELY',
+            'ROTOLOK VAL',
+            'SCREW COMP.',
+            'SINGLE PHASE',
+            'SPARE PARTS',
+            'START EQUI',
+            'TWO STAGE',
+            'U-BEND',
+            'VARISPEED',
         ];
 
         foreach ($categories as $category) {
@@ -170,20 +186,158 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        // Inserting brands
-        $brands = [
-            'AC&R', 'AIRMENDER', 'CHINA', 'EMERSON', 'HENRY', 'O & F', 'DANFOSS',
-            'CASTEL', 'AIR-TECH', 'CONTARDO', 'CONTARDO - F', 'CONTARDO- CS', 'DOLUYO', 'GUENTNER', 'MULLER',
-            'BITZER', 'KULTHORN', 'MANEUROP', 'GUNTNER', 'CHH2', 'CH 1', 'COPELAND',
-            'KOREA', 'HUB', 'INTERTECNICA', 'ALCO', 'EMBRACO', 'CALORFLEX',
-            'FLEXELEC', 'GRANT ICE', 'ICE SNOW', 'EBM', 'ZIEHL-ABEGG', 'SAGINOMIYA',
-            'SCOTSMAN', 'INVOTECH', 'HELDON', 'DIXELL', 'PACKLESS', 'UNDEFINED'
+        // Inserting FAMILIES (new structure from Excel)
+        $families = [
+            'AC&R',
+            'AIRMENDER',
+            'ALCO',
+            'ASPERA',
+            'AUKS',
+            'BITWISE',
+            'BITZER',
+            'BRISTOL',
+            'CALORFLEX',
+            'CASTEL',
+            'CH 1',
+            'CHH2',
+            'CHIMIECO',
+            'CHINA',
+            'CONTARDO',
+            'CONTARDO - F',
+            'CONTARDO- CD',
+            'CONTARDO- CS',
+            'COPELAND',
+            'CUBIGEL',
+            'DANFOSS',
+            'DANMATIC',
+            'DENTED',
+            'DERVET',
+            'DIXELL',
+            'DOLUYO',
+            'DORIN',
+            'EBM',
+            'EMBRACO',
+            'EMERSON',
+            'EVERY CTRL',
+            'FERMOD',
+            'FLEXELEC',
+            'FRIGAIR',
+            'FUJIKOKI',
+            'GENIUS',
+            'GRANT ICE',
+            'GUENTNER',
+            'GUNTNER',
+            'HELDON',
+            'HENRY',
+            'HUB',
+            'ICE SNOW',
+            'INDIA',
+            'INTERTECNICA',
+            'INVOTECH',
+            'K-FLEX',
+            'KASON',
+            'KEMBLA',
+            'KOREA',
+            'KULTHORN',
+            'MANEUROP',
+            'MITSUBISHI',
+            'MOON',
+            'MTH',
+            'MULLER',
+            'NATIONAL',
+            'O & F',
+            'PACKLESS',
+            'PANASONIC',
+            'REFCO',
+            'REPRO SPAIN',
+            'SAGINOMIYA',
+            'SCHOTT',
+            'SCOTSMAN',
+            'SUPERLON',
+            'TECUMSEH-EU',
+            'TESCUMSEH',
+            'THAI AUSNOR',
+            'UNIFLOW',
+            'WXRD',
+            'ZIEHL-ABEGG',
         ];
 
-        foreach ($brands as $brand) {
-            DB::connection($connection)->table('brands')->updateOrInsert(
-                ['brand_name' => $brand],
-                ['brand_name' => $brand]
+        foreach ($families as $family) {
+            DB::connection($connection)->table('families')->updateOrInsert(
+                ['family_name' => $family],
+                ['family_name' => $family]
+            );
+        }
+
+        // Inserting GROUPS (new structure from Excel - previously in categories table)
+        $groups = [
+            'ACCUMULATOR',
+            'ADAP-KOOL',
+            'BALL VALVE',
+            'BLOWER',
+            'C.TOWER',
+            'CAPACITOR',
+            'CAPILLARY',
+            'CHECK VALVE',
+            'COMP-SCROLL',
+            'COMPRESSOR',
+            'CONDENG.UNIT',
+            'CONDENSER',
+            'COPPER ELBOW',
+            'COPPER GASKE',
+            'COPPER PIPE',
+            'COPPER RED.',
+            'COPPER RED.T',
+            'COPPER TEE',
+            'COPPER TUBE',
+            'COUPLING',
+            'DEHUMIDIFIER',
+            'DOOR',
+            'EXP. VALVE',
+            'FILTER',
+            'FLARE NUT',
+            'FLOOR HEATER',
+            'GAS',
+            'GLOBE VALVE',
+            'GOMAX',
+            'HAND VALVE',
+            'HEAT EXCHG',
+            'HEATER',
+            'ICE FLAKER',
+            'ICE MACHINE',
+            'INSULATION',
+            'LIGHTING',
+            'MANIFOLD',
+            'MOTOR',
+            'NPT',
+            'OIL',
+            'ORIFICE',
+            'PRESSURE CTR',
+            'RECEIVER',
+            'S/CURTAIN',
+            'S/VALVE',
+            'SAFETY VALVE',
+            'SCOTSMAN',
+            'SCROLL COMP',
+            'SEPARATOR',
+            'SHOWCASE',
+            'SIGHT GLASS',
+            'SOLENOID VAL',
+            'STRAINER',
+            'SUPERLON',
+            'TAIWAN GOODS',
+            'THERMOMETER',
+            'THERMOSTAT',
+            'UNION',
+            'VACUUM PUMP',
+            'VIBRATION',
+            'WATER CHILLE',
+        ];
+
+        foreach ($groups as $group) {
+            DB::connection($connection)->table('groups')->updateOrInsert(
+                ['group_name' => $group],
+                ['group_name' => $group]
             );
         }
 
@@ -237,8 +391,9 @@ class DatabaseSeeder extends Seeder
         // Define permissions
         $permissions = [
             'Manage User',
-            'Manage Brand',
             'Manage Category',
+            'Manage Family',
+            'Manage Group',
             'Manage Customer',
             'Manage Inventory',
             'Manage Location',

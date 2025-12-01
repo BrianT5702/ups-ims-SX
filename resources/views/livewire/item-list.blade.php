@@ -5,15 +5,15 @@
                 <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold fs-5 mb-0">
-                        @if($filteredBrand)
-                            {{ $filteredBrand->brand_name }} - Total Item(s): {{ $brandItemCount }}
+                        @if($filteredFamily)
+                            {{ $filteredFamily->family_name }} - Total Item(s): {{ $familyItemCount }}
                         @elseif($filteredLocation)
                         {{ $filteredLocation->warehouse->warehouse_name }} > {{ $filteredLocation->location_name }} - Total Item(s): {{ $locationItemCount }}
                         @else
                             Manage Inventory
                         @endif
                     </h5>
-                    @if($filteredBrand || $filteredLocation)
+                    @if($filteredFamily || $filteredLocation)
                     <a href="{{ url()->previous() }}" class="btn btn-primary btn-sm">Back</a>
                     @endif
                 </div>
@@ -57,18 +57,18 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-3 mb-3">
-                                    <label for="brandFilter" class="form-label">Brands</label>
+                                <div class="col-md-2 mb-3">
+                                    <label for="familyFilter" class="form-label">Families</label>
                                     <div class="dropdown">
-                                        <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="brandDropdown" data-bs-toggle="dropdown" aria-expanded="false" @if($filteredBrand) disabled @endif>
-                                            {{ count($selectedBrands) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedBrandNames()) : 'Select Brands' }}
+                                        <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="familyDropdown" data-bs-toggle="dropdown" aria-expanded="false" @if($filteredFamily) disabled @endif>
+                                            {{ count($selectedFamilies) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedFamilyNames()) : 'Select Families' }}
                                         </button>
-                                        <ul class="dropdown-menu" aria-labelledby="brandDropdown">
-                                            @foreach($brands as $brand)
+                                        <ul class="dropdown-menu" aria-labelledby="familyDropdown">
+                                            @foreach($families as $family)
                                                 <li>
-                                                    <a class="dropdown-item" href="#" wire:click.prevent="toggleBrand({{ $brand->id }})">
-                                                        {{ $brand->brand_name }}
-                                                        @if(in_array($brand->id, $selectedBrands)) 
+                                                    <a class="dropdown-item" href="#" wire:click.prevent="toggleFamily({{ $family->id }})">
+                                                        {{ $family->family_name }}
+                                                        @if(in_array($family->id, $selectedFamilies)) 
                                                             <span class="text-success">&#10003;</span>
                                                         @endif
                                                     </a>
@@ -78,7 +78,28 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-2 mb-3">
+                                    <label for="groupFilter" class="form-label">Groups</label>
+                                    <div class="dropdown">
+                                        <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="groupDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            {{ count($selectedGroups) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedGroupNames()) : 'Select Groups' }}
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="groupDropdown">
+                                            @foreach($groups as $group)
+                                                <li>
+                                                    <a class="dropdown-item" href="#" wire:click.prevent="toggleGroup({{ $group->id }})">
+                                                        {{ $group->group_name }}
+                                                        @if(in_array($group->id, $selectedGroups)) 
+                                                            <span class="text-success">&#10003;</span>
+                                                        @endif
+                                                    </a>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2 mb-3">
                                     <label for="supplierFilter" class="form-label">Suppliers</label>
                                     <div class="dropdown">
                                         <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="supplierDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -117,7 +138,7 @@
 
                         <!-- Item Table -->
                         <div class="table-responsive mt-3">
-                            <table class="table table-hover">
+                            <table class="table table-hover inventory-list">
                                 <thead>
                                     <tr align="center">
                                         <th>No</th>
@@ -137,15 +158,28 @@
                                         <tr align="center">
                                             <td>{{ $loop->iteration }}</td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->item_code }}</a></td>
-                                            <td>
-                                                <a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->item_name }}</a>
+                                            <td x-data="{ 
+                                                    showMemo: false,
+                                                    hoverTimeout: null
+                                                }" 
+                                                style="position: relative;"
+                                                @mouseenter="hoverTimeout = setTimeout(() => { showMemo = true }, 1000)"
+                                                @mouseleave="clearTimeout(hoverTimeout); showMemo = false">
+                                                <a wire:navigate href="{{ route('items.edit', $item->id) }}" 
+                                                   style="cursor: pointer;">{{ $item->item_name }}</a>
                                                 @if(!empty($item->memo))
-                                                    <span class="ms-1" title="{{ $item->memo }}">
-                                                        <i class="fa-solid fa-note-sticky text-warning"></i>
-                                                    </span>
+                                                    <div x-show="showMemo" 
+                                                         x-transition
+                                                         @mouseenter="clearTimeout(hoverTimeout); showMemo = true"
+                                                         @mouseleave="showMemo = false"
+                                                         style="position: absolute; background: #fff; border: 1px solid #ccc; padding: 6px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000; margin-top: 2px; width: auto; max-width: 200px; max-height: 150px; overflow-y: auto; font-size: 0.8em; white-space: pre-wrap; left: 0; top: 100%; word-wrap: break-word; text-align: left; line-height: 1.4;"
+                                                         @click.stop>
+                                                        <strong style="font-size: 0.85em; display: block; margin-bottom: 3px;">Memo:</strong>
+                                                        <div style="font-size: 0.8em; text-align: left; white-space: pre-wrap; word-wrap: break-word; line-height: 1.4;">{{ $item->memo }}</div>
+                                                    </div>
                                                 @endif
                                             </td>
-                                            <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->qty }}</a></td>
+                                            <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ ($activeDb === 'ups' || $activeDb === 'ucs') ? 0 : $item->qty }}</a></td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->cost }}</a></td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->cash_price }}</a></td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->term_price }}</a></td>
@@ -221,6 +255,69 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        
+        /* Fixed table layout for consistent column widths */
+        .table.inventory-list { 
+            table-layout: fixed;
+            width: 100%;
+        }
+        
+        /* Common styles for all cells */
+        .table.inventory-list th, 
+        .table.inventory-list td {
+            padding: 0.5rem;
+            vertical-align: middle;
+            word-wrap: break-word;
+            min-width: 0; /* Allows columns to shrink below content width */
+        }
+        
+        /* Header specific styles */
+        .table.inventory-list th {
+            font-size: 0.9em;
+            line-height: 1.4;
+            vertical-align: middle;
+            white-space: nowrap; /* Prevent wrapping - keep headers on one line */
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Column widths */
+        .table.inventory-list th:nth-child(1), 
+        .table.inventory-list td:nth-child(1) { width: 4%; } /* No */
+        
+        .table.inventory-list th:nth-child(2), 
+        .table.inventory-list td:nth-child(2) { width: 10%; } /* Item Code */
+        
+        .table.inventory-list th:nth-child(3), 
+        .table.inventory-list td:nth-child(3) { width: 25%; } /* Item Name - wider */
+        
+        .table.inventory-list th:nth-child(4), 
+        .table.inventory-list td:nth-child(4) { width: 7%; } /* Quantity */
+        
+        .table.inventory-list th:nth-child(5), 
+        .table.inventory-list td:nth-child(5) { width: 8%; } /* Cost */
+        
+        .table.inventory-list th:nth-child(6), 
+        .table.inventory-list td:nth-child(6) { width: 9%; } /* Cash Price */
+        
+        .table.inventory-list th:nth-child(7), 
+        .table.inventory-list td:nth-child(7) { width: 9%; } /* Term Price */
+        
+        .table.inventory-list th:nth-child(8), 
+        .table.inventory-list td:nth-child(8) { width: 10%; } /* Customer Price */
+        
+        .table.inventory-list th:nth-child(9), 
+        .table.inventory-list td:nth-child(9) { width: 12%; } /* Created/Updated At */
+        
+        .table.inventory-list th:nth-child(10), 
+        .table.inventory-list td:nth-child(10) { width: 5%; } /* Action - narrower, right-aligned */
+        
+        /* Action column alignment */
+        .table.inventory-list th:nth-child(10),
+        .table.inventory-list td:nth-child(10) {
+            text-align: right;
+            padding-right: 1rem;
         }
     </style>
 </div>

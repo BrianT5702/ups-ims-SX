@@ -28,7 +28,7 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group mb-2">
                                     <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
                                     <select wire:model.live="category" id="category" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
@@ -41,16 +41,29 @@
                                 </div>
                             </div>
                         
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group mb-2">
-                                    <label for="brand" class="form-label">Brand <span class="text-danger">*</span></label>
-                                    <select wire:model.live="brand" id="brand" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="" disabled>Select a brand</option>
-                                        @foreach($brands as $brand)
-                                            <option value="{{ $brand->id }}">{{ $brand->brand_name }}</option>
+                                    <label for="family" class="form-label">Family <span class="text-danger">*</span></label>
+                                    <select wire:model.live="family" id="family" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
+                                        <option value="" disabled>Select a family</option>
+                                        @foreach($families as $family)
+                                            <option value="{{ $family->id }}">{{ $family->family_name }}</option>
                                         @endforeach
                                     </select>
-                                    @error('brand') <span class="text-danger">{{ $message }}</span> @enderror
+                                    @error('family') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group mb-2">
+                                    <label for="group" class="form-label">Group <span class="text-danger">*</span></label>
+                                    <select wire:model.live="group" id="group" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
+                                        <option value="" disabled>Select a group</option>
+                                        @foreach($groups as $group)
+                                            <option value="{{ $group->id }}">{{ $group->group_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('group') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
@@ -173,10 +186,21 @@
                         </div>
                         </div>
 
-                        <div class="form-group mb-3">
-                            <label for="memo" class="form-label">Memo</label>
-                            <textarea id="memo" wire:model.live="memo" class="form-control form-control-sm rounded" rows="3" placeholder="Enter memo or special handling notes" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
-                            @error('memo') <span class="text-danger">{{ $message }}</span> @enderror
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="memo" class="form-label">Memo</label>
+                                    <textarea id="memo" wire:model.defer="memo" class="form-control form-control-sm rounded" rows="3" placeholder="Enter memo or special handling notes" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
+                                    @error('memo') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="details" class="form-label">Details</label>
+                                    <textarea id="details" wire:model.defer="details" class="form-control form-control-sm rounded" rows="3" placeholder="Enter item details (shown in DO, PO, Quotation)" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
+                                    @error('details') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
                         </div>
 
                         <div>

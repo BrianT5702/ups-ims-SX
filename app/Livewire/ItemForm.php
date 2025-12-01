@@ -6,7 +6,8 @@ use Livewire\Component;
 use Livewire\Attributes\Validate;
 use Livewire\WithPagination;
 use App\Models\Category;
-use App\Models\Brand;
+use App\Models\Family;
+use App\Models\Group;
 use App\Models\Item;
 use App\Rules\UniqueInCurrentDatabase;
 use Livewire\Attributes\Title;
@@ -38,8 +39,11 @@ class ItemForm extends Component
     #[Validate('required', message: 'Category is required')]
     public $category = '';
 
-    #[Validate('required', message: 'Brand is required')]
-    public $brand = '';
+    #[Validate('required', message: 'Family is required')]
+    public $family = '';
+
+    #[Validate('required', message: 'Group is required')]
+    public $group = '';
 
     #[Validate('required', message: 'Supplier is required')]
     public $supplier = '';
@@ -51,7 +55,8 @@ class ItemForm extends Component
     public $location = '';
 
     public $categories;
-    public $brands;
+    public $families;
+    public $groups;
     public $suppliers;
     public $warehouses;
     public $locations = [];
@@ -91,6 +96,9 @@ class ItemForm extends Component
 
     #[Validate('nullable|string|max:1000', message: 'Memo must be under 1000 characters')]
     public $memo = '';
+
+    #[Validate('nullable|string|max:5000', message: 'Details must be under 5000 characters')]
+    public $details = '';
 
     public $is_custom_um = false;
     public $activePageNumber = 1;
@@ -153,7 +161,8 @@ class ItemForm extends Component
     public function mount(Item $item)
     {
         $this->categories = Category::orderBy('cat_name')->get();
-        $this->brands = Brand::orderBy('brand_name')->get();
+        $this->families = Family::orderBy('family_name')->get();
+        $this->groups = Group::orderBy('group_name')->get();
         $this->warehouses = Warehouse::orderBy('warehouse_name')->get();
         $this->locations = Location::orderBy('location_name')->get();
         $this->suppliers = Supplier::orderBy('sup_name')->get();
@@ -172,7 +181,8 @@ class ItemForm extends Component
             $this->stock_alert_level = $item->stock_alert_level;
             $this->supplier = $item->sup_id;
             $this->category = $item->cat_id;
-            $this->brand = $item->brand_id;
+            $this->family = $item->family_id;
+            $this->group = $item->group_id;
             $this->warehouse = $item->warehouse_id;
             $this->location = $item->location_id;
             $this->existing_image = $item->image;
@@ -180,6 +190,7 @@ class ItemForm extends Component
             $this->setUmValue($item->um);
 
             $this->memo = $item->memo;
+            $this->details = $item->details;
 
             if ($this->warehouse) {
                 $this->loadLocations(); 
@@ -506,10 +517,12 @@ class ItemForm extends Component
                 'sup_id' => $this->supplier,
                 'um' => $unit_measurement,
                 'cat_id' => $this->category,
-                'brand_id' => $this->brand,
+                'family_id' => $this->family,
+                'group_id' => $this->group,
                 'warehouse_id' => $this->warehouse,
                 'location_id' => $this->location,
                 'memo' => $this->memo,
+                'details' => $this->details,
             ];
     
             if ($this->image) {

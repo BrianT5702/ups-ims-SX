@@ -192,7 +192,9 @@
                                             <td>{{ $index + 1 }}</td>
                                             <td>{{ $item['item']['item_code'] }}</td>
                                             <td x-data="{ 
-                                                    showDescription: {{ !empty($stackedItems[$index]['more_description']) ? 'true' : 'false' }}
+                                                    showDescription: {{ !empty($stackedItems[$index]['more_description']) ? 'true' : 'false' }},
+                                                    showMemo: false,
+                                                    hoverTimeout: null
                                                 }" 
                                                 x-init="
                                                     $watch('showDescription', value => {
@@ -201,9 +203,22 @@
                                                         }
                                                     })
                                                 ">
-                                                <div class="d-flex gap-2" style="align-items: flex-start;">
-                                                    <div style="flex: 1;">
+                                                <div class="d-flex gap-2" style="align-items: flex-start; position: relative;">
+                                                    <div style="flex: 1; cursor: pointer; position: relative;" 
+                                                         @mouseenter="hoverTimeout = setTimeout(() => { showMemo = true }, 1000)"
+                                                         @mouseleave="clearTimeout(hoverTimeout); showMemo = false">
                                                         {{ $stackedItems[$index]['custom_item_name'] ?? $item['item']['item_name'] }}
+                                                        @if(!empty($item['item']['memo']))
+                                                            <div x-show="showMemo" 
+                                                                 x-transition
+                                                                 @mouseenter="clearTimeout(hoverTimeout); showMemo = true"
+                                                                 @mouseleave="showMemo = false"
+                                                                 style="position: absolute; background: #fff; border: 1px solid #ccc; padding: 6px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000; margin-top: 2px; width: auto; max-width: 200px; max-height: 150px; overflow-y: auto; font-size: 0.8em; white-space: pre-wrap; left: 0; top: 100%; word-wrap: break-word; text-align: left; line-height: 1.4;"
+                                                                 @click.stop>
+                                                                <strong style="font-size: 0.85em; display: block; margin-bottom: 3px;">Memo:</strong>
+                                                                <div style="font-size: 0.8em; text-align: left; white-space: pre-wrap; word-wrap: break-word; line-height: 1.4;">{{ $item['item']['memo'] }}</div>
+                                                            </div>
+                                                        @endif
                                                     </div>
                                                     @if(!$isView && (!$purchaseOrder || $purchaseOrder->status !== 'Completed'))
                                                         <button type="button" 
@@ -221,6 +236,15 @@
                                                         </button>
                                                     @endif
                                                 </div>
+                                                @if(!empty($item['item']['details']))
+                                                    <div class="mt-1 ms-3 text-muted" style="font-size: 0.85em;">
+                                                        @foreach(explode("\n", $item['item']['details']) as $line)
+                                                            @if(trim($line) !== '')
+                                                                <div>• {{ $line }}</div>
+                                                            @endif
+                                                        @endforeach
+                                                    </div>
+                                                @endif
                                                 @if($isView && !empty($stackedItems[$index]['more_description']))
                                                     <div class="mt-1 ms-3 text-muted" style="font-size: 0.85em;">
                                                         @foreach(explode("\n", $stackedItems[$index]['more_description']) as $line)

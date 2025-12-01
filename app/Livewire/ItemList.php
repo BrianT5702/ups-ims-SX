@@ -5,13 +5,15 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Item;
 use App\Models\Category;
-use App\Models\Brand;
+use App\Models\Family;
+use App\Models\Group;
 use App\Models\Supplier;
 use App\Models\Location;
 use Livewire\WithPagination;
 use Livewire\Attributes\Title;
 use App\Models\RestockList;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 #[Title('UR | Stock List')]
 class ItemList extends Component
@@ -19,28 +21,29 @@ class ItemList extends Component
     use WithPagination;
 
     public $itemSearchTerm = null;
-    public $filterBrandId = null;
+    public $filterFamilyId = null;
     public $filterLocationId = null;
 
     public $filterDeadStock = false;
 
     public $selectedCategories = [];
-    public $selectedBrands = [];
+    public $selectedFamilies = [];
+    public $selectedGroups = [];
     public $selectedSuppliers = [];
 
     public $selectedImage = null;
 
-    public function mount($brandId = null, $locationId = null)
+    public function mount($familyId = null, $locationId = null)
     {
-        if ($brandId) {
-            $this->filterBrandId = $brandId;
-            $this->selectedBrands = [$brandId];
+        if ($familyId) {
+            $this->filterFamilyId = $familyId;
+            $this->selectedFamilies = [$familyId];
         }
         
         if ($locationId) {
             $this->filterLocationId = $locationId;
-            $this->filterBrandId = null;
-            $this->selectedBrands = [];
+            $this->filterFamilyId = null;
+            $this->selectedFamilies = [];
         }
     }
 
@@ -85,8 +88,11 @@ class ItemList extends Component
             ->when($this->selectedCategories, function ($query) {
                 $query->whereIn('cat_id', $this->selectedCategories);
             })
-            ->when($this->selectedBrands, function ($query) {
-                $query->whereIn('brand_id', $this->selectedBrands);
+            ->when($this->selectedFamilies, function ($query) {
+                $query->whereIn('family_id', $this->selectedFamilies);
+            })
+            ->when($this->selectedGroups, function ($query) {
+                $query->whereIn('group_id', $this->selectedGroups);
             })
             ->when($this->selectedSuppliers, function ($query) {
                 $query->whereIn('sup_id', $this->selectedSuppliers);
@@ -95,7 +101,7 @@ class ItemList extends Component
                 $query->where('location_id', $this->filterLocationId);
             })
             ->when($this->filterDeadStock, function ($query) {
-                $query->where('updated_at', '<', now()->subYear());
+                $query->where('qty', 0);
             });;
 
         return $query->paginate(50);
@@ -106,9 +112,14 @@ class ItemList extends Component
         return Category::whereIn('id', $this->selectedCategories)->pluck('cat_name')->toArray();
     }
 
-    public function getSelectedBrandNames()
+    public function getSelectedFamilyNames()
     {
-        return Brand::whereIn('id', $this->selectedBrands)->pluck('brand_name')->toArray();
+        return Family::whereIn('id', $this->selectedFamilies)->pluck('family_name')->toArray();
+    }
+
+    public function getSelectedGroupNames()
+    {
+        return Group::whereIn('id', $this->selectedGroups)->pluck('group_name')->toArray();
     }
 
     public function getSelectedSupplierNames()
@@ -126,12 +137,21 @@ class ItemList extends Component
         }
     }
 
-    public function toggleBrand($brandId)
+    public function toggleFamily($familyId)
     {
-        if (in_array($brandId, $this->selectedBrands)) {
-            $this->selectedBrands = array_diff($this->selectedBrands, [$brandId]);
+        if (in_array($familyId, $this->selectedFamilies)) {
+            $this->selectedFamilies = array_diff($this->selectedFamilies, [$familyId]);
         } else {
-            $this->selectedBrands[] = $brandId;
+            $this->selectedFamilies[] = $familyId;
+        }
+    }
+
+    public function toggleGroup($groupId)
+    {
+        if (in_array($groupId, $this->selectedGroups)) {
+            $this->selectedGroups = array_diff($this->selectedGroups, [$groupId]);
+        } else {
+            $this->selectedGroups[] = $groupId;
         }
     }
 
@@ -155,13 +175,13 @@ class ItemList extends Component
     {
         if ($this->filterLocationId) {
          
-            $this->reset(['selectedCategories', 'selectedBrands', 'selectedSuppliers', 'filterBrandId', 'filterDeadStock']);
-        } elseif ($this->filterBrandId) {
+            $this->reset(['selectedCategories', 'selectedFamilies', 'selectedGroups', 'selectedSuppliers', 'filterFamilyId', 'filterDeadStock']);
+        } elseif ($this->filterFamilyId) {
           
-            $this->reset(['selectedCategories', 'selectedSuppliers', 'filterLocationId', 'filterDeadStock']);
+            $this->reset(['selectedCategories', 'selectedGroups', 'selectedSuppliers', 'filterLocationId', 'filterDeadStock']);
         } else {
            
-            $this->reset(['selectedCategories', 'selectedBrands', 'selectedSuppliers', 'filterLocationId', 'filterBrandId', 'filterDeadStock']);
+            $this->reset(['selectedCategories', 'selectedFamilies', 'selectedGroups', 'selectedSuppliers', 'filterLocationId', 'filterFamilyId', 'filterDeadStock']);
         }
     }
 
@@ -171,26 +191,32 @@ class ItemList extends Component
 
         // Fetch all necessary data for dropdowns
         $categories = Category::orderBy('cat_name')->get();
-        $brands = Brand::orderBy('brand_name')->get();
+        $families = Family::orderBy('family_name')->get();
+        $groups = Group::orderBy('group_name')->get();
         $suppliers = Supplier::orderBy('sup_name')->get();
         $locations = Location::orderBy('location_name')->get();
 
-        $filteredBrand = $this->filterBrandId ? Brand::findOrFail($this->filterBrandId) : null;
+        $filteredFamily = $this->filterFamilyId ? Family::findOrFail($this->filterFamilyId) : null;
         $filteredLocation = $this->filterLocationId ? Location::findOrFail($this->filterLocationId) : null;
 
-        $brandItemCount = $this->filterBrandId ? Item::where('brand_id', $this->filterBrandId)->count() : null;
+        $familyItemCount = $this->filterFamilyId ? Item::where('family_id', $this->filterFamilyId)->count() : null;
         $locationItemCount = $this->filterLocationId ? Item::where('location_id', $this->filterLocationId)->count() : null;
+
+        // Get current database connection
+        $activeDb = session('active_db', DB::getDefaultConnection());
 
         return view('livewire.item-list', [
             'items' => $items,
             'categories' => $categories,
-            'brands' => $brands,
+            'families' => $families,
+            'groups' => $groups,
             'suppliers' => $suppliers,
             'locations' => $locations,
-            'filteredBrand' => $filteredBrand,
+            'filteredFamily' => $filteredFamily,
             'filteredLocation' => $filteredLocation,
-            'brandItemCount' => $brandItemCount,
+            'familyItemCount' => $familyItemCount,
             'locationItemCount' => $locationItemCount,
+            'activeDb' => $activeDb,
         ])->layout('layouts.app');
     }
 

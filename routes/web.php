@@ -188,9 +188,9 @@ Route::middleware(['auth', 'preventBackHistory', 'switchdb'])->group(function ()
     Route::get('/purchase-order/{supplierId?}', POList::class)->middleware('permission:Manage PO')
     ->name('purchase-order');
 
-    //Route to fetch specific brand's item
-    Route::get('/items/{brandId?}', ItemList::class)->middleware('permission:Manage Inventory')
-    ->name('items.by-brand');
+    //Route to fetch specific family's item
+    Route::get('/items/family/{familyId?}', ItemList::class)->middleware('permission:Manage Inventory')
+    ->name('items.by-family');
 
     //Route to fetch specific bcategory's brand
     Route::get('/categories/{categoryId?}', BrandList::class)->middleware('permission:Manage Category')

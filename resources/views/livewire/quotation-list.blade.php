@@ -53,7 +53,7 @@
                             <style>
                                 .table.quotation-list { table-layout: fixed; }
                                 .table.quotation-list th:nth-child(1), .table.quotation-list td:nth-child(1) { width: 100px; white-space: nowrap; } /* Date */
-                                .table.quotation-list th:nth-child(2), .table.quotation-list td:nth-child(2) { width: 120px; white-space: nowrap; } /* Quotation Number */
+                                .table.quotation-list th:nth-child(2), .table.quotation-list td:nth-child(2) { width: 160px; white-space: nowrap; } /* Quotation Number */
                                 .table.quotation-list th:nth-child(3), .table.quotation-list td:nth-child(3) { width: 20%; } /* Customer Name - smaller */
                                 .table.quotation-list th:nth-child(4), .table.quotation-list td:nth-child(4) { width: 100px; white-space: nowrap; } /* Amount */
                                 .table.quotation-list th:nth-child(5), .table.quotation-list td:nth-child(5) { width: 120px; white-space: nowrap; } /* Salesman */
@@ -61,7 +61,7 @@
                                 .table.quotation-list th:nth-child(7), .table.quotation-list td:nth-child(7) { width: 120px; white-space: nowrap; } /* Created by */
                                 .table.quotation-list th:nth-child(8), .table.quotation-list td:nth-child(8) { width: 80px; text-align: center; } /* Printed */
                                 
-                                .table.quotation-list td { overflow: hidden; text-overflow: ellipsis; }
+                                .table.quotation-list th, .table.quotation-list td { overflow: hidden; text-overflow: ellipsis; }
 
                                 /* Print status colors */
                                 .print-status {

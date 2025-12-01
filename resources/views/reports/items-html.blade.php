@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <title>Stock Listing</title>
     <style>
+        @media print {
+            @page { margin: 15mm; }
+        }
         body { font-family: Arial; font-size: 8px; margin: 8px; }
         .header { margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 3px; }
         table { width: 100%; border-collapse: collapse; }
@@ -12,9 +15,23 @@
         .gh { background-color: #e0e0e0; font-weight: bold; }
         .n { text-align: right; }
         .q { text-align: center; }
+        .no-print { display: none; }
+        @media screen {
+            .no-print { display: block; margin: 20px; padding: 10px; background: #f0f0f0; border: 1px solid #ccc; }
+        }
     </style>
 </head>
 <body>
+    <div class="no-print">
+        <h2>Stock Listing Report</h2>
+        <p>This is an HTML version of your report. You can:</p>
+        <ul>
+            <li>Print this page to PDF using your browser's print function (Ctrl+P or Cmd+P)</li>
+            <li>Save this page as HTML for offline viewing</li>
+        </ul>
+        <p><strong>Note:</strong> For datasets with more than 3000 items, HTML format is used instead of PDF to ensure reliable generation.</p>
+    </div>
+
     <div style="margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 3px;">
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
             <tr>
@@ -156,3 +173,7 @@
     </table>
 </body>
 </html>
+
+
+
+

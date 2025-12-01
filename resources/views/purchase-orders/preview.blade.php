@@ -637,6 +637,15 @@
                         <td>{{ $index + 1 }}</td>
                         <td>
                             {{ $item->custom_item_name ?? ($item->item->item_name ?? 'N/A') }}
+                            @if(!empty($item->item->details))
+                                <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
+                                    @foreach(explode("\n", $item->item->details) as $line)
+                                        @if(trim($line) !== '')
+                                            <div>• {{ $line }}</div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @endif
                             @if(!empty($item->more_description))
                                 <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
                                     @foreach(explode("\n", $item->more_description) as $line)
