@@ -12,53 +12,53 @@ services:
         # Make sure you have set this key in your Render dashboard!
         sync: false
       - key: APP_URL
-        value: https://ups-ims.onrender.com
+        value: https://ups-ims-79pt.onrender.com
       - key: DB_CONNECTION
-        value: mysql
+        value: ups
       - key: DB_HOST
-        value: ups-inv-ups.e.aivencloud.com
+        value: ups-db-ups-ims01.g.aivencloud.com
       - key: DB_PORT
-        value: 18696
+        value: 12889
       - key: DB_DATABASE
         value: defaultdb
       - key: DB_USERNAME
         value: avnadmin
       - key: DB_PASSWORD
-        value: AVNS_WsfAJsK31b0gO8Q7cpQ
+        value: AVNS_T8V6DdURh_f6z6-mx-B
         sync: false
       # Tenant DB connections for switcher
       - key: UPS_DB_HOST
-        value: ups-inv-ups.e.aivencloud.com
+        value: ups-db-ups-ims01.g.aivencloud.com
       - key: UPS_DB_PORT
-        value: 18696
+        value: 12889
       - key: UPS_DB_DATABASE
         value: defaultdb
       - key: UPS_DB_USERNAME
         value: avnadmin
       - key: UPS_DB_PASSWORD
-        value: AVNS_WsfAJsK31b0gO8Q7cpQ
+        value: AVNS_T8V6DdURh_f6z6-mx-B
         sync: false
 
       - key: URS_DB_HOST
-        value: urs-urs.k.aivencloud.com
+        value: urs-db-ums-ips01.g.aivencloud.com
       - key: URS_DB_PORT
-        value: 25011
+        value: 18029
       - key: URS_DB_DATABASE
         value: defaultdb
       - key: URS_DB_USERNAME
         value: avnadmin
       - key: URS_DB_PASSWORD
-        value: AVNS_Yf6c_j4aWZ6jRwLNoyU
+        value: AVNS_EA_GCV8CyXhNFg5TCyu
         sync: false
 
       - key: UCS_DB_HOST
-        value: ucs-ucs.k.aivencloud.com
+        value: ucs-db-ups-ips02.g.aivencloud.com
       - key: UCS_DB_PORT
-        value: 16680
+        value: 12074
       - key: UCS_DB_DATABASE
         value: defaultdb
       - key: UCS_DB_USERNAME
         value: avnadmin
       - key: UCS_DB_PASSWORD
-        value: AVNS_KAsxBDBWxhiK2FawHHp
+        value: AVNS_zuziQX_PCnMJTGx1M-X
         sync: false
