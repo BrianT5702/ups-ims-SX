@@ -60,5 +60,5 @@ services:
       - key: UCS_DB_USERNAME
         value: avnadmin
       - key: UCS_DB_PASSWORD
-        value: AVNS_zuziQX_PCnMJTGx1M-X
+        value: AVNS_zuziQX_PCnMJTGxlM-X
         sync: false
