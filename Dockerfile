@@ -93,11 +93,11 @@ wait_for_connection() {\n\
   local MAX_TRIES=12\n\
   local COUNT=0\n\
   echo "Waiting for database connection: ${CONNECTION}"\n\
-  until (cd /var/www/html && php -r "try { require '/var/www/html/vendor/autoload.php'; \$app=require '/var/www/html/bootstrap/app.php'; \$kernel=\$app->make(Illuminate\\Contracts\\Console\\Kernel::class); \$kernel->bootstrap(); Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}')->getPdo(); echo 'ok'; } catch (Throwable \$e) { echo \$e->getMessage(); exit(1); }") > /dev/null 2>&1; do\n\
+  until php -r "try { require 'vendor/autoload.php'; \$app=require 'bootstrap/app.php'; \$kernel=\$app->make(Illuminate\\Contracts\\Console\\Kernel::class); \$kernel->bootstrap(); Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}')->getPdo(); echo 'ok'; } catch (Throwable \$e) { echo \$e->getMessage(); exit(1); }" > /dev/null 2>&1; do\n\
     COUNT=$((COUNT+1))\n\
     if (( COUNT >= MAX_TRIES )); then\n\
       echo "WARNING: ${CONNECTION} not ready after $MAX_TRIES attempts. Continuing startup..."\n\
-      ERROR_MSG=$(cd /var/www/html && php -r "try { require '/var/www/html/vendor/autoload.php'; \$app=require '/var/www/html/bootstrap/app.php'; \$kernel=\$app->make(Illuminate\\Contracts\\Console\\Kernel::class); \$kernel->bootstrap(); Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}')->getPdo(); } catch (Throwable \$e) { echo \$e->getMessage(); }" 2>&1)\n\
+      ERROR_MSG=$(php -r "try { require 'vendor/autoload.php'; \$app=require 'bootstrap/app.php'; \$kernel=\$app->make(Illuminate\\Contracts\\Console\\Kernel::class); \$kernel->bootstrap(); Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}')->getPdo(); } catch (Throwable \$e) { echo \$e->getMessage(); }" 2>&1)\n\
       echo "Last error: ${ERROR_MSG}"\n\
       break\n\
     fi\n\
