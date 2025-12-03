@@ -67,7 +67,13 @@
                 @endcan
                 @can('Manage Supplier')
                     <a href="{{route('suppliers')}}" class="block px-2 py-1 hover:bg-gray-300">Supplier</a> 
-                @endcan   
+                @endcan
+                @can('Manage Inventory')
+                    <a href="{{route('show-import-form')}}" class="block px-2 py-1 hover:bg-gray-300">Import Excel</a>
+                @endcan
+                @can('Manage Inventory')
+                    <a href="{{route('show-delete-form')}}" class="block px-2 py-1 hover:bg-gray-300 text-red-600">Delete Records</a>
+                @endcan
                      
             </div>
         </div>

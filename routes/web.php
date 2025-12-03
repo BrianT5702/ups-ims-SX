@@ -249,6 +249,10 @@ Route::middleware(['auth', 'preventBackHistory', 'switchdb'])->group(function ()
     //Excel Import
     Route::get('/import-excel', [UserController::class, 'showImportForm'])->name('show-import-form');
     Route::post('/import-excel', [UserController::class, 'importExcel'])->name('import-excel');
+    
+    //Delete Records
+    Route::get('/delete-records', [UserController::class, 'showDeleteForm'])->name('show-delete-form');
+    Route::post('/delete-records', [UserController::class, 'deleteRecords'])->name('delete-records');
 
     
 });

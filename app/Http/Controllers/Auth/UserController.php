@@ -16,6 +16,9 @@ use Illuminate\Validation\ValidationException;
 use App\Imports\ItemImport;
 use App\Imports\CustomerImport;
 use App\Imports\SupplierImport;
+use App\Models\Supplier;
+use App\Models\Customer;
+use App\Models\Item;
 use Excel;
 
 class UserController extends Controller
@@ -175,6 +178,59 @@ class UserController extends Controller
             return back()->with('success', $message);
         } catch (\Exception $e) {
             return back()->with('error', 'Error importing file: ' . $e->getMessage());
+        }
+    }
+
+    public function showDeleteForm()
+    {
+        return view('delete');
+    }
+
+    public function deleteRecords(Request $request)
+    {
+        $request->validate([
+            'delete_type' => 'required|in:items,customers,suppliers',
+            'db_connection' => 'required|in:ups,urs,ucs',
+        ]);
+
+        try {
+            // Set selected DB for this delete operation
+            session(['active_db' => $request->db_connection]);
+            config(['database.default' => $request->db_connection]);
+            \DB::setDefaultConnection($request->db_connection);
+            \DB::purge($request->db_connection);
+            \DB::reconnect($request->db_connection);
+
+            $deletedCount = 0;
+            $message = '';
+
+            if ($request->delete_type === 'items') {
+                $deletedCount = Item::on($request->db_connection)->count();
+                Item::on($request->db_connection)->delete();
+                $message = "Successfully deleted {$deletedCount} item(s) from {$request->db_connection} database.";
+            } 
+            elseif($request->delete_type === 'suppliers'){
+                $deletedCount = Supplier::on($request->db_connection)->count();
+                // Delete suppliers that don't have associated items or purchase orders
+                $suppliers = Supplier::on($request->db_connection)->get();
+                $deletedCount = 0;
+                foreach ($suppliers as $supplier) {
+                    if (!$supplier->items()->exists() && !$supplier->purchaseOrders()->exists()) {
+                        $supplier->delete();
+                        $deletedCount++;
+                    }
+                }
+                $message = "Successfully deleted {$deletedCount} supplier(s) from {$request->db_connection} database. Some suppliers could not be deleted because they have associated items or purchase orders.";
+            }
+            else {
+                $deletedCount = Customer::on($request->db_connection)->count();
+                Customer::on($request->db_connection)->delete();
+                $message = "Successfully deleted {$deletedCount} customer(s) from {$request->db_connection} database.";
+            }
+            
+            return back()->with('success', $message);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error deleting records: ' . $e->getMessage());
         }
     }
 
