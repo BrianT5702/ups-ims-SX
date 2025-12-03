@@ -78,6 +78,7 @@ RUN ln -sf /var/www/html/storage/app/public /var/www/html/public/storage
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
+cd /var/www/html\n\
 echo "Checking Laravel status..."\n\
 php artisan --version\n\
 \n\
@@ -93,7 +94,7 @@ wait_for_connection() {\n\
   local COUNT=0\n\
   echo "Testing database connection: ${CONNECTION}"\n\
   while [ $COUNT -lt $MAX_TRIES ]; do\n\
-    ERROR_OUTPUT=$(php -r "try { require 'vendor/autoload.php'; \$app=require 'bootstrap/app.php'; \$kernel=\$app->make(Illuminate\\Contracts\\Console\\Kernel::class); \$kernel->bootstrap(); \$db=Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}'); \$pdo=\$db->getPdo(); exit(0); } catch (Throwable \$e) { echo \$e->getMessage(); exit(1); }" 2>&1)\n\
+    ERROR_OUTPUT=$(cd /var/www/html && php -r "try { require \\\"vendor/autoload.php\\\"; \\\$app=require \\\"bootstrap/app.php\\\"; \\\$kernel=\\\$app->make(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class); \\\$kernel->bootstrap(); \\\$db=Illuminate\\\\Support\\\\Facades\\\\DB::connection(\\\"${CONNECTION}\\\"); \\\$pdo=\\\$db->getPdo(); exit(0); } catch (Throwable \\\$e) { echo \\\$e->getMessage(); exit(1); }" 2>&1)\n\
     EXIT_CODE=$?\n\
     if [ $EXIT_CODE -eq 0 ]; then\n\
       echo "✓ ${CONNECTION} connection successful"\n\
