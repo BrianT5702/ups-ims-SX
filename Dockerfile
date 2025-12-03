@@ -92,14 +92,21 @@ wait_for_connection() {\n\
   local MAX_TRIES=3\n\
   local COUNT=0\n\
   echo "Testing database connection: ${CONNECTION}"\n\
+  echo "  Host: $(php -r \"require 'vendor/autoload.php'; \\$app=require 'bootstrap/app.php'; \\$kernel=\\$app->make(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class); \\$kernel->bootstrap(); echo config('database.connections.${CONNECTION}.host');\" 2>/dev/null || echo 'N/A')\n\
+  echo "  Port: $(php -r \"require 'vendor/autoload.php'; \\$app=require 'bootstrap/app.php'; \\$kernel=\\$app->make(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class); \\$kernel->bootstrap(); echo config('database.connections.${CONNECTION}.port');\" 2>/dev/null || echo 'N/A')\n\
+  echo "  Database: $(php -r \"require 'vendor/autoload.php'; \\$app=require 'bootstrap/app.php'; \\$kernel=\\$app->make(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class); \\$kernel->bootstrap(); echo config('database.connections.${CONNECTION}.database');\" 2>/dev/null || echo 'N/A')\n\
+  echo "  Username: $(php -r \"require 'vendor/autoload.php'; \\$app=require 'bootstrap/app.php'; \\$kernel=\\$app->make(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class); \\$kernel->bootstrap(); echo config('database.connections.${CONNECTION}.username');\" 2>/dev/null || echo 'N/A')\n\
   while [ $COUNT -lt $MAX_TRIES ]; do\n\
-    if php -r "try { require 'vendor/autoload.php'; $app=require 'bootstrap/app.php'; $kernel=$app->make(Illuminate\\Contracts\\Console\\Kernel::class); $kernel->bootstrap(); $db=Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}'); $db->getPdo(); echo 'ok'; exit(0); } catch (Throwable \$e) { echo \$e->getMessage(); exit(1); }" > /dev/null 2>&1; then\n\
+    ERROR_OUTPUT=$(php -r "try { require 'vendor/autoload.php'; $app=require 'bootstrap/app.php'; $kernel=$app->make(Illuminate\\Contracts\\Console\\Kernel::class); $kernel->bootstrap(); $db=Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}'); $db->getPdo(); echo 'ok'; exit(0); } catch (Throwable \$e) { echo \$e->getMessage(); exit(1); }" 2>&1)\n\
+    if [ $? -eq 0 ]; then\n\
       echo "✓ ${CONNECTION} connection successful"\n\
       return 0\n\
+    else\n\
+      echo "⚠ ${CONNECTION} connection failed: ${ERROR_OUTPUT}"\n\
     fi\n\
     COUNT=$((COUNT+1))\n\
     if [ $COUNT -lt $MAX_TRIES ]; then\n\
-      echo "⚠ ${CONNECTION} connection failed. Retrying in 3 seconds... ($COUNT/$MAX_TRIES)"\n\
+      echo "  Retrying in 3 seconds... ($COUNT/$MAX_TRIES)"\n\
       sleep 3\n\
     fi\n\
   done\n\
