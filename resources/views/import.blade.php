@@ -106,11 +106,11 @@
             </ul>
             <p>Optional columns:</p>
             <ul>
-                <li>F: Business Registration No</li>
-                <li>G: GST Registration No</li>
-                <li>I: Tel & Fax (can be separated by "/" or "|" or ",")</li>
+                <li>G: Business Registration No</li>
+                <li>H: GST Registration No</li>
+                <li>J: Tel & Fax (can be separated by "/" or "|" or ",")</li>
             </ul>
-            <p><strong>Note:</strong> Import starts from row 9. Data starts from column B. If Tel & Fax (Column I) contains both values, separate them with "/" or "|".</p>
+            <p><strong>Note:</strong> Import starts from row 9. Data starts from column B. If Tel & Fax (Column J) contains both values, separate them with "/", "|", or ",". If no separator is found, the value will be treated as phone number only.</p>
         </div>
         
         <div style="margin-top: 15px;">

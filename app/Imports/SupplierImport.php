@@ -40,11 +40,11 @@ class SupplierImport implements ToModel, WithStartRow
             $supplier->address_line2 = null;
             $supplier->address_line3 = null;
             $supplier->address_line4 = null;
-            $supplier->business_registration_no = $row[5] ?? null;  // Column F
-            $supplier->gst_registration_no = $row[6] ?? null;  // Column G
+            $supplier->business_registration_no = $row[6] ?? null;  // Column G
+            $supplier->gst_registration_no = $row[7] ?? null;  // Column H
             
-            // Column I: Tel & Fax - try to parse if it contains both
-            $telFax = trim($row[8] ?? '');
+            // Column J: Tel & Fax - try to parse if it contains both
+            $telFax = trim($row[9] ?? '');
             if (!empty($telFax)) {
                 // Try to split by common separators
                 if (strpos($telFax, '/') !== false) {
