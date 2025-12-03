@@ -97,7 +97,8 @@ wait_for_connection() {\n\
     COUNT=$((COUNT+1))\n\
     if (( COUNT >= MAX_TRIES )); then\n\
       echo "WARNING: ${CONNECTION} not ready after $MAX_TRIES attempts. Continuing startup..."\n\
-      php -r "try { require 'vendor/autoload.php'; \$app=require 'bootstrap/app.php'; \$kernel=\$app->make(Illuminate\\Contracts\\Console\\Kernel::class); \$kernel->bootstrap(); Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}')->getPdo(); } catch (Throwable \$e) { echo 'Last error: ' . \$e->getMessage(); }" 2>&1 || true\n\
+      ERROR_MSG=$(php -r "try { require 'vendor/autoload.php'; \$app=require 'bootstrap/app.php'; \$kernel=\$app->make(Illuminate\\Contracts\\Console\\Kernel::class); \$kernel->bootstrap(); Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}')->getPdo(); } catch (Throwable \$e) { echo \$e->getMessage(); }" 2>&1)\n\
+      echo "Last error: ${ERROR_MSG}"\n\
       break\n\
     fi\n\
     echo "${CONNECTION} not ready. Retrying in 5 seconds... ($COUNT/$MAX_TRIES)"\n\
