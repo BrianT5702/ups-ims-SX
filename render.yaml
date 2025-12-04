@@ -12,7 +12,7 @@ services:
         # Make sure you have set this key in your Render dashboard!
         sync: false
       - key: APP_URL
-        value: https://ups-ims-79pt.onrender.com
+        value: https://ups-ims-test.onrender.com
       - key: DB_CONNECTION
         value: mysql
       - key: DB_HOST
