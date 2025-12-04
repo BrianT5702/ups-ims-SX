@@ -78,66 +78,70 @@ RUN ln -sf /var/www/html/storage/app/public /var/www/html/public/storage
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
+set -e\n\
+cd /var/www/html\n\
+\n\
 echo "Checking Laravel status..."\n\
-php artisan --version\n\
+php artisan --version || true\n\
 \n\
 echo "Setting up storage and logs..."\n\
-mkdir -p /var/www/html/storage/logs\n\
-touch /var/www/html/storage/logs/laravel.log\n\
-chown -R www-data:www-data /var/www/html/storage/logs\n\
-chmod -R 775 /var/www/html/storage/logs\n\
+mkdir -p storage/framework/{sessions,views,cache}\n\
+mkdir -p storage/logs\n\
+touch storage/logs/laravel.log\n\
+\n\
+echo "Starting Apache in background..."\n\
+apache2-foreground &\n\
+APACHE_PID=$!\n\
 \n\
 wait_for_connection() {\n\
-  local CONNECTION=\"$1\"\n\
+  local CONNECTION="$1"\n\
   local MAX_TRIES=12\n\
   local COUNT=0\n\
   echo "Waiting for database connection: ${CONNECTION}"\n\
-  until php -r "try { require 'vendor/autoload.php'; $app=require 'bootstrap/app.php'; $kernel=$app->make(Illuminate\\Contracts\\Console\\Kernel::class); $kernel->bootstrap(); Illuminate\\Support\\Facades\\DB::connection('${CONNECTION}')->getPdo(); echo 'ok'; } catch (Throwable $e) { exit(1); }" > /dev/null 2>&1; do\n\
+  until php artisan migrate:status --database="${CONNECTION}" > /dev/null 2>&1; do\n\
     COUNT=$((COUNT+1))\n\
     if (( COUNT >= MAX_TRIES )); then\n\
-      echo "WARNING: ${CONNECTION} not ready after $MAX_TRIES attempts. Continuing startup..."\n\
+      echo "WARNING: ${CONNECTION} not ready after ${MAX_TRIES} attempts. Continuing startup..."\n\
       break\n\
     fi\n\
-    echo "${CONNECTION} not ready. Retrying in 5 seconds... ($COUNT/$MAX_TRIES)"\n\
+    echo "\"${CONNECTION}\" not ready. Retrying in 5 seconds... (${COUNT}/${MAX_TRIES})"\n\
     sleep 5\n\
   done\n\
   if (( COUNT < MAX_TRIES )); then\n\
-    echo "${CONNECTION} connection successful"\n\
+    echo "${CONNECTION} connection successful (or at least reachable)."\n\
   fi\n\
 }\n\
 \n\
-# Ensure config is fresh\n\
-php artisan config:clear || true\n\
+(\n\
+  echo "Clearing caches before DB ops..."\n\
+  php artisan config:clear || true\n\
+  php artisan cache:clear || true\n\
+  php artisan view:clear || true\n\
+  php artisan route:clear || true\n\
 \n\
-# Wait (with timeout) for UPS only to avoid blocking port\n\
-wait_for_connection ups\n\
+  wait_for_connection ups\n\
 \n\
-echo "Running migrations for UPS/URS/UCS..."\n\
-php artisan migrate --force --database=ups || true\n\
-php artisan migrate --force --database=urs || true\n\
-php artisan migrate --force --database=ucs || true\n\
+  echo "Running migrations for UPS/URS/UCS..."\n\
+  php artisan migrate --force --database=ups || true\n\
+  php artisan migrate --force --database=urs || true\n\
+  php artisan migrate --force --database=ucs || true\n\
 \n\
-echo "Running seeders for UPS/URS/UCS..."\n\
-php artisan db:seed --force --database=ups || true\n\
-php artisan db:seed --force --database=urs || true\n\
-php artisan db:seed --force --database=ucs || true\n\
+  echo "Running seeders for UPS/URS/UCS..."\n\
+  php artisan db:seed --force --database=ups || true\n\
+  php artisan db:seed --force --database=urs || true\n\
+  php artisan db:seed --force --database=ucs || true\n\
 \n\
-echo "Clearing caches..."\n\
-php artisan config:clear\n\
-php artisan cache:clear\n\
-php artisan view:clear\n\
-php artisan route:clear\n\
+  echo "Rebuilding caches..."\n\
+  php artisan config:cache || true\n\
+  php artisan view:cache || true\n\
 \n\
-echo "Rebuilding caches..."\n\
-php artisan config:cache\n\
-php artisan view:cache\n\
+  echo "Setting proper permissions..."\n\
+  chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache\n\
+  chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache\n\
+) &\n\
 \n\
-echo "Setting proper permissions..."\n\
-chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache\n\
-chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache\n\
-\n\
-echo "Starting Apache..."\n\
-exec apache2-foreground' > /usr/local/bin/start.sh && \
+wait "$APACHE_PID"\n\
+' > /usr/local/bin/start.sh && \
 chmod +x /usr/local/bin/start.sh
 
 # Run Laravel setup commands
