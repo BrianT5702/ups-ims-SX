@@ -7,6 +7,8 @@ use App\Livewire\ManageRolesPermissions;
 use App\Livewire\UserList;
 use App\Livewire\UserForm;
 use App\Livewire\CategoryList;
+use App\Livewire\FamilyList;
+use App\Livewire\GroupList;
 use App\Livewire\BrandList;
 use App\Livewire\LocationMap;
 use App\Livewire\WarehouseLocation;
@@ -110,6 +112,18 @@ Route::middleware(['auth', 'preventBackHistory', 'switchdb'])->group(function ()
     Route::prefix('categories')->name('categories')->middleware('permission:Manage Category')->group(function () {
         Route::get('/', CategoryList::class);
         Route::get('/add', CategoryList::class)->name('.add');
+    });
+
+    // Family management routes
+    Route::prefix('families')->name('families')->middleware('permission:Manage Family')->group(function () {
+        Route::get('/', FamilyList::class);
+        Route::get('/add', FamilyList::class)->name('.add');
+    });
+
+    // Group management routes
+    Route::prefix('groups')->name('groups')->middleware('permission:Manage Group')->group(function () {
+        Route::get('/', GroupList::class);
+        Route::get('/add', GroupList::class)->name('.add');
     });
 
     // Brand management routes
