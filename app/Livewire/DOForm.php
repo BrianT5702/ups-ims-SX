@@ -10,6 +10,7 @@ use App\Models\Item;
 use App\Models\User;
 use App\Models\Transaction;
 use App\Rules\UniqueInCurrentDatabase;
+use App\Rules\ExistsInCurrentDatabase;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Title;
 use Illuminate\Support\Facades\DB;
@@ -501,8 +502,8 @@ class DOForm extends Component
         // Custom validation for pricing tier - only required if not manually modified
         $this->validate([
             'do_num' => ['required', new UniqueInCurrentDatabase('delivery_orders', 'do_num', $this->deliveryOrder?->id)],
-            'cust_id' =>'required|exists:customers,id',
-            'salesman_id' => 'required|exists:users,id',
+            'cust_id' => ['required', new ExistsInCurrentDatabase('customers', 'id')],
+            'salesman_id' => ['required', new ExistsInCurrentDatabase('users', 'id')],
             'date' => 'required|date',
             'cust_po' => 'required',
             'stackedItems.*.item_qty' => 'required|integer|min:1',

@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\Customer;
 use App\Models\User;
 use App\Rules\UniqueInCurrentDatabase;
+use App\Rules\ExistsInCurrentDatabase;
 use Livewire\Attributes\Title;
 
 #[Title('UR | Manage Customer')]
@@ -56,7 +57,9 @@ class CustomerForm extends Component
             'term' => 'required|in:C.O.D,30 DAYS,CASH',
             'business_registration_no' => 'nullable|string',
             'gst_registration_no' => 'nullable|string',
-            'salesman_id' => $this->customer ? 'nullable|exists:users,id' : 'required|exists:users,id',
+            'salesman_id' => $this->customer 
+                ? ['nullable', new ExistsInCurrentDatabase('users', 'id')]
+                : ['required', new ExistsInCurrentDatabase('users', 'id')],
             'currency' => 'required|string|in:RM,USD,SGD,EUR,GBP,JPY,CNY,THB,IDR,PHP',
         ];
     }

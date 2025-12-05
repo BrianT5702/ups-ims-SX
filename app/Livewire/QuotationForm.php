@@ -12,6 +12,7 @@ use App\Models\Item;
 use App\Models\User;
 use App\Models\CustomerSnapshot;
 use App\Rules\UniqueInCurrentDatabase;
+use App\Rules\ExistsInCurrentDatabase;
 use Illuminate\Support\Facades\DB;
 
 #[Title('UR | Manage Quotation')]
@@ -447,8 +448,8 @@ class QuotationForm extends Component
 
         $this->validate([
             'quotation_num' => ['required', new UniqueInCurrentDatabase('quotations', 'quotation_num', $this->quotation?->id)],
-            'cust_id' => 'required|exists:customers,id',
-            'salesman_id' => 'required|exists:users,id',
+            'cust_id' => ['required', new ExistsInCurrentDatabase('customers', 'id')],
+            'salesman_id' => ['required', new ExistsInCurrentDatabase('users', 'id')],
             'date' => 'required|date',
             'stackedItems.*.item_qty' => 'required|integer|min:1',
             'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
