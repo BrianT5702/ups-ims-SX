@@ -42,3 +42,4 @@ class ExistsInCurrentDatabase implements ValidationRule
         }
     }
 }
+

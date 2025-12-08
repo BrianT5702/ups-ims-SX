@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <title>Stock Listing</title>
     <style>
-        body { font-family: Arial; font-size: 8px; margin: 8px; }
+        body { font-family: Arial; font-size: 11px; margin: 8px; }
         .header { margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 3px; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #000; padding: 1px 2px; font-size: 6px; }
+        th, td { border: 1px solid #000; padding: 3px 4px; font-size: 10px; }
         th { background-color: #f0f0f0; font-weight: bold; text-align: center; }
         .gh { background-color: #e0e0e0; font-weight: bold; }
         .n { text-align: right; }
@@ -18,11 +18,11 @@
     <div style="margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 3px;">
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
             <tr>
-                <td style="text-align: left; font-weight: bold; font-size: 10px; padding: 2px; border: none;">{{ $companyProfile->company_name ?? 'UNITED REFRIGERATION SYSTEM (M) SDN BHD' }}</td>
-                <td style="text-align: right; font-size: 8px; padding: 2px; border: none;">DATE : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y') }}<br>TIME : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('H:i:s') }}</td>
+                <td style="text-align: left; font-weight: bold; font-size: 13px; padding: 2px; border: none;">{{ $companyProfile->company_name ?? 'UNITED REFRIGERATION SYSTEM (M) SDN BHD' }}</td>
+                <td style="text-align: right; font-size: 11px; padding: 2px; border: none;">DATE : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y') }}<br>TIME : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('H:i:s') }}</td>
             </tr>
         </table>
-        <div style="text-align: center; font-weight: bold; font-size: 12px; margin-top: 4px;">STOCK LISTING</div>
+        <div style="text-align: center; font-weight: bold; font-size: 16px; margin-top: 4px;">STOCK LISTING</div>
     </div>
 
     <table>
@@ -107,7 +107,7 @@
                         <td>{{ $item->item_code }}</td>
                         <td>{{ $item->item_name }}</td>
                         @if(isset($columns['qty']))
-                        <td class="q">{{ $item->qty === 0 ? '0' : ($item->qty ?: '') }}</td>
+                        <td class="q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
                         @endif
                         @if(isset($columns['cost']))
                         <td class="n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>
@@ -135,7 +135,7 @@
                     <td>{{ $item->item_code }}</td>
                     <td>{{ $item->item_name }}</td>
                     @if(isset($columns['qty']))
-                    <td class="q">{{ $item->qty === 0 ? '0' : ($item->qty ?: '') }}</td>
+                    <td class="q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
                     @endif
                     @if(isset($columns['cost']))
                     <td class="n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>

@@ -5,6 +5,7 @@ namespace App\Imports;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 
@@ -65,8 +66,9 @@ class CustomerImport implements ToModel, WithStartRow
             $customer->gst_registration_no = $row[14] ?? null;  // Column O
             // Currency comes from column P (index 15); accept both RM and MYR, default to RM
             $customer->currency = $this->normalizeCurrency($row[15] ?? null);
-            // Default salesman: first Salesperson role user
-            $defaultSalesman = User::role('Salesperson')->orderBy('id')->first();
+            // Default salesman: first Salesperson role user from current database
+            $connection = session('active_db') ?: DB::getDefaultConnection();
+            $defaultSalesman = User::on($connection)->role('Salesperson')->orderBy('id')->first();
             $customer->salesman_id = $defaultSalesman?->id;
             $customer->created_at = now();
             $customer->save();

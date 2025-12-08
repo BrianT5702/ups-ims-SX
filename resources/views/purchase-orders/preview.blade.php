@@ -25,7 +25,7 @@
         }
 
         body {
-            /* use default browser font */
+            font-family: Arial, sans-serif; /* Use Arial font */
             color: #000;
             background-color: #fff;
             font-size: 16px; /* Absolute size */
@@ -53,7 +53,6 @@
             padding: 24px 20px 20px;
             flex: 0 0 auto; /* Don't grow */
         }
-        
 
         .company-info {
             display: flex;
@@ -147,9 +146,10 @@
 
         .supplier-info-frame {
             border: 1px solid #000;
-            padding: 8px;
+            padding: 6px;
             width: 100%;
-            font-size: 0.9em;
+            font-size: 0.8em;
+            line-height: 1.3;
         }
 
         .supplier-info-date {
@@ -161,25 +161,29 @@
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
-            table-layout: fixed; /* Fix column widths to prevent squashing */
+            margin-bottom: 10px;
+            table-layout: fixed;
+            font-size: 0.85em;
         }
 
         .items-table th {
-            padding: 10px 10px 6px 10px;
+            padding: 6px 8px 4px 8px;
             text-align: left;
-            border-bottom: 1px solid #000; /* header underline */
-            border-top: 1px solid #000; /* horizontal line above column name */
+            border-bottom: 1px solid #000;
+            border-top: 1px solid #000;
             font-weight: bold;
             text-transform: uppercase;
+            font-size: 0.7em;
+            line-height: 1.3;
         }
 
         .items-table td {
-            padding: 8px 10px;
+            padding: 4px 8px;
             text-align: left;
             vertical-align: top;
             border-bottom: none;
-            font-size: 1.0em;
+            font-size: 0.85em;
+            line-height: 1.3;
         }
 
         /* Fixed column widths (favoring readability and totals) */
@@ -192,42 +196,28 @@
 
         .items-table tbody tr:last-child td { border-bottom: none; }
 
-        /* Add padding below the last item row for better spacing */
-        .items-table tbody tr:last-child td { padding-bottom: 20px; }
-
-        /* Totals Section Styles */
+        /* Totals Section Styles - only TOTAL, no subtotal/tax */
         .totals-section {
-            width: 100%;
-            margin-top: 20px;
             border-top: 1px dotted #000;
-            padding-top: 10px;
-            text-transform: uppercase;
+            padding-top: 8px;
         }
 
         .total-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
-            border-bottom: none;
-        }
-
-        .total-row.grand-total {
-            border-top: 1px solid #000;
-            margin-top: 10px;
-            padding-top: 15px;
+            padding: 6px 0;
             font-weight: bold;
-            font-size: 1.1em;
+            font-size: 1.05em;
+            text-transform: uppercase;
         }
 
         .total-label {
-            font-weight: bold;
             text-align: left;
             width: 75%;
         }
 
         .total-value {
-            font-weight: bold;
             text-align: right;
             width: 25%;
             white-space: nowrap;
@@ -238,17 +228,17 @@
             justify-content: space-between !important;
             align-items: flex-end !important;
             border-top: 1px solid #000 !important;
-            padding: 15px 20px 12px;
-            margin-top: auto; /* Push to bottom with flexbox */
+            padding: 10px 0 8px;
+            margin-top: auto;
             page-break-inside: avoid;
             break-inside: avoid;
             page-break-after: avoid;
             page-break-before: avoid;
-            position: relative;
-            font-size: 14px;
-            flex: 0 0 auto; /* Don't grow */
+            font-size: 0.75em;
+            line-height: 1.3;
+            flex: 0 0 auto;
         }
-        
+
         .signature-section p, .signature-section strong {
             text-transform: uppercase;
         }
@@ -264,88 +254,19 @@
 
         .signature-line {
             border-bottom: 1px solid #000 !important;
-            margin-top: 40px !important; /* Increased for better signature space */
-            margin-bottom: 5px !important;
+            margin-top: 30px !important;
+            margin-bottom: 3px !important;
         }
 
         .signature-label {
-            font-size: 0.9em !important;
-            color: #000 !important; /* Changed from #666 to black */
+            font-size: 0.75em !important;
+            color: #000 !important;
             text-transform: uppercase;
             font-weight: bold !important;
             text-align: center !important;
+            line-height: 1.3;
         }
 
-        @media print {
-            html, body {
-                height: auto;
-                margin: 0;
-                padding: 0;
-            }
-            
-            @page {
-                margin: 0.75cm;
-                size: letter;
-            }
-            
-            .container {
-                margin: 0;
-                padding: 20px;
-                min-height: calc(11in - 1.5cm);
-                display: flex !important;
-                flex-direction: column !important;
-                border: none !important;
-                box-shadow: none !important;
-                position: relative;
-            }
-            
-            .content {
-                padding: 0;
-                margin-bottom: 0;
-                flex: 1 1 auto;
-            }
-            
-            .signature-section {
-                display: flex !important;
-                justify-content: space-between !important;
-                align-items: flex-end !important;
-                border-top: 1px solid #000 !important;
-                padding: 15px 0 12px !important;
-                margin: 0 !important;
-                margin-top: var(--signature-spacer, auto) !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-                page-break-after: avoid !important;
-                width: 100%;
-                box-sizing: border-box;
-                flex: 0 0 auto;
-                /* Force signature to bottom of last page */
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                background: white;
-                z-index: 10;
-            }
-            .signature-left {
-                width: 45% !important;
-            }
-            .signature-right {
-                width: 45% !important;
-                text-align: center !important;
-            }
-            .signature-line {
-                border-bottom: 1px solid #000 !important;
-                margin-top: 40px !important; /* Better space for signing */
-                margin-bottom: 5px !important;
-            }
-            .signature-label {
-                font-size: 0.9em !important;
-                color: #000 !important; /* Changed from #666 to black */
-                font-weight: bold !important;
-                text-align: center !important;
-            }
-        }
 
         .signature-left {
             width: 45%;
@@ -447,127 +368,363 @@
             display: none;
         }
 
-        @page {
-            margin: 0.75cm; /* Slightly smaller margins for more usable space */
-            size: letter; /* Changed from A4 to letter size */
+        .pages-container {
+            display: none;
+            flex-direction: column;
+            gap: 28px;
+            width: 100%;
         }
 
         @media print {
-            /* Force standardized print settings */
+            .pages-container {
+                gap: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            .pages-container .print-page {
+                margin: 0 !important;
+                margin-bottom: 0 !important;
+            }
+            
+            .pages-container .print-page:not(:last-child) {
+                margin-bottom: 0 !important;
+            }
+        }
+
+        .page-counter {
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #0d6efd;
+            background: #e7f3ff;
+            border: 2px solid #0d6efd;
+            border-radius: 4px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .page-counter.show {
+            display: block;
+        }
+
+        .pages-container .print-page {
+            background-color: #fff;
+            border: 1px solid #000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 0 auto 28px;
+            max-width: 1000px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .pages-container .print-page:last-child {
+            margin-bottom: 0;
+        }
+
+        .pages-container .print-page-footer .signature-section {
+            padding: 16px 0 12px !important;
+        }
+
+        .pages-container[data-measuring="true"] .print-page {
+            min-height: auto !important;
+        }
+
+        .print-page {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-height: calc(11in - (0.75cm * 2));
+            page-break-after: always;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .print-page--last {
+            page-break-after: auto;
+        }
+
+        .print-page::after {
+            content: 'Page ' attr(data-page-number) ' of ' attr(data-total-pages);
+            position: absolute;
+            bottom: 0.5cm;
+            right: 0.75cm;
+            font-size: 0.7em;
+            font-family: Arial, sans-serif;
+            color: #000;
+        }
+
+        @media print {
+            .print-page::after {
+                display: block;
+            }
+        }
+
+        .print-page--first {
+            margin-top: 20px;
+        }
+
+        @media print {
+            .print-page--first {
+                margin-top: 0 !important;
+                page-break-before: auto !important;
+            }
+            
+            .pages-container > .print-page:first-child {
+                page-break-before: auto !important;
+                margin-top: 0 !important;
+            }
+            
+            .print-page-footer {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            .print-page-footer .signature-section {
+                page-break-before: avoid !important;
+                page-break-after: avoid !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            .print-page--last .print-page-body {
+                page-break-after: avoid !important;
+            }
+        }
+
+        .print-page-body {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            flex: 1 1 auto;
+        }
+
+        .print-page-footer {
+            margin-top: auto;
+            padding-top: 18px;
+            flex: 0 0 auto;
+        }
+
+        #signature-template {
+            display: none !important;
+        }
+
+        @page {
+            margin: 0.75cm;
+            size: letter;
+        }
+
+        @media print {
             html {
                 zoom: 1 !important;
-                font-size: 16px !important;
+                font-size: 14px !important;
+            }
+            body {
+                font-family: Arial, sans-serif !important;
             }
             
             body {
+                font-family: Arial, sans-serif !important;
+                background-color: #fff;
+                counter-reset: page;
                 zoom: 1 !important;
                 transform: scale(1) !important;
-                font-size: 16px !important;
+                font-size: 14px !important;
+                line-height: 1.3 !important;
             }
             
-            #zoom-warning { display: none !important; }
+            .company-info h2, .company-info-right h2 {
+                white-space: nowrap !important;
+                font-size: 1.0em !important;
+                color: #000 !important;
+            }
+            
+            .print-button, .back-button {
+                display: none !important;
+            }
+            
+            html, body {
+                height: auto;
+                margin: 0;
+                padding: 0;
+            }
             
             @page {
                 margin: 0.75cm;
                 size: letter;
             }
-        }
+            
+            .container {
+                width: 100% !important;
+                border: none !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                min-height: auto !important;
+                display: block !important;
+                position: relative;
+            }
+            
+            .content {
+                padding: 0 !important;
+                margin: 0 !important;
+                flex: none !important;
+            }
+            
+            .pages-container {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            .pages-container .print-page {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 20px !important;
+                box-sizing: border-box !important;
+                min-height: calc(11in - 1.5cm) !important;
+            }
+            
+            .signature-section {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: flex-end !important;
+                border-top: 1px solid #000 !important;
+                padding: 16px 0 12px !important;
+                margin: 0 !important;
+                margin-top: auto !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
+                width: 100%;
+                box-sizing: border-box;
+                flex: 0 0 auto;
+                position: relative !important;
+                background: white;
+            }
+            
+            .items-table thead {
+                display: table-header-group;
+            }
+            
+            .items-table tr {
+                page-break-inside: avoid;
+            }
+            
+            .items-table tfoot {
+                display: table-row-group;
+            }
+            
+            .pages-container [data-page-remark],
+            .pages-container [data-page-total] {
+                position: relative !important;
+            }
+            
+            .items-table {
+                table-layout: fixed !important;
+            }
+            .items-table th:nth-child(1), .items-table td:nth-child(1) {
+                width: 5% !important;
+                min-width: 5% !important;
+                max-width: 5% !important;
+            }
+            .items-table th:nth-child(2), .items-table td:nth-child(2) {
+                width: 60% !important;
+                min-width: 60% !important;
+                max-width: 60% !important;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            .items-table th:nth-child(3), .items-table td:nth-child(3) {
+                width: 8% !important;
+                min-width: 8% !important;
+                max-width: 8% !important;
+                white-space: nowrap !important;
+            }
+            .items-table th:nth-child(4), .items-table td:nth-child(4) {
+                width: 12% !important;
+                min-width: 12% !important;
+                max-width: 12% !important;
+                white-space: nowrap !important;
+            }
+            .items-table th:nth-child(5), .items-table td:nth-child(5) {
+                width: 15% !important;
+                min-width: 15% !important;
+                max-width: 15% !important;
+                white-space: nowrap !important;
+            }
+            .items-table th {
+                font-size: 0.75em !important;
+                padding: 10px 10px 6px 10px !important;
+                white-space: nowrap !important;
+                overflow: visible !important;
+                text-overflow: unset !important;
+            }
 
-        /* Smaller font sizes */
+            .print-reminder {
+                display: none !important;
+            }
+            #zoom-warning {
+                display: none !important;
+            }
+            .page-counter {
+                display: none !important;
+            }
+            
+            #print-source {
+                display: none !important;
+            }
+            
+            .pages-container {
+                display: flex !important;
+            }
+            
+            .pages-container .print-page {
+                border: none !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 20px !important;
+                position: relative !important;
+            }
+            
+            .pages-container .print-page-body,
+            .pages-container .print-page-footer {
+                position: relative !important;
+            }
+        }
+        
         .items-table {
-            font-size: 0.95em;
+            font-size: 0.85em;
         }
         .items-table th {
-            font-size: 0.75em;
+            font-size: 0.7em;
+            line-height: 1.3;
             white-space: nowrap;
             overflow: visible;
             text-overflow: unset;
         }
         .items-table td {
-            font-size: 1rem;
+            font-size: 0.85em;
+            line-height: 1.3;
         }
 
-        @media print {
-            body {
-                background-color: #fff;
-                counter-reset: page;
-            }
-
-            .print-button, .back-button {
-                display: none !important; 
-            }
-
-            .container {
-                width: 100%; 
-                border: none;
-                margin: 0;
-                padding: 20px;
-                min-height: calc(11in - 1.5cm); /* Letter height minus top/bottom margins */
-                display: flex !important; /* Keep flex for signature positioning */
-                flex-direction: column !important;
-            }
-            
-            .signature-section {
-                flex: 0 0 auto !important; /* Prevent signature from growing */
-                margin-top: auto !important; /* Push to bottom */
-            }
-
-            /* Hide the on-screen reminder in print */
-            .print-reminder { display: none !important; }
-
-            /* Ensure table header repeats on each page */
-            .items-table thead { 
-                display: table-header-group; 
-            }
-            
-            /* Allow table body to break across pages but keep rows intact */
-            .items-table tbody { 
-                display: table-row-group;
-            }
-            
-            /* Avoid splitting individual rows */
-            .items-table tbody tr { 
-                page-break-inside: avoid; 
-                break-inside: avoid;
-            }
-            
-            /* Allow the table to break across pages */
-            .items-table { 
-                page-break-inside: auto;
-                break-inside: auto;
-            }
-            
-            /* Keep totals section together and prevent it from breaking */
-            .totals-section {
-                page-break-inside: avoid;
-                break-inside: avoid;
-                page-break-before: avoid;
-            }
-            
-            /* Keep individual total rows together */
-            .total-row {
-                page-break-inside: avoid;
-                break-inside: avoid;
-            }
-            
-            /* Enforce column widths in print mode */
-            .items-table { table-layout: fixed !important; }
-            .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 5% !important; min-width: 5% !important; max-width: 5% !important; }
-            .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 60% !important; min-width: 60% !important; max-width: 60% !important; word-wrap: break-word; overflow-wrap: break-word; }
-            .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 8% !important; min-width: 8% !important; max-width: 8% !important; white-space: nowrap !important; }
-            .items-table th:nth-child(4), .items-table td:nth-child(4) { width: 12% !important; min-width: 12% !important; max-width: 12% !important; white-space: nowrap !important; }
-            .items-table th:nth-child(5), .items-table td:nth-child(5) { width: 15% !important; min-width: 15% !important; max-width: 15% !important; white-space: nowrap !important; }
-        }
     </style>
 </head>
 <body>
     <div class="print-reminder">✓ Optimized for Letter Size (8.5" × 11") paper</div>
     <div id="zoom-warning">⚠️ Browser zoom is not 100%! Press Ctrl+0 (Cmd+0 on Mac) to reset zoom for accurate printing.</div>
+    <div id="page-counter" class="page-counter">Calculating pages...</div>
     <div class="container">
         <button onclick="history.back()" class="back-button">Back</button>
         <div class="content">
-            <!-- Company Information Section -->
-            <div class="company-info">
+            <div id="print-source">
+                <div class="page-header">
+                    <!-- Company Information Section -->
+                    <div class="company-info">
                 <div class="company-info-left">
                     <h2>{{ $companyProfile->company_name }}</h2>
                     <p>{{ $companyProfile->company_no }} | GST No: {{ $companyProfile->gst_no }}</p>
@@ -618,10 +775,12 @@
                     <p>Email: {{ $purchaseOrder->supplierSnapshot->email }}</p>
                     @endif
                 </div>
+                </div>
             </div>
 
             <!-- Purchase Order Details -->
-            <table class="items-table">
+            <div class="table-area" id="items-table-source">
+            <table class="items-table" id="items-table">
                 <thead>
                     <tr>
                         <th>No.</th>
@@ -663,37 +822,31 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
 
             @if(!empty($purchaseOrder->remark))
-                <div style="margin: 15px 0 15px 5%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; position: relative; z-index: 5; background: white;">
-                    <div style="font-size: 0.9em; line-height: 1.4; color: #000; display: flex;">
-                        <span style="font-weight: bold; min-width: 65px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
+                <div id="remark-source" style="margin: 0 0 0 5%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; position: relative; z-index: 5; background: white;">
+                    <div style="font-size: 0.88em; line-height: 1.35; color: #000; display: flex;">
+                        <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
                         <div style="flex: 1;">{!! nl2br(e($purchaseOrder->remark)) !!}</div>
                     </div>
                 </div>
             @endif
 
-            <!-- Totals Section - positioned after table for better print control -->
-            <div class="totals-section">
-                @php($poCurrency = $purchaseOrder->supplierSnapshot->currency ?? 'MYR')
-                <div class="total-row">
-                    <span class="total-label">Subtotal</span>
-                    <span class="total-value">{{ $poCurrency }} {{ number_format($purchaseOrder->final_total_price ?? 0, 2) }}</span>
-                </div>
-                <div class="total-row">
-                    <span class="total-label">Tax ({{ number_format($purchaseOrder->tax_rate ?? 0, 2) }}%)</span>
-                    <span class="total-value">{{ $poCurrency }} {{ number_format($purchaseOrder->tax_amount ?? 0, 2) }}</span>
-                </div>
-                <div class="total-row grand-total">
-                    <span class="total-label">TOTAL</span>
-                    <span class="total-value">{{ $poCurrency }} {{ number_format($purchaseOrder->grand_total ?? ($purchaseOrder->final_total_price + ($purchaseOrder->tax_amount ?? 0)), 2) }}</span>
+            <!-- Totals Section - only TOTAL, no tax -->
+            @php($poCurrency = $purchaseOrder->supplierSnapshot->currency ?? 'MYR')
+            <div id="totals-source" class="totals-section" style="border-top: 1px dotted #000; padding-top: 8px;">
+                <div class="total-row" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-weight: bold; font-size: 1.05em; text-transform: uppercase;">
+                    <span class="total-label" style="text-align: left; width: 75%;">Total</span>
+                    <span class="total-value" style="text-align: right; width: 25%; white-space: nowrap;">{{ $poCurrency }} {{ number_format($purchaseOrder->final_total_price ?? 0, 2) }}</span>
                 </div>
             </div>
+            </div>
 
+            <div id="pages-container" class="pages-container"></div>
         </div>
         
-        <!-- Signature Section -->
-        <div class="signature-section">
+        <div id="signature-template" class="signature-section" style="display: none;">
             <div class="signature-left">
                 <div class="signature-line"></div>
                 <p class="signature-label">Company Chop & Signature</p>
@@ -745,7 +898,7 @@
         })();
 
         function triggerPrint() {
-            try { updateSignatureSpacer(); } catch (e) {}
+            try { paginatePO(true); } catch (e) {}
             // Mark as printed before opening print dialog
             fetch('{{ route('purchase-orders.mark-printed', $purchaseOrder->id) }}', {
                 method: 'POST',
@@ -756,121 +909,300 @@
                 }
             }).then(function() {
                 setTimeout(function(){ 
-                    try { updateSignatureSpacer(); } catch (e) {}
-                    try { positionSignatureAtLastPageBottom(); } catch (e) {}
+                    try { paginatePO(true); } catch (e) {}
                     setTimeout(function(){ window.print(); }, 150);
                 }, 50);
             }).catch(function(error) {
                 console.error('Failed to mark as printed:', error);
                 setTimeout(function(){ 
-                    try { updateSignatureSpacer(); } catch (e) {}
-                    try { positionSignatureAtLastPageBottom(); } catch (e) {}
+                    try { paginatePO(true); } catch (e) {}
                     setTimeout(function(){ window.print(); }, 150);
                 }, 50);
             });
         }
     </script>
-
     <script>
-        // More accurate measurement using real CSS units to align to page frames
-        function measurePx(value) {
-            var probe = document.createElement('div');
-            probe.style.position = 'absolute';
-            probe.style.visibility = 'hidden';
-            probe.style.height = value;
-            document.body.appendChild(probe);
-            var px = probe.offsetHeight;
-            document.body.removeChild(probe);
-            return px;
-        }
+        (function () {
+            var pageHeightCache = null;
+            var scheduled = false;
+            var building = false;
 
-        function getContentHeightPx() {
-            // Letter height minus @page margins (0.75cm top + bottom)
-            var letterPx = measurePx('11in');
-            var marginPx = measurePx('0.75cm');
-            var contentPx = letterPx - (marginPx * 2);
-            return Math.max(1, Math.round(contentPx));
-        }
+            function measurePx(value) {
+                var probe = document.createElement('div');
+                probe.style.position = 'absolute';
+                probe.style.visibility = 'hidden';
+                probe.style.height = value;
+                document.body.appendChild(probe);
+                var px = probe.offsetHeight;
+                document.body.removeChild(probe);
+                return px;
+            }
 
-        function positionSignatureAtLastPageBottom() {}
-
-        function measurePx(value) {
-            var probe = document.createElement('div');
-            probe.style.position = 'absolute';
-            probe.style.visibility = 'hidden';
-            probe.style.height = value;
-            document.body.appendChild(probe);
-            var px = probe.offsetHeight;
-            document.body.removeChild(probe);
-            return px;
-        }
-
-        function getContentHeightPx() {
-            var letterPx = measurePx('11in');
-            var marginPx = measurePx('0.75cm');
-            return Math.max(1, Math.round(letterPx - (marginPx * 2)));
-        }
-
-        function updateSignatureSpacer() {
-            try {
-                var signature = document.querySelector('.signature-section');
-                var remark = document.querySelector('div[style*="border: 1px solid #ddd"]');
-                if (!signature) return;
-                var pageHeight = getContentHeightPx();
-                var content = document.querySelector('.content');
-                if (!content) return;
-                
-                // Calculate total content height including remark
-                var contentHeight = content.offsetHeight;
-                if (remark) {
-                    var remarkRect = remark.getBoundingClientRect();
-                    var contentRect = content.getBoundingClientRect();
-                    var remarkBottom = remarkRect.bottom - contentRect.top + contentRect.top;
-                    contentHeight = Math.max(contentHeight, remarkBottom);
-                }
-                
-                var totalPages = Math.ceil(contentHeight / pageHeight);
-                
-                // Position signature at bottom of last page, ensuring it doesn't cover remark
-                var lastPageTop = (totalPages - 1) * pageHeight;
-                var sigHeight = Math.max(1, Math.round(signature.offsetHeight));
-                var desiredTop = lastPageTop + (pageHeight - sigHeight);
-                
-                // If remark exists, ensure signature is below it
-                if (remark) {
-                    var remarkRect = remark.getBoundingClientRect();
-                    var containerRect = document.querySelector('.container').getBoundingClientRect();
-                    var remarkBottom = remarkRect.bottom - containerRect.top;
-                    if (desiredTop < remarkBottom + 20) { // Add 20px buffer
-                        desiredTop = remarkBottom + 20;
+            function getPageHeight(force, isPrintContext) {
+                var isPrintMode = isPrintContext || (window.matchMedia && window.matchMedia('print').matches);
+                if (force || !pageHeightCache || isPrintMode) {
+                    var letterPx = measurePx('11in');
+                    var marginPx = measurePx('0.75cm');
+                    var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
+                    
+                    if (isPrintMode) {
+                        pageHeightCache = Math.round(calculatedHeight * 0.93);
+                    } else {
+                        pageHeightCache = Math.round(calculatedHeight * 0.95);
                     }
                 }
-                
-                // Set the signature position
-                signature.style.position = 'absolute';
-                signature.style.top = desiredTop + 'px';
-                signature.style.left = '0';
-                signature.style.right = '0';
-                signature.style.bottom = 'auto';
-                signature.style.background = 'white';
-                signature.style.zIndex = '10';
-                
-                // Remove any existing spacer
-                document.documentElement.style.removeProperty('--signature-spacer');
-            } catch (e) {}
-        }
+                return pageHeightCache;
+            }
 
-        (function() {
-            window.addEventListener('resize', function(){ requestAnimationFrame(updateSignatureSpacer); });
-            document.addEventListener('DOMContentLoaded', function(){ requestAnimationFrame(updateSignatureSpacer); });
-            setTimeout(updateSignatureSpacer, 100);
-            setTimeout(updateSignatureSpacer, 300);
+            function removeIds(node) {
+                if (!node) {
+                    return;
+                }
+                if (node.removeAttribute) {
+                    node.removeAttribute('id');
+                }
+                node.querySelectorAll('[id]').forEach(function (el) {
+                    el.removeAttribute('id');
+                });
+            }
+
+            function createPage(pagesContainer, headerTemplate, theadTemplate, signatureTemplate, isFirstPage) {
+                var page = document.createElement('div');
+                page.className = 'print-page';
+                if (isFirstPage) {
+                    page.classList.add('print-page--first');
+                }
+
+                var body = document.createElement('div');
+                body.className = 'print-page-body';
+                page.appendChild(body);
+
+                if (headerTemplate) {
+                    var headerClone = headerTemplate.cloneNode(true);
+                    removeIds(headerClone);
+                    body.appendChild(headerClone);
+                }
+
+                var tableWrapper = document.createElement('div');
+                var table = document.createElement('table');
+                table.className = 'items-table';
+                tableWrapper.appendChild(table);
+                body.appendChild(tableWrapper);
+
+                if (theadTemplate) {
+                    var theadClone = theadTemplate.cloneNode(true);
+                    removeIds(theadClone);
+                    table.appendChild(theadClone);
+                }
+
+                var tbody = document.createElement('tbody');
+                table.appendChild(tbody);
+
+                var footerWrapper = document.createElement('div');
+                footerWrapper.className = 'print-page-footer';
+                var signature = signatureTemplate.cloneNode(true);
+                signature.style.display = '';
+                removeIds(signature);
+                footerWrapper.appendChild(signature);
+                page.appendChild(footerWrapper);
+
+                pagesContainer.appendChild(page);
+
+                return {
+                    page: page,
+                    body: body,
+                    table: table,
+                    tbody: tbody,
+                    footer: footerWrapper
+                };
+            }
+
+            function paginatePO(force) {
+                if (building) {
+                    return;
+                }
+                building = true;
+
+                try {
+                    var source = document.getElementById('print-source');
+                    var pagesContainer = document.getElementById('pages-container');
+                    var signatureTemplate = document.getElementById('signature-template');
+                    var itemsTable = document.getElementById('items-table');
+
+                    if (!source || !pagesContainer || !signatureTemplate || !itemsTable) {
+                        return;
+                    }
+
+                    var headerTemplate = source.querySelector('.page-header');
+                    var theadTemplate = itemsTable.querySelector('thead');
+                    if (!theadTemplate) {
+                        return;
+                    }
+
+                    var rows = Array.from(itemsTable.querySelectorAll('tbody tr'));
+                    var remarkSource = document.getElementById('remark-source');
+                    var totalsSource = document.getElementById('totals-source');
+                    var isPrintMode = window.matchMedia && window.matchMedia('print').matches;
+                    var pageHeight = getPageHeight(force, isPrintMode);
+                    var tolerance = isPrintMode ? 15 : 4;
+                    var usableHeight = pageHeight;
+                    var isFirstPage = true;
+                    var activePage = null;
+
+                    pagesContainer.innerHTML = '';
+                    pagesContainer.style.display = 'flex';
+                    pagesContainer.setAttribute('data-measuring', 'true');
+                    pagesContainer.style.visibility = 'hidden';
+                    pagesContainer.style.position = 'absolute';
+                    pagesContainer.style.left = '-9999px';
+
+                    function ensurePage() {
+                        if (!activePage) {
+                            activePage = createPage(pagesContainer, headerTemplate, theadTemplate, signatureTemplate, isFirstPage);
+                            isFirstPage = false;
+                        }
+                    }
+
+                    rows.forEach(function (row) {
+                        var clone = row.cloneNode(true);
+                        ensurePage();
+                        activePage.tbody.appendChild(clone);
+
+                        if (activePage.page.offsetHeight > (usableHeight - tolerance)) {
+                            activePage.tbody.removeChild(clone);
+                            activePage = null;
+                            ensurePage();
+                            activePage.tbody.appendChild(clone);
+                        }
+                    });
+
+                    if (rows.length === 0) {
+                        ensurePage();
+                    }
+
+                    function appendBlock(sourceNode, attr) {
+                        if (!sourceNode) {
+                            return;
+                        }
+                        var clone = sourceNode.cloneNode(true);
+                        removeIds(clone);
+                        if (attr) {
+                            clone.setAttribute(attr, '');
+                        }
+                        ensurePage();
+                        activePage.body.appendChild(clone);
+                        if (attr === 'data-page-total') {
+                            clone.style.marginTop = 'auto';
+                        }
+                        var pageHeight = activePage.page.offsetHeight;
+                        if (pageHeight > (usableHeight - tolerance)) {
+                            activePage.body.removeChild(clone);
+                            activePage = null;
+                            ensurePage();
+                            activePage.body.appendChild(clone);
+                            if (attr === 'data-page-total') {
+                                clone.style.marginTop = 'auto';
+                            }
+                        }
+                    }
+
+                    appendBlock(remarkSource, 'data-page-remark');
+                    appendBlock(totalsSource, 'data-page-total');
+
+                    var renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
+                    renderedPages.forEach(function (page) {
+                        var tbody = page.querySelector('tbody');
+                        var hasRows = tbody && tbody.children.length > 0;
+                        var hasExtras = page.querySelector('[data-page-remark], [data-page-total]');
+                        if (!hasRows && !hasExtras) {
+                            page.parentNode.removeChild(page);
+                        }
+                    });
+
+                    renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
+                    if (renderedPages.length > 0) {
+                        var totalPages = renderedPages.length;
+                        renderedPages.forEach(function (page, index) {
+                            page.classList.remove('print-page--last');
+                            page.setAttribute('data-page-number', index + 1);
+                            page.setAttribute('data-total-pages', totalPages);
+                        });
+                        renderedPages[renderedPages.length - 1].classList.add('print-page--last');
+                    }
+
+                    pagesContainer.style.visibility = '';
+                    pagesContainer.style.position = '';
+                    pagesContainer.style.left = '';
+                    pagesContainer.style.display = 'flex';
+                    pagesContainer.removeAttribute('data-measuring');
+                    source.style.display = 'none';
+
+                    var pageCounter = document.getElementById('page-counter');
+                    if (pageCounter) {
+                        var pageCount = renderedPages.length;
+                        if (pageCount > 0) {
+                            pageCounter.textContent = 'Total Pages: ' + pageCount + (pageCount === 1 ? ' page' : ' pages');
+                            pageCounter.classList.add('show');
+                        } else {
+                            pageCounter.classList.remove('show');
+                        }
+                    }
+                } finally {
+                    building = false;
+                }
+            }
+
+            function schedulePaginate() {
+                if (scheduled) {
+                    return;
+                }
+                scheduled = true;
+                window.requestAnimationFrame(function () {
+                    scheduled = false;
+                    paginatePO(false);
+                });
+            }
+
+            window.paginatePO = paginatePO;
+
+            window.addEventListener('load', function () {
+                paginatePO(true);
+            });
+
+            window.addEventListener('resize', schedulePaginate);
+
             if (window.matchMedia) {
                 var mq = window.matchMedia('print');
-                mq.addEventListener ? mq.addEventListener('change', function(e){ if (e.matches) { updateSignatureSpacer(); } }) : mq.addListener(function(e){ if (e.matches) { updateSignatureSpacer(); } });
+                if (mq.addEventListener) {
+                    mq.addEventListener('change', function (e) {
+                        if (e.matches) {
+                            pageHeightCache = null;
+                            paginatePO(true);
+                        }
+                    });
+                } else if (mq.addListener) {
+                    mq.addListener(function (e) {
+                        if (e.matches) {
+                            pageHeightCache = null;
+                            paginatePO(true);
+                        }
+                    });
+                }
             }
-            window.addEventListener('beforeprint', updateSignatureSpacer);
-            window.addEventListener('afterprint', function(){ document.documentElement.style.removeProperty('--signature-spacer'); });
+
+            window.addEventListener('beforeprint', function () {
+                pageHeightCache = null;
+                setTimeout(function() {
+                    paginatePO(true);
+                }, 10);
+            });
+            
+            window.addEventListener('afterprint', function () {
+                pageHeightCache = null;
+                setTimeout(function() {
+                    paginatePO(true);
+                }, 10);
+            });
         })();
     </script>
 </body>

@@ -32,7 +32,7 @@
         }
 
         body {
-            /* use default browser font */
+            font-family: Arial, sans-serif; /* Use Arial font */
             color: #000;
             background-color: #fff;
             min-height: 100vh;
@@ -172,43 +172,42 @@
             border: 1px solid #000;
             padding: 6px;
             width: 100%;
-            font-size: 0.88em;
+            font-size: 0.8em;
+            line-height: 1.3;
         }
 
-        /* Table styles matching PO */
+        /* Table styles matching Quotation */
         .items-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 0; /* keep tight to allow continuous vertical line */
             padding-bottom: 0;
-            font-size: 0.92em;
+            font-size: 0.85em;
             table-layout: fixed;
             position: relative;
         }
 
+        .items-table th {
+            padding: 6px 8px 4px 8px;
+            text-align: left;
+            border-bottom: 1px solid #000;
+            border-top: 1px solid #000;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.7em;
+            line-height: 1.3;
+            vertical-align: middle;
+        }
 
-        .items-table th,
         .items-table td {
-            padding: 5px 8px;
+            padding: 4px 8px;
             text-align: left;
             border-bottom: none;
-            font-size: 0.9em;
+            font-size: 0.85em;
+            line-height: 1.3;
             vertical-align: top;
             word-wrap: break-word;
             word-break: break-word;
-        }
-
-        /* Slightly larger font for item rows */
-        .items-table td { font-size: 0.98rem; }
-
-        .items-table th {
-            font-weight: bold;
-            font-size: 0.82em;
-            padding: 6px 8px 5px 8px;
-            border-bottom: 1px solid #000;
-            border-top: 1px solid #000; /* horizontal line above column name */
-            vertical-align: middle;
-            text-transform: uppercase;
         }
 
         /* Fixed column widths (favoring more space for Item Name) */
@@ -576,6 +575,7 @@
             }
             
             body {
+                font-family: Arial, sans-serif !important;
                 background-color: #fff;
                 counter-reset: page;
                 print-color-adjust: exact;

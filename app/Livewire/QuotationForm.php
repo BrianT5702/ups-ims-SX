@@ -552,7 +552,9 @@ class QuotationForm extends Component
     {
         $this->date = $this->date ?? now()->toDateString();
         $this->quotation_num = $this->quotation_num ?? ('Q' . time());
-        $this->salesmen = User::role('Salesperson')->orderBy('name','asc')->get();
+        // Use current database connection (not just 'ups') to match validation
+        $connection = session('active_db') ?: DB::getDefaultConnection();
+        $this->salesmen = User::on($connection)->role('Salesperson')->orderBy('name','asc')->get();
         return view('livewire.quotation-form')->layout('layouts.app');
     }
 }

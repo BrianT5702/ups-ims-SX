@@ -133,14 +133,6 @@ class DOForm extends Component
 
     }
     
-
-
-
-
-
-
-
-
     public function updatedCustomerSearchTerm()
     {
         if (!$this->isView) {
@@ -175,7 +167,8 @@ class DOForm extends Component
             // Default salesman to customer's assigned salesman if present
             if ($this->selectedCustomer && $this->selectedCustomer->salesman_id) {
                 $this->salesman_id = $this->selectedCustomer->salesman_id;
-                $this->salesmanSearchTerm = optional(User::find($this->salesman_id))->name;
+                $connection = session('active_db') ?: DB::getDefaultConnection();
+                $this->salesmanSearchTerm = optional(User::on($connection)->find($this->salesman_id))->name;
             }
 
             // Refresh latest DO prices per item for this customer
@@ -191,12 +184,6 @@ class DOForm extends Component
             $this->calculateTotalAmount();
         }
     }
-
-    public function updatedSalesmanSearchTerm()
-    {
-        // Deprecated search; using dropdown list
-    }
-
     public function searchSalesman()
     {
         // Deprecated; using dropdown list
@@ -206,7 +193,8 @@ class DOForm extends Component
     public function selectSalesman($salesmanId)
     {
         if (!$this->isView) {
-            $this->selectedSalesman = User::find($salesmanId);
+            $connection = session('active_db') ?: DB::getDefaultConnection();
+            $this->selectedSalesman = User::on($connection)->find($salesmanId);
     
             if ($this->selectedSalesman && $this->selectedSalesman->hasRole('Salesperson')) {
                 $this->salesman_id = $salesmanId;
@@ -228,18 +216,9 @@ class DOForm extends Component
     public function searchItems()
     {
         if (!empty($this->itemSearchTerm)) {
-            $isNewDO = !$this->deliveryOrder || !$this->deliveryOrder->id;
-            $isDraftOrPreview = $this->saveAsDraft || $this->isPreviewMode || 
-                              ($this->deliveryOrder && $this->deliveryOrder->status === 'Save to Draft');
-            
+            // Show all items regardless of stock level - allow out of stock items
             $query = Item::where('item_code', 'like', '%' . $this->itemSearchTerm . '%')
                 ->orWhere('item_name', 'like', '%' . $this->itemSearchTerm . '%');
-            
-            // Only filter out zero quantity items for existing completed DOs
-            // Show all items for new DOs, drafts, and previews
-            if (!$isNewDO && !$isDraftOrPreview) {
-                $query->where('qty', '>', 0);
-            }
             
             $this->itemSearchResults = $query->orderBy('item_name','asc')
                 ->limit(50)
@@ -280,28 +259,11 @@ class DOForm extends Component
                 return;
             }
 
-            if ($item->qty <= 0) {
-                toastr()->warning('Stock level is 0. Unable to add this item to the DO.');
-                return;
-            }
-
             $itemExists = false;
 
             foreach ($this->stackedItems as $key => $stackedItem) {
                 if ($stackedItem['item']['id'] === $item->id) {
-                    // Only enforce stock limits for completed DOs, allow exceed for new DOs, drafts, and previews
-                    $currentQty = $this->stackedItems[$key]['item_qty'];
-                    $availableStock = $item->qty;
-                    $isNewDO = !$this->deliveryOrder || !$this->deliveryOrder->id;
-                    $isDraftOrPreview = $this->saveAsDraft || $this->isPreviewMode || 
-                                      ($this->deliveryOrder && $this->deliveryOrder->status === 'Save to Draft');
-                    
-                    // Only enforce stock limits for existing completed DOs
-                    if (!$isNewDO && !$isDraftOrPreview && $currentQty >= $availableStock) {
-                        toastr()->warning("Cannot add more of this item. Available stock: {$availableStock}, Current quantity: {$currentQty}");
-                        return;
-                    }
-                    
+                    // Always allow incrementing quantity, no stock limits
                     $this->stackedItems[$key]['item_qty'] += 1;
                     $this->stackedItems[$key]['amount'] = 
                         $this->stackedItems[$key]['item_qty'] * $this->stackedItems[$key]['item_unit_price'];
@@ -311,11 +273,7 @@ class DOForm extends Component
             }
 
             if (!$itemExists) {
-                // Check if maximum items limit (15) is reached only for new items
-                if (count($this->stackedItems) >= 15) {
-                    toastr()->error('Maximum of 15 items allowed per delivery order. Please remove some items before adding new ones.');
-                    return;
-                }
+                // No maximum items limit - removed
 
                 $this->stackedItems[] = [
                     'item' => [
@@ -440,19 +398,8 @@ class DOForm extends Component
         if (isset($this->stackedItems[$index])) {
             $item = $this->stackedItems[$index];
             $requestedQty = intval($item['item_qty'] ?? 0);
-            $availableStock = $item['item']['qty'] ?? 0;
-            $isNewDO = !$this->deliveryOrder || !$this->deliveryOrder->id;
-            $isDraftOrPreview = $this->saveAsDraft || $this->isPreviewMode || 
-                              ($this->deliveryOrder && $this->deliveryOrder->status === 'Save to Draft');
             
-            // Only validate stock limits for existing completed DOs, allow exceed for new DOs, drafts, and previews
-            if (!$isNewDO && !$isDraftOrPreview && $requestedQty > $availableStock) {
-                toastr()->warning("Cannot set quantity to {$requestedQty}. Available stock: {$availableStock}");
-                // Reset to available stock or current quantity, whichever is lower
-                $this->stackedItems[$index]['item_qty'] = min($availableStock, $this->stackedItems[$index]['item_qty'] ?? 1);
-                $requestedQty = $this->stackedItems[$index]['item_qty'];
-            }
-            
+            // No stock validation - allow any quantity, including negative stock
             $item['item_qty'] = $requestedQty;
             $item['item_unit_price'] = floatval($item['item_unit_price'] ?? 0);
             $this->stackedItems[$index]['amount'] = $item['item_qty'] * $item['item_unit_price'];
@@ -535,23 +482,7 @@ class DOForm extends Component
             }
         }
 
-        // Final validation: Check that no item quantities exceed available stock (only for completed DOs)
-        $isNewDO = !$this->deliveryOrder || !$this->deliveryOrder->id;
-        $isDraftOrPreview = $this->saveAsDraft || $this->isPreviewMode || 
-                          ($this->deliveryOrder && $this->deliveryOrder->status === 'Save to Draft');
-        
-        // Only enforce stock limits for existing completed DOs, allow exceed for new DOs, drafts, and previews
-        if (!$isNewDO && !$isDraftOrPreview) {
-            foreach ($this->stackedItems as $index => $item) {
-                $requestedQty = intval($item['item_qty'] ?? 0);
-                $availableStock = $item['item']['qty'] ?? 0;
-                
-                if ($requestedQty > $availableStock) {
-                    $this->addError("stackedItems.{$index}.item_qty", "Quantity ({$requestedQty}) exceeds available stock ({$availableStock}) for item {$item['item']['item_code']}");
-                }
-            }
-        }
-
+        // No stock validation - allow negative stock values
         // Check if there are any validation errors
         if ($this->getErrorBag()->any()) {
             return;
@@ -611,18 +542,8 @@ class DOForm extends Component
                             }
                         }
                     } elseif ($previousStatus === 'Save to Draft' && $newStatus === 'Completed') {
-                        // Validate stock availability before deducting
-                        foreach ($this->stackedItems as $item) {
-                            $itemId = $item['item']['id'];
-                            $qty = (int) ($item['item_qty'] ?? 0);
-                            $availableStock = $item['item']['qty'] ?? 0;
-                            
-                            if ($qty > 0 && $qty > $availableStock) {
-                                throw new \Exception("Insufficient stock for item {$item['item']['item_code']}. Available: {$availableStock}, Requested: {$qty}");
-                            }
-                        }
-                        
                         // Special case: Deduct stock when changing from Draft to Completed
+                        // Allow negative stock - no validation
                         foreach ($this->stackedItems as $item) {
                             $itemId = $item['item']['id'];
                             $qty = (int) ($item['item_qty'] ?? 0);
@@ -630,7 +551,7 @@ class DOForm extends Component
                             if ($qty > 0) {
                                 $this->deductFromBatchesFifo($itemId, $qty, false);
                                 
-                                // Update item qty to reflect current batches
+                                // Update item qty to reflect current batches (can be negative)
                                 $itemRecord = Item::find($itemId);
                                 if ($itemRecord) {
                                     $itemRecord->qty = BatchTracking::where('item_id', $itemId)->sum('quantity');
@@ -736,18 +657,8 @@ class DOForm extends Component
 
             // Handle stock changes for new delivery orders
             if ($isNewDeliveryOrder && !$isDraft) {
-                // Validate stock availability before deducting
-                foreach ($this->stackedItems as $item) {
-                    $itemId = $item['item']['id'];
-                    $qty = (int) ($item['item_qty'] ?? 0);
-                    $availableStock = $item['item']['qty'] ?? 0;
-                    
-                    if ($qty > 0 && $qty > $availableStock) {
-                        throw new \Exception("Insufficient stock for item {$item['item']['item_code']}. Available: {$availableStock}, Requested: {$qty}");
-                    }
-                }
-                
                 // For new DOs going to Completed status, deduct stock
+                // Allow negative stock - no validation
                 foreach ($this->stackedItems as $item) {
                     $itemId = $item['item']['id'];
                     $qty = (int) ($item['item_qty'] ?? 0);
@@ -755,7 +666,7 @@ class DOForm extends Component
                     if ($qty > 0) {
                         $this->deductFromBatchesFifo($itemId, $qty, false);
                         
-                        // Update item qty to reflect current batches
+                        // Update item qty to reflect current batches (can be negative)
                         $itemRecord = Item::find($itemId);
                         if ($itemRecord) {
                             $itemRecord->qty = BatchTracking::where('item_id', $itemId)->sum('quantity');
@@ -903,23 +814,41 @@ class DOForm extends Component
 
     private function deductFromBatchesFifo(int $itemId, int $deductQty, bool $isDraft = false): void
     {
+        // Get all batches for this item (including zero/negative quantities)
         $batches = BatchTracking::where('item_id', $itemId)
-            ->where('quantity', '>', 0)
             ->orderBy('received_date', 'asc')
             ->get();
 
-        $totalBatchQuantity = $batches->sum('quantity');
-        if ($totalBatchQuantity < $deductQty) {
-            throw new \Exception("Insufficient stock for item ID {$itemId}");
+        // If no batches exist, create one to allow negative stock tracking
+        if ($batches->isEmpty()) {
+            $batch = BatchTracking::create([
+                'batch_num' => 'AUTO-' . now()->format('YmdHis'),
+                'item_id' => $itemId,
+                'quantity' => 0,
+                'received_date' => now(),
+                'received_by' => auth()->id()
+            ]);
+            $batches = collect([$batch]);
         }
 
-        $currentQtyOnHand = $totalBatchQuantity;
+        $currentQtyOnHand = BatchTracking::where('item_id', $itemId)->sum('quantity');
         $baseTimestamp = now();
+        $remainingDeductQty = $deductQty;
 
+        // Deduct from batches in FIFO order, allowing negative values
         foreach ($batches as $index => $batch) {
-            if ($deductQty <= 0) break;
-            $take = min($deductQty, $batch->quantity);
+            if ($remainingDeductQty <= 0) break;
+            
             $qtyBefore = $currentQtyOnHand;
+            
+            // Take from this batch - if batch has stock, take up to its quantity, otherwise take all remaining
+            if ($batch->quantity > 0) {
+                $take = min($remainingDeductQty, $batch->quantity);
+            } else {
+                // Batch is empty or negative, take all remaining quantity from this batch
+                $take = $remainingDeductQty;
+            }
+            
             $batch->quantity -= $take;
             $batch->save();
             $currentQtyOnHand -= $take;
@@ -939,7 +868,32 @@ class DOForm extends Component
                 'updated_at' => $baseTimestamp->copy()->subSeconds($index * 0.01)
             ]);
 
-            $deductQty -= $take;
+            $remainingDeductQty -= $take;
+        }
+        
+        // If there's still quantity to deduct after processing all batches, 
+        // deduct from the last batch to allow negative stock
+        if ($remainingDeductQty > 0) {
+            $lastBatch = $batches->last();
+            $qtyBefore = $currentQtyOnHand;
+            $lastBatch->quantity -= $remainingDeductQty;
+            $lastBatch->save();
+            $currentQtyOnHand -= $remainingDeductQty;
+
+            Transaction::create([
+                'item_id' => $itemId,
+                'qty_on_hand' => $currentQtyOnHand,
+                'qty_before' => $qtyBefore,
+                'qty_after' => $currentQtyOnHand,
+                'transaction_qty' => $remainingDeductQty,
+                'transaction_type' => 'Stock Out',
+                'user_id' => auth()->id(),
+                'source_type' => $isDraft ? 'DO Draft Delta' : 'DO',
+                'source_doc_num' => $this->do_num,
+                'batch_id' => $lastBatch->id,
+                'created_at' => $baseTimestamp->copy()->subSeconds($batches->count() * 0.01),
+                'updated_at' => $baseTimestamp->copy()->subSeconds($batches->count() * 0.01)
+            ]);
         }
     }
 
@@ -1072,7 +1026,9 @@ class DOForm extends Component
         $this->do_num = $this->do_num ?? 'DO' . time();
         $this->user_id = $this->user_id ?? auth()->id();
         // Load salesmen list sorted by name for dropdown
-        $this->salesmen = User::role('Salesperson')->orderBy('name','asc')->get();
+        // Use current database connection (not just 'ups') to match validation
+        $connection = session('active_db') ?: DB::getDefaultConnection();
+        $this->salesmen = User::on($connection)->role('Salesperson')->orderBy('name','asc')->get();
         return view('livewire.d-o-form')->layout('layouts.app');
     }
 

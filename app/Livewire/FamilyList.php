@@ -97,3 +97,4 @@ class FamilyList extends Component
         $this->activePageNumber = $pageNumber;
     }
 }
+

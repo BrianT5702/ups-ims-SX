@@ -21,14 +21,15 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             color-adjust: exact;
+            font-family: Arial, sans-serif; /* Arial font for all elements */
         }
         
         body { 
-            /* use default browser font */ 
+            font-family: Arial, sans-serif; /* Use Arial font */
             color: #000; 
             background-color: #fff; 
-            font-size: 15px; /* Slightly smaller for tighter layout */
-            line-height: 1.45;
+            font-size: 14px; /* Smaller base font size */
+            line-height: 1.3; /* Reduced line spacing */
             zoom: 1; /* Force 1:1 zoom */
             transform: scale(1); /* Additional normalization */
             transform-origin: top left;
@@ -39,16 +40,16 @@
         .content { padding: 24px 20px 20px; flex: 0 0 auto; /* Don't grow */ }
         .company-info { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 6px; }
         .company-info-left { text-align: left; width: 70%; }
-        .company-info-left h2 { font-size: calc(1.1em + 1px); /* +1px increase */ margin-bottom: 8px; line-height: 1.2; }
+        .company-info-left h2 { font-size: 1.0em; /* Smaller font */ margin-bottom: 6px; line-height: 1.2; }
         .company-info-right { text-align: right; margin-top: 0; width: 28%; min-width: 200px; }
-        .company-info-right h2 { margin-bottom: 6px; white-space: nowrap; font-size: calc(1.0em + 1px); /* +1px increase */ text-transform: uppercase; }
-        .company-info h2 { margin-bottom: 6px; color: #000; /* Changed from #333 to black */ font-weight: bold; font-size: calc(1.1em + 1px); /* +1px increase */ white-space: nowrap; text-transform: uppercase; }
-        .company-info p { margin: 0; font-size: calc(0.78em + 1px); /* +1px increase */ }
+        .company-info-right h2 { margin-bottom: 4px; white-space: nowrap; font-size: 0.95em; /* Smaller font */ text-transform: uppercase; }
+        .company-info h2 { margin-bottom: 4px; color: #000; font-weight: bold; font-size: 1.0em; /* Smaller font */ white-space: nowrap; text-transform: uppercase; }
+        .company-info p { margin: 0; font-size: 0.75em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
         .customer-info { display: flex; justify-content: space-between; margin-bottom: 14px; }
-        .customer-info-frame { border: 1px solid #000; padding: 6px; width: 100%; font-size: 0.88em; }
-        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; table-layout: fixed; font-size: 0.92em; }
-        .items-table th { padding: 6px 8px 5px 8px; text-align: left; border-bottom: 1px solid #000; border-top: 1px solid #000; font-weight: bold; text-transform: uppercase; font-size: 0.82em; }
-        .items-table td { padding: 5px 8px; text-align: left; vertical-align: top; border-bottom: none; font-size: 0.98rem; }
+        .customer-info-frame { border: 1px solid #000; padding: 6px; width: 100%; font-size: 0.8em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; font-size: 0.85em; /* Smaller font */ }
+        .items-table th { padding: 6px 8px 4px 8px; /* Reduced padding */ text-align: left; border-bottom: 1px solid #000; border-top: 1px solid #000; font-weight: bold; text-transform: uppercase; font-size: 0.7em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
+        .items-table td { padding: 4px 8px; /* Reduced padding */ text-align: left; vertical-align: top; border-bottom: none; font-size: 0.85em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
         .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 5%; text-align: center; }
         .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 60%; }
         .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 8%; text-align: right; white-space: nowrap; }
@@ -58,15 +59,15 @@
         .items-table tfoot { border-top: 1px dotted #000; }
         .items-table tfoot .total-row:first-child td { padding-top: 8px; border-top: none; }
         .items-table tfoot .total-row:last-child td { border-top: 1px solid #000; }
-        .total-row td { border-top: none; padding: 10px; }
+        .total-row td { border-top: none; padding: 6px; /* Reduced padding */ }
         .total { font-weight: bold; text-transform: uppercase; }
         .total-row td:first-child { text-align: left !important; }
-        .signature-section { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; border-top: 1px solid #000 !important; padding: 16px 20px 12px; margin-top: auto; /* Push to bottom with flexbox */ page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; page-break-before: avoid; font-size: 13px; flex: 0 0 auto; /* Don't grow */ }
+        .signature-section { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; border-top: 1px solid #000 !important; padding: 10px 0 8px; /* Reduced padding */ margin-top: auto; page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; page-break-before: avoid; font-size: 0.75em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ flex: 0 0 auto; }
         .signature-section p, .signature-section strong { text-transform: uppercase; }
         .signature-left { width: 45% !important; }
         .signature-right { width: 45% !important; text-align: center !important; }
-        .signature-line { border-bottom: 1px solid #000 !important; margin-top: 34px !important; /* Increased for better signature space */ margin-bottom: 4px !important; }
-        .signature-label { font-size: 0.85em !important; color: #000 !important; /* Changed from #666 to black */ text-transform: uppercase; font-weight: bold !important; text-align: center !important; }
+        .signature-line { border-bottom: 1px solid #000 !important; margin-top: 30px !important; /* Reduced margin */ margin-bottom: 3px !important; }
+        .signature-label { font-size: 0.75em !important; /* Smaller font */ color: #000 !important; text-transform: uppercase; font-weight: bold !important; text-align: center !important; line-height: 1.3; /* Reduced line spacing */ }
         .button-container { text-align: right; padding: 20px; position: relative; }
         .print-button { position: fixed; top: 0; right: 0; padding: 10px 20px; font-size: 17px; color: #fff; background-color: #007bff; border: none; border-radius: 4px; cursor: pointer; z-index: 1000; }
         .back-button { position: fixed; top: 0; left: 0; padding: 10px 20px; font-size: 17px; color: #fff; background-color: #007bff; border: none; border-radius: 4px; cursor: pointer; z-index: 1000; }
@@ -107,18 +108,20 @@
             /* Force standardized print settings */
             html {
                 zoom: 1 !important;
-                font-size: 16px !important;
+                font-size: 14px !important; /* Smaller font */
             }
             
             body { 
+                font-family: Arial, sans-serif !important; /* Arial font */
                 background-color: #fff; 
                 counter-reset: page;
                 zoom: 1 !important;
                 transform: scale(1) !important;
-                font-size: 16px !important;
+                font-size: 14px !important; /* Smaller font */
+                line-height: 1.3 !important; /* Reduced line spacing */
             }
             
-            .company-info h2, .company-info-right h2 { white-space: nowrap !important; font-size: 1.2em !important; color: #000 !important; /* Ensure black in print */ }
+            .company-info h2, .company-info-right h2 { white-space: nowrap !important; font-size: 1.0em !important; /* Smaller font */ color: #000 !important; }
             .print-button, .back-button { display: none !important; }
             html, body {
                 height: auto;
@@ -260,22 +263,23 @@
                 position: relative !important;
             }
         }
-        .items-table { font-size: 0.92em; }
+        .items-table { font-size: 0.85em; /* Smaller font */ }
         .items-table th { 
-            font-size: 0.82em; 
+            font-size: 0.7em; /* Smaller font */
+            line-height: 1.3;
             white-space: nowrap;
             overflow: visible;
             text-overflow: unset;
         }
-        .items-table td { font-size: 0.98rem; }
+        .items-table td { font-size: 0.85em; /* Smaller font */ line-height: 1.3; }
 
         /* Top-right details: make black and +1px font size */
         .company-info-right { color: #000; }
-        .company-info-right h2 { color: #000; font-size: calc(1.0em + 1px); }
-        .company-info-right p { color: #000; font-size: calc(0.78em + 1px); }
+        .company-info-right h2 { color: #000; font-size: 0.95em; /* Smaller font */ }
+        .company-info-right p { color: #000; font-size: 0.75em; /* Smaller font */ }
         .company-info-right strong { text-transform: uppercase; }
         @media print {
-            .company-info-right h2 { color: #000 !important; font-size: calc(1.2em + 1px) !important; }
+            .company-info-right h2 { color: #000 !important; font-size: 1.0em !important; /* Smaller font */ }
             .company-info-right p { color: #000 !important; }
         }
 
@@ -364,24 +368,20 @@
             page-break-after: auto;
         }
 
-        /* Page number indicator on each page (screen only) */
-        .print-page::before {
+        /* Page number indicator on each page */
+        .print-page::after {
             content: 'Page ' attr(data-page-number) ' of ' attr(data-total-pages);
             position: absolute;
-            top: -25px;
-            left: 0;
-            font-size: 12px;
-            font-weight: bold;
-            color: #666;
-            background: #f0f0f0;
-            padding: 4px 8px;
-            border-radius: 4px;
-            z-index: 100;
+            bottom: 0.5cm;
+            right: 0.75cm;
+            font-size: 0.7em;
+            font-family: Arial, sans-serif;
+            color: #000;
         }
 
         @media print {
-            .print-page::before {
-                display: none;
+            .print-page::after {
+                display: block;
             }
         }
 
@@ -564,7 +564,7 @@
                 @endif
 
                 <div id="totals-source" class="totals-section" style="border-top: 1px dotted #000; padding-top: 8px;">
-                    <div class="total-row" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-weight: bold; font-size: 1.05em; text-transform: uppercase;">
+                    <div class="total-row" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0 2px 0; font-weight: bold; font-size: 1.05em; text-transform: uppercase;">
                         <span class="total-label" style="text-align: left; width: 75%;">Total</span>
                         <span class="total-value" style="text-align: right; width: 25%; white-space: nowrap;">{{ $currency }} {{ number_format($quotation->total_amount ?? 0, 2) }}</span>
                     </div>
@@ -612,7 +612,7 @@
                 @endphp
 
                 @if(!empty($amountInWords))
-                <div id="amount-source" style="padding: 6px 0 4px; font-style: italic; font-size: 0.86em; page-break-inside: avoid; break-inside: avoid;">
+                <div id="amount-source" style="padding: 2px 0 4px; font-style: italic; font-size: 0.86em; page-break-inside: avoid; break-inside: avoid;">
                     {{ $amountInWords }}
                 </div>
                 @endif
@@ -672,7 +672,9 @@
             <div class="signature-right">
                 <p><strong>{{ $companyProfile->company_name }}</strong></p>
                 <br><br><br>
-                <div class="signature-line"></div>
+                <div class="signature-line" style="display: flex; align-items: center; justify-content: center; padding: 8px 0;">
+                    <p style="font-size: 0.7em; color: #000; text-align: center; margin: 0; font-style: italic;">Computer Generated No Signature is required.</p>
+                </div>
                 <p class="signature-label">(Authorized Signature)</p>
             </div>
         </div>
@@ -928,7 +930,7 @@
                         if (attr === 'data-page-total') {
                             clone.style.marginTop = 'auto';
                         } else if (attr === 'data-page-amount') {
-                            clone.style.marginTop = '6px';
+                            clone.style.marginTop = '2px';
                         }
                         // Check if page overflows, accounting for signature footer
                         var pageHeight = activePage.page.offsetHeight;
@@ -948,7 +950,7 @@
                             if (attr === 'data-page-total') {
                                 clone.style.marginTop = 'auto';
                             } else if (attr === 'data-page-amount') {
-                                clone.style.marginTop = '6px';
+                                clone.style.marginTop = '2px';
                             }
                         }
                     }

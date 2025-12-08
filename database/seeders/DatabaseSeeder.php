@@ -450,42 +450,56 @@ class DatabaseSeeder extends Seeder
             $user->assignRole($userRole);
         }
 
-        // Create three salesperson users
+        // Create salesperson users
         $salespersonRole = Role::on($connection)->where('name', 'Salesperson')->first();
-        $salesman1 = User::on($connection)->updateOrCreate([
-            'email' => 'salesman1@example.com'
-        ], [
-            'name' => 'Salesman 1',
-            'phone_num' => '0112233441',
-            'username' => 'salesman1',
-            'password' => Hash::make('salesman12345'),
-        ]);
-        $salesman2 = User::on($connection)->updateOrCreate([
-            'email' => 'salesman2@example.com'
-        ], [
-            'name' => 'Salesman 2',
-            'phone_num' => '0112233442',
-            'username' => 'salesman2',
-            'password' => Hash::make('salesman12345'),
-        ]);
-        $salesman3 = User::on($connection)->updateOrCreate([
-            'email' => 'salesman3@example.com'
-        ], [
-            'name' => 'Salesman 3',
-            'phone_num' => '0112233443',
-            'username' => 'salesman3',
-            'password' => Hash::make('salesman12345'),
-        ]);
-        if ($salespersonRole) {
-            if (!$salesman1->hasRole($salespersonRole)) $salesman1->assignRole($salespersonRole);
-            if (!$salesman2->hasRole($salespersonRole)) $salesman2->assignRole($salespersonRole);
-            if (!$salesman3->hasRole($salespersonRole)) $salesman3->assignRole($salespersonRole);
+        
+        $salespersons = [
+            ['code' => 'LJH', 'name' => 'LOH JENG HONG'],
+            ['code' => 'LNY', 'name' => 'LOW NAI YONG'],
+            ['code' => 'HOK', 'name' => 'HENG OOI KUANG'],
+            ['code' => 'SSC', 'name' => 'SEOW SIEW CHEW'],
+            ['code' => 'TSS', 'name' => 'TAN SWEET SIONG (JACKSON)'],
+            ['code' => 'LHQ', 'name' => 'LOW HUA QIN (JOEY)'],
+            ['code' => 'LWS', 'name' => 'LOH WEE SENG'],
+            ['code' => 'CKY', 'name' => 'CHU KAY YEW (SAM CHU)'],
+            ['code' => 'BEE', 'name' => 'BEE BEE LOH'],
+            ['code' => 'YWL', 'name' => 'YAP WEE LEONG'],
+            ['code' => 'CZD', 'name' => 'CHAN ZE DAT'],
+            ['code' => 'KWC', 'name' => 'KENNY KOK'],
+            ['code' => 'CASH', 'name' => 'CASH'],
+            ['code' => 'BHW', 'name' => 'BEH HWEE WEN (GERALDINE)'],
+            ['code' => 'LCY', 'name' => 'LEE C.Y (MR LEE)'],
+            ['code' => 'BNK', 'name' => 'BASIL NG JIAN'],
+            ['code' => 'YYP', 'name' => 'YAP YOON PHANG (OWEN)'],
+        ];
+
+        $createdSalespersons = [];
+        foreach ($salespersons as $index => $salesperson) {
+            $username = strtolower($salesperson['code']);
+            $email = strtolower($salesperson['code']) . '@example.com';
+            
+            $salesman = User::on($connection)->updateOrCreate([
+                'email' => $email
+            ], [
+                'name' => $salesperson['name'],
+                'phone_num' => '0112233' . str_pad($index + 1, 4, '0', STR_PAD_LEFT),
+                'username' => $username,
+                'password' => Hash::make('salesman12345'),
+            ]);
+            
+            if ($salespersonRole && !$salesman->hasRole($salespersonRole)) {
+                $salesman->assignRole($salespersonRole);
+            }
+            
+            $createdSalespersons[] = $salesman;
         }
 
-        // Assign default salesmen to seeded customers
-        DB::connection($connection)->table('customers')->where('account', 'CUST001')->update(['salesman_id' => $salesman1->id]);
-        DB::connection($connection)->table('customers')->where('account', 'CUST002')->update(['salesman_id' => $salesman2->id]);
-        DB::connection($connection)->table('customers')->where('account', 'CUST003')->update(['salesman_id' => $salesman3->id]);
+        // Assign default salesmen to seeded customers (using first 3 salespersons)
+        if (count($createdSalespersons) >= 3) {
+            DB::connection($connection)->table('customers')->where('account', 'CUST001')->update(['salesman_id' => $createdSalespersons[0]->id]);
+            DB::connection($connection)->table('customers')->where('account', 'CUST002')->update(['salesman_id' => $createdSalespersons[1]->id]);
+            DB::connection($connection)->table('customers')->where('account', 'CUST003')->update(['salesman_id' => $createdSalespersons[2]->id]);
+        }
 
         //Seed data for company profile (varies per DB)
         $conn = $connection;

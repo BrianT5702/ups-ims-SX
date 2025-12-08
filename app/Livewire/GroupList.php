@@ -97,3 +97,4 @@ class GroupList extends Component
         $this->activePageNumber = $pageNumber;
     }
 }
+

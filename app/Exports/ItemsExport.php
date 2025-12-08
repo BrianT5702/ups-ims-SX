@@ -121,24 +121,24 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
                 
                 // Style header rows
                 $sheet->getStyle('A1')->applyFromArray([
-                    'font' => ['bold' => true, 'size' => 10],
+                    'font' => ['bold' => true, 'size' => 13],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
                 ]);
                 
                 $sheet->getStyle($lastCol . '1')->applyFromArray([
-                    'font' => ['size' => 8],
+                    'font' => ['size' => 11],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT, 'vertical' => Alignment::VERTICAL_TOP],
                 ]);
                 
                 $sheet->getStyle('A4')->applyFromArray([
-                    'font' => ['bold' => true, 'size' => 12],
+                    'font' => ['bold' => true, 'size' => 16],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
                 
                 // Style column headers (row 5)
                 $headerRange = 'A5:' . $lastCol . '5';
                 $sheet->getStyle($headerRange)->applyFromArray([
-                    'font' => ['bold' => true],
+                    'font' => ['bold' => true, 'size' => 11],
                     'fill' => [
                         'fillType' => Fill::FILL_SOLID,
                         'startColor' => ['rgb' => 'F0F0F0'],
@@ -154,6 +154,15 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
                 // Add grouping rows if enabled
                 if ($this->useGrouping) {
                     $this->addGroupingRows($sheet, $event);
+                }
+                
+                // Set font size for all data rows (starting from row 6)
+                $highestRow = $sheet->getHighestRow();
+                if ($highestRow >= 6) {
+                    $dataRange = 'A6:' . $lastCol . $highestRow;
+                    $sheet->getStyle($dataRange)->applyFromArray([
+                        'font' => ['size' => 10],
+                    ]);
                 }
                 
                 // Auto-size columns
@@ -202,7 +211,7 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
                 
                 // Style grouping row
                 $sheet->getStyle('A' . $row . ':' . $lastCol . $row)->applyFromArray([
-                    'font' => ['bold' => true],
+                    'font' => ['bold' => true, 'size' => 11],
                     'fill' => [
                         'fillType' => Fill::FILL_SOLID,
                         'startColor' => ['rgb' => 'E0E0E0'],
