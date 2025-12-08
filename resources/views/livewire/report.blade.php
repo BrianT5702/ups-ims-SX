@@ -22,6 +22,38 @@
             </select>
         </div>
 
+        <div class="mb-4 grid grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-2">Filter by Group</label>
+                <select wire:model="selectedGroupId" class="rounded-md shadow-sm border-gray-300 w-full">
+                    <option value="">All Groups</option>
+                    @foreach($groups as $group)
+                        <option value="{{ $group->id }}">{{ $group->group_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-2">Filter by Brand</label>
+                <select wire:model="selectedFamilyId" class="rounded-md shadow-sm border-gray-300 w-full">
+                    <option value="">All Brands</option>
+                    @foreach($families as $family)
+                        <option value="{{ $family->id }}">{{ $family->family_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-2">Filter by Type</label>
+                <select wire:model="selectedCategoryId" class="rounded-md shadow-sm border-gray-300 w-full">
+                    <option value="">All Types</option>
+                    @foreach($categories as $category)
+                        <option value="{{ $category->id }}">{{ $category->cat_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
         <div class="mb-4">
             <label class="block text-sm font-medium mb-2">Stock Quantity Filter</label>
             <div class="grid grid-cols-3 gap-4">
@@ -31,11 +63,11 @@
                 </label>
                 <label class="inline-flex items-center">
                     <input type="radio" wire:model="stockFilter" value="gt0" class="rounded border-gray-300">
-                    <span class="ml-2">Only > 0</span>
+                    <span class="ml-2">Print Non-Zero Quantity Only</span>
                 </label>
                 <label class="inline-flex items-center">
                     <input type="radio" wire:model="stockFilter" value="eq0" class="rounded border-gray-300">
-                    <span class="ml-2">Only = 0</span>
+                    <span class="ml-2">Print Zero Quantity Only</span>
                 </label>
             </div>
         </div>

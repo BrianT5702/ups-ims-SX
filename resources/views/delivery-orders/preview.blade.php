@@ -739,7 +739,7 @@
                         </div>
                         <div class="company-info-right">
                             <h2>Delivery Order</h2>
-                            <p><strong>DO No:</strong> {{ $deliveryOrder->do_num }}</p>
+                            <p><strong>DO No:</strong> <strong>{{ $deliveryOrder->do_num }}</strong></p>
                             <p><strong>Date:</strong> {{ \Carbon\Carbon::parse($deliveryOrder->date)->format('d/m/Y') }}</p>
                             <p><strong>Reference No:</strong> {{ $deliveryOrder->ref_num ?? '-' }}</p>
                             <p><strong>Customer PO No:</strong> {{ $deliveryOrder->cust_po }}</p>
@@ -813,8 +813,8 @@
                     <div id="remark-source">
                         <div style="margin: 0;">
                             <div id="remark-wrapper" style="margin-left: calc(var(--qty-col-width) + var(--col-align-offset)); padding-left: 8px; padding-top: 10px;">
-                                <div style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                    <div style="font-size: 0.92em; line-height: 1.35; color: #000;">
+                                <div style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <div style="font-size: 0.75em; line-height: 1.3; color: #000;">
                                         <div style="display: flex;">
                                             <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
                                             <div style="flex: 1;">
@@ -999,15 +999,9 @@
                     var marginPx = measurePx('0.75cm');
                     var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
                     
-                    if (isPrintMode) {
-                        // For print, use more conservative height to ensure content fits
-                        // Account for print DPI differences and browser rendering variations
-                        // Use 7% reduction for print to ensure everything fits (same as quotations)
-                        pageHeightCache = Math.round(calculatedHeight * 0.93);
-                    } else {
-                        // For screen preview, use 5% reduction (same as quotations)
-                        pageHeightCache = Math.round(calculatedHeight * 0.95);
-                    }
+                    // Use a lighter reduction so print can fit more lines (keep screen and print identical)
+                    // Approx 5% reduction: 0.95
+                    pageHeightCache = Math.round(calculatedHeight * 0.95);
                 }
                 return pageHeightCache;
             }
@@ -1104,8 +1098,8 @@
                     // Check if we're in print context (either print media query or beforeprint event)
                     var isPrintMode = window.matchMedia && window.matchMedia('print').matches;
                     var pageHeight = getPageHeight(force, isPrintMode);
-                    // Use a larger tolerance in print mode to account for DPI differences (same as quotations)
-                    var tolerance = isPrintMode ? 15 : 4;
+                    // Use the same tolerance for screen and print; allow a bit more room
+                    var tolerance = 6;
                     var usableHeight = pageHeight; // Already reduced in getPageHeight
                     var isFirstPage = true;
                     var activePage = null;
@@ -1125,7 +1119,12 @@
                         }
                     }
 
+                    // DO MUST FIT ON ONE PAGE ONLY - enforce single-page limit
+                    var pageExceeded = false;
                     rows.forEach(function (row) {
+                        if (pageExceeded) {
+                            return; // Stop processing if page already exceeded
+                        }
                         var clone = row.cloneNode(true);
                         ensurePage();
                         activePage.tbody.appendChild(clone);
@@ -1133,10 +1132,23 @@
                         // Use same check as quotations - check page height directly
                         // The signature is already part of the page, so offsetHeight includes it
                         if (activePage.page.offsetHeight > (usableHeight - tolerance)) {
+                            // DO MUST FIT ON ONE PAGE - remove the row and mark as exceeded
                             activePage.tbody.removeChild(clone);
-                            activePage = null;
-                            ensurePage();
-                            activePage.tbody.appendChild(clone);
+                            pageExceeded = true;
+                            // Show warning that content exceeds one page
+                            var warningMsg = '⚠️ Content exceeds one page limit. Please remove items or shorten descriptions to fit on a single page.';
+                            if (!document.getElementById('do-page-limit-warning')) {
+                                var warningDiv = document.createElement('div');
+                                warningDiv.id = 'do-page-limit-warning';
+                                warningDiv.style.cssText = 'position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #ff6b6b; color: white; padding: 15px 20px; border-radius: 5px; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: bold; max-width: 600px; text-align: center;';
+                                warningDiv.textContent = warningMsg;
+                                document.body.appendChild(warningDiv);
+                                setTimeout(function() {
+                                    if (warningDiv.parentNode) {
+                                        warningDiv.parentNode.removeChild(warningDiv);
+                                    }
+                                }, 5000);
+                            }
                         }
                     });
 
@@ -1144,7 +1156,7 @@
                         ensurePage();
                     }
 
-                    if (remarkSource) {
+                    if (remarkSource && !pageExceeded) {
                         var remarkClone = remarkSource.cloneNode(true);
                         removeIds(remarkClone);
                         remarkClone.setAttribute('data-page-remark', '');
@@ -1152,19 +1164,27 @@
                         ensurePage();
                         activePage.body.appendChild(remarkClone);
                         // Check if page overflows, accounting for signature footer
-                        // Use same approach as quotations - check page height with tolerance
+                        // DO MUST FIT ON ONE PAGE - stricter check
                         var currentPageHeight = activePage.page.offsetHeight;
                         if (currentPageHeight > (usableHeight - tolerance)) {
-                            // Allow slight overflow to keep signature together (same as quotations)
-                            // This prevents signature from being pushed to a new page
-                            if (currentPageHeight <= (usableHeight + 30)) {
-                                // Allow slight overflow to keep everything on same page
-                                // This prevents creating an extra page with just signature
-                            } else {
+                            // Allow slight overflow (30px) to keep signature together, but warn if more
+                            if (currentPageHeight > (usableHeight + 30)) {
+                                // Content exceeds one page - remove remark and show warning
                                 activePage.body.removeChild(remarkClone);
-                                activePage = null;
-                                ensurePage();
-                                activePage.body.appendChild(remarkClone);
+                                pageExceeded = true;
+                                var warningMsg = '⚠️ Content exceeds one page limit. Please shorten the remark to fit on a single page.';
+                                if (!document.getElementById('do-page-limit-warning')) {
+                                    var warningDiv = document.createElement('div');
+                                    warningDiv.id = 'do-page-limit-warning';
+                                    warningDiv.style.cssText = 'position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #ff6b6b; color: white; padding: 15px 20px; border-radius: 5px; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: bold; max-width: 600px; text-align: center;';
+                                    warningDiv.textContent = warningMsg;
+                                    document.body.appendChild(warningDiv);
+                                    setTimeout(function() {
+                                        if (warningDiv.parentNode) {
+                                            warningDiv.parentNode.removeChild(warningDiv);
+                                        }
+                                    }, 5000);
+                                }
                             }
                         }
                     }
@@ -1180,13 +1200,22 @@
                     });
 
                     renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
+                    // DO MUST BE ONE PAGE ONLY - remove any additional pages
+                    if (renderedPages.length > 1) {
+                        // Keep only the first page, remove all others
+                        for (var i = 1; i < renderedPages.length; i++) {
+                            renderedPages[i].parentNode.removeChild(renderedPages[i]);
+                        }
+                        renderedPages = [renderedPages[0]];
+                    }
+                    
                     if (renderedPages.length > 0) {
-                        var totalPages = renderedPages.length;
+                        var totalPages = 1; // DO is always one page
                         renderedPages.forEach(function (page, index) {
                             page.classList.remove('print-page--last');
                             // Add page number attributes for display
-                            page.setAttribute('data-page-number', index + 1);
-                            page.setAttribute('data-total-pages', totalPages);
+                            page.setAttribute('data-page-number', 1);
+                            page.setAttribute('data-total-pages', 1);
                         });
                         renderedPages[renderedPages.length - 1].classList.add('print-page--last');
                     }

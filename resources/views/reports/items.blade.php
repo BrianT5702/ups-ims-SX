@@ -45,6 +45,9 @@
                 @if(isset($columns['cust_price']))
                 <th>Customer</th>
                 @endif
+                @if(isset($showTotals) && $showTotals)
+                <th>Amount</th>
+                @endif
             </tr>
         </thead>
         <tbody>
@@ -54,7 +57,12 @@
                     $prevBrand = '';
                     $prevType = '';
                     $colCount = 2 + (isset($columns) ? count($columns) - 2 : 5);
+                    if (isset($showTotals) && $showTotals) {
+                        $colCount++; // Add Amount column
+                    }
                     $itemsArray = is_array($items) ? array_values($items) : $items->values()->all();
+                    $currentGroupKey = '';
+                    $groupSubtotal = 0;
                 @endphp
                 @foreach($items as $index => $item)
                     @php
@@ -66,13 +74,16 @@
                             $typeName = '';
                         }
                         
+                        $currentKey = $groupName . '|' . $brandName . '|' . $typeName;
                         $showGroup = $groupName !== $prevGroup;
                         $showBrand = $showGroup || ($brandName !== $prevBrand);
                         $showType = $showGroup || $showBrand || ($typeName !== $prevType);
+                        $isNewGroup = ($currentKey !== $currentGroupKey);
                         
                         // Check if next item is different group (need blank line before next group)
                         $nextItem = $itemsArray[$index + 1] ?? null;
                         $needsBlankLine = false;
+                        $isLastInGroup = false;
                         if ($nextItem) {
                             $nextGroup = trim($nextItem->group_name ?? '');
                             $nextBrand = trim($nextItem->family_name ?? '');
@@ -81,7 +92,20 @@
                             if (strtoupper($nextType) === 'UNDEFINED') {
                                 $nextType = '';
                             }
-                            $needsBlankLine = ($nextGroup !== $groupName) || ($nextBrand !== $brandName) || ($nextType !== $typeName);
+                            $nextKey = $nextGroup . '|' . $nextBrand . '|' . $nextType;
+                            $needsBlankLine = ($nextKey !== $currentKey);
+                            $isLastInGroup = ($nextKey !== $currentKey);
+                        } else {
+                            $isLastInGroup = true; // This is the last item overall
+                        }
+                        
+                        // Update group tracking - reset subtotal when starting new group
+                        if ($isNewGroup) {
+                            // Reset subtotal for the new group (previous group's subtotal was already shown when it ended)
+                            if ($currentGroupKey !== '') {
+                                $groupSubtotal = 0; // Reset for new group
+                            }
+                            $currentGroupKey = $currentKey;
                         }
                         
                         $prevGroup = $groupName;
@@ -103,6 +127,16 @@
                     </tr>
                     @endif
                     
+                    @php
+                        $amount = 0;
+                        if (isset($showTotals) && $showTotals) {
+                            $qty = $item->qty ?? 0;
+                            $cost = $item->cost ?? 0;
+                            $amount = $qty * $cost;
+                            $groupSubtotal += $amount;
+                        }
+                    @endphp
+                    
                     <tr>
                         <td>{{ $item->item_code }}</td>
                         <td>{{ $item->item_name }}</td>
@@ -121,7 +155,22 @@
                         @if(isset($columns['cust_price']))
                         <td class="n">{{ $item->cust_price ? number_format($item->cust_price, 2) : '' }}</td>
                         @endif
+                        @if(isset($showTotals) && $showTotals)
+                        <td class="n">{{ number_format($amount, 2) }}</td>
+                        @endif
                     </tr>
+                    
+                    @if($isLastInGroup && isset($showTotals) && $showTotals)
+                    @php
+                        // Calculate final subtotal for this group before displaying
+                        $finalGroupSubtotal = $groupSubtotal;
+                        $groupSubtotal = 0; // Reset for next group
+                    @endphp
+                    <tr style="border-top: 1px solid #000;">
+                        <td colspan="{{ $colCount - 1 }}" style="text-align: right; font-weight: bold; padding: 3px;">Sub Total:</td>
+                        <td class="n" style="font-weight: bold; padding: 3px;">{{ number_format($finalGroupSubtotal, 2) }}</td>
+                    </tr>
+                    @endif
                     
                     @if($needsBlankLine)
                     <tr>
@@ -131,6 +180,14 @@
                 @endforeach
             @else
                 @foreach($items as $item)
+                @php
+                    $subtotal = 0;
+                    if (isset($showTotals) && $showTotals) {
+                        $qty = $item->qty ?? 0;
+                        $cost = $item->cost ?? 0;
+                        $subtotal = $qty * $cost;
+                    }
+                @endphp
                 <tr>
                     <td>{{ $item->item_code }}</td>
                     <td>{{ $item->item_name }}</td>
@@ -149,8 +206,26 @@
                     @if(isset($columns['cust_price']))
                     <td class="n">{{ $item->cust_price ? number_format($item->cust_price, 2) : '' }}</td>
                     @endif
+                    @if(isset($showTotals) && $showTotals)
+                    <td class="n">{{ number_format($amount, 2) }}</td>
+                    @endif
                 </tr>
                 @endforeach
+            @endif
+            @if(isset($showTotals) && $showTotals)
+            @php
+                $colCountTotal = 2;
+                if (isset($columns['qty'])) $colCountTotal++;
+                if (isset($columns['cost'])) $colCountTotal++;
+                if (isset($columns['cash_price'])) $colCountTotal++;
+                if (isset($columns['term_price'])) $colCountTotal++;
+                if (isset($columns['cust_price'])) $colCountTotal++;
+                $colCountTotal++; // For Amount column
+            @endphp
+            <tr style="border-top: 2px solid #000;">
+                <td colspan="{{ $colCountTotal - 1 }}" style="text-align: right; font-weight: bold; padding: 5px;">Grand Total:</td>
+                <td class="n" style="font-weight: bold; padding: 5px;">{{ number_format($grandTotal ?? 0, 2) }}</td>
+            </tr>
             @endif
         </tbody>
     </table>

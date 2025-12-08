@@ -248,11 +248,15 @@
                                                 @if(!$isView)
                                                     <div x-show="showDescription" class="mt-2">
                                                         <textarea 
-                                                            wire:model="stackedItems.{{ $index }}.more_description"
+                                                            wire:model.lazy="stackedItems.{{ $index }}.more_description"
+                                                            wire:blur="checkDescriptionLimit({{ $index }})"
                                                             class="form-control form-control-sm"
                                                             rows="3"
                                                             placeholder="Enter additional description..."
+                                                            title="Keep description short to ensure DO fits on one page"
+                                                            id="description-{{ $index }}"
                                                         ></textarea>
+                                                        <small class="text-muted">Keep descriptions short to fit on one page</small>
                                                     </div>
                                                     @if(!$isView)
                                                     <div x-data="{ open: false }" x-init="
@@ -545,4 +549,5 @@
             white-space: nowrap;
         }
     </style>
+    
 </div>

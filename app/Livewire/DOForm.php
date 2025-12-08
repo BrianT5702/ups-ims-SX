@@ -48,6 +48,7 @@ class DOForm extends Component
     public $saveAsDraft = false;
     public $status = 'Save to Draft';
     private bool $isPreviewMode = false;
+    public array $lastValidDescriptions = [];
 
     public function mount(DeliveryOrder $deliveryOrder)
     {
@@ -108,6 +109,7 @@ class DOForm extends Component
                         'cash_price' => $doItem->item->cash_price,
                         'latest_do_price' => $this->getLatestDOPriceForItem($doItem->item->id, $this->cust_id),
                         'latest_do_date' => $this->getLatestDODateForItem($doItem->item->id, $this->cust_id),
+                    'details' => $doItem->item->details,
                     ],
                     'item_qty' => $doItem->qty, // Quantity in this specific delivery order
                     'pricing_tier' => $pricingTier, // Load the saved pricing tier
@@ -264,6 +266,7 @@ class DOForm extends Component
             foreach ($this->stackedItems as $key => $stackedItem) {
                 if ($stackedItem['item']['id'] === $item->id) {
                     // Always allow incrementing quantity, no stock limits
+                    // But check if incrementing will exceed page limit
                     $this->stackedItems[$key]['item_qty'] += 1;
                     $this->stackedItems[$key]['amount'] = 
                         $this->stackedItems[$key]['item_qty'] * $this->stackedItems[$key]['item_unit_price'];
@@ -273,8 +276,23 @@ class DOForm extends Component
             }
 
             if (!$itemExists) {
-                // No maximum items limit - removed
-
+                // DO MUST FIT ON ONE PAGE - estimate based on rows
+                // Calculate estimated rows for current items + new item
+                $estimatedRows = $this->estimateTotalRows(true); // true = include new item
+                
+                // Calculate max rows that fit on one page
+                $maxRows = $this->calculateMaxRows();
+                
+                if ($estimatedRows > $maxRows) {
+                    toastr()->error('Cannot add item: Adding this item would exceed the one-page limit (' . $estimatedRows . ' rows estimated, max ' . $maxRows . ' rows). Please remove items, shorten descriptions (including removing newlines), or shorten remarks to fit on a single page.');
+                    return;
+                }
+                
+                // Show warning if getting close to limit
+                if ($estimatedRows > ($maxRows * 0.9)) {
+                    toastr()->warning('Adding this item will bring you close to the one-page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows).');
+                }
+                
                 $this->stackedItems[] = [
                     'item' => [
                         'id' => $item->id,
@@ -287,6 +305,7 @@ class DOForm extends Component
                         'cash_price' => $item->cash_price,
                         'latest_do_price' => $this->getLatestDOPriceForItem($item->id, $this->cust_id),
                         'latest_do_date' => $this->getLatestDODateForItem($item->id, $this->cust_id),
+                    'details' => $item->details,
                     ],
                     'item_qty' => 1,
                     'pricing_tier' => '',
@@ -311,6 +330,18 @@ class DOForm extends Component
         if (!$this->isView) {
             unset($this->stackedItems[$index]);
             $this->stackedItems = array_values($this->stackedItems);
+            $this->calculateTotalAmount();
+        }
+    }
+    
+    public function removeLastItemIfExceedsPage()
+    {
+        if (!$this->isView && count($this->stackedItems) > 0) {
+            // Remove the last item that was added
+            array_pop($this->stackedItems);
+            $this->stackedItems = array_values($this->stackedItems);
+            $this->calculateTotalAmount();
+            toastr()->error('Cannot add item: Content would exceed one page limit. Please remove items or shorten descriptions to fit on a single page.');
         }
     }
 
@@ -407,14 +438,222 @@ class DOForm extends Component
             $this->calculateTotalAmount();
         }
     }
-
+    
     public function updatedStackedItems($value, $key)
     {
         // This method is called when any stackedItems property is updated
+        // Handle item_qty updates
         if (str_contains($key, '.item_qty')) {
             $index = explode('.', $key)[1];
             $this->updatePriceLine($index);
         }
+        
+        // Check if more_description was updated - validate immediately when the model updates (triggered on blur via wire:model.lazy)
+        if (strpos($key, 'more_description') !== false) {
+            // Extract index from key (e.g., "stackedItems.0.more_description" -> 0)
+            $parts = explode('.', $key);
+            if (count($parts) >= 2 && is_numeric($parts[1])) {
+                $index = (int)$parts[1];
+                $this->validateAndMaybeRevertDescription($index);
+            }
+        }
+    }
+    
+    private function validateAndMaybeRevertDescription(int $index): void
+    {
+        $currentDesc = $this->stackedItems[$index]['more_description'] ?? '';
+
+        // Track last valid value per index
+        if (!array_key_exists($index, $this->lastValidDescriptions)) {
+            $this->lastValidDescriptions[$index] = $currentDesc;
+        }
+
+        $estimatedRows = $this->estimateTotalRows(false);
+        $maxRows = $this->calculateMaxRows();
+        
+        if ($estimatedRows > $maxRows) {
+            // Revert to last valid value
+            $this->stackedItems[$index]['more_description'] = $this->lastValidDescriptions[$index];
+            toastr()->error('Cannot add more description: would exceed one-page limit (' . $estimatedRows . ' rows, max ' . $maxRows . '). Please shorten descriptions/remarks or remove items.');
+        } else {
+            // Update last valid value
+            $this->lastValidDescriptions[$index] = $currentDesc;
+            if ($estimatedRows > ($maxRows * 0.95)) {
+                toastr()->warning('Content is very close to one-page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ').');
+            }
+        }
+    }
+    
+    public function checkDescriptionLimit($index)
+    {
+        // Check if current description length would exceed page limit
+        // Called on blur event or by JavaScript
+        $estimatedRows = $this->estimateTotalRows(false);
+        $maxRows = $this->calculateMaxRows();
+        
+        if ($estimatedRows > $maxRows) {
+            toastr()->error('Description would exceed the one-page limit! (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows). Please shorten this description, other descriptions, or remove items.');
+            return [
+                'exceeded' => true,
+                'message' => 'Description would exceed the one-page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows). Please shorten this description, other descriptions, or remove items.',
+                'currentRows' => $estimatedRows,
+                'maxRows' => $maxRows
+            ];
+        }
+        
+        return ['exceeded' => false];
+    }
+    
+    public function validateDescriptionLengthRealtime()
+    {
+        // Validation when description is updated - only show warnings, not errors
+        // Errors are shown on blur via checkDescriptionLimit
+        $estimatedRows = $this->estimateTotalRows(false);
+        $maxRows = $this->calculateMaxRows();
+        
+        if ($estimatedRows > $maxRows) {
+            // Don't show error here - let checkDescriptionLimit handle it on blur
+            // This prevents interrupting typing
+        } elseif ($estimatedRows > ($maxRows * 0.95)) {
+            // Only show warning if very close, and only once to avoid spam
+            static $lastWarning = 0;
+            if (time() - $lastWarning > 3) { // Throttle warnings to every 3 seconds
+                toastr()->warning('Content is very close to one page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows).');
+                $lastWarning = time();
+            }
+        }
+    }
+    
+    public function updatedRemark($value)
+    {
+        // Validate page limit when remark is updated
+        $this->validateDescriptionLength();
+    }
+    
+    public function validateDescriptionLength()
+    {
+        // DO MUST FIT ON ONE PAGE - check based on rows (includes items, descriptions, and remarks)
+        // This is called on blur/change events
+        $estimatedRows = $this->estimateTotalRows(false);
+        $maxRows = $this->calculateMaxRows();
+        
+        if ($estimatedRows > $maxRows) {
+            toastr()->error('Content exceeds one page limit! Please remove items, shorten descriptions, or shorten remarks. Current: ' . $estimatedRows . ' rows, max ' . $maxRows . ' rows.');
+        } elseif ($estimatedRows > ($maxRows * 0.9)) {
+            toastr()->warning('Content is getting close to one page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows). Please keep descriptions and remarks short to ensure the DO fits on one page.');
+        }
+    }
+    
+    /**
+     * Estimate total rows needed for all items + remarks
+     * Each item = 1 base row + additional rows for descriptions
+     * Remarks = estimated rows based on text length
+     */
+    private function estimateTotalRows($includeNewItem = false)
+    {
+        $totalRows = 0;
+        $items = $this->stackedItems;
+        
+        // Base row height: ~25px (padding 4px top + 4px bottom = 8px, font 0.85em with line-height 1.3 ≈ 17px)
+        // Description rows: estimate based on text length and wrapping
+        // Average characters per line in description column: ~60-70 chars (depends on column width)
+        
+        foreach ($items as $stackedItem) {
+            $totalRows += 1; // Base row for each item
+            
+            // Estimate description rows - MUST account for actual newlines (Enter key)
+            $desc = $stackedItem['more_description'] ?? '';
+            if (!empty($desc)) {
+                // Count actual newlines first (each \n = 1 new line)
+                $newlineCount = substr_count($desc, "\n");
+                $descLines = $newlineCount + 1; // At least 1 line even if no newlines
+                
+                // For each line, estimate if it wraps (if line length > 60 chars - more conservative)
+                $lines = explode("\n", $desc);
+                $totalDescRows = 0;
+                foreach ($lines as $line) {
+                    $lineLength = strlen($line);
+                    // If line is longer than 60 chars, it will wrap (more conservative estimate)
+                    $wrappedLines = max(1, ceil($lineLength / 60));
+                    $totalDescRows += $wrappedLines;
+                }
+                
+                // Additional rows beyond base = total description rows - 1 (since base row already counted)
+                $totalRows += ($totalDescRows - 1);
+            }
+
+            // Estimate details rows (item details shown as bullet list)
+            $details = $stackedItem['item']['details'] ?? '';
+            if (!empty($details)) {
+                // Split by newline and wrap each line (~60 chars per line, similar to descriptions)
+                $detailLines = explode("\n", $details);
+                $detailRows = 0;
+                foreach ($detailLines as $line) {
+                    $line = trim($line);
+                    if ($line === '') continue;
+                    $lineLength = strlen($line);
+                    $wrappedLines = max(1, ceil($lineLength / 60));
+                    $detailRows += $wrappedLines;
+                }
+                // Each detail line is an additional row (bulleted list under the item)
+                $totalRows += $detailRows;
+            }
+        }
+        
+        // If including new item, add 1 more row
+        if ($includeNewItem) {
+            $totalRows += 1;
+        }
+        
+        // Add rows for remarks if present
+        $remark = $this->remark ?? '';
+        if (!empty($remark)) {
+            // Remark section: base height ~40px (padding + label)
+            // Each line of remark text: ~14px (smaller font 0.75em with line-height 1.3)
+            // Estimate: ~65 chars per line in remark box (more conservative)
+            // MUST account for actual newlines (Enter key presses)
+            $remarkLines = explode("\n", $remark);
+            $remarkRows = 0;
+            foreach ($remarkLines as $line) {
+                $lineLength = strlen($line);
+                // More conservative: 65 chars per line instead of 70
+                $estimatedLineCount = max(1, ceil($lineLength / 65));
+                $remarkRows += $estimatedLineCount;
+            }
+            // Base remark section = ~3 rows equivalent, plus text lines
+            $totalRows += 3 + ($remarkRows - 1); // 3 base rows + additional text rows
+        }
+        
+        return $totalRows;
+    }
+    
+    /**
+     * Calculate maximum rows that fit on one page
+     */
+    private function calculateMaxRows()
+    {
+        // Page dimensions: Letter size (11in = 279.4mm)
+        // Margins: 0.75cm top + 0.75cm bottom = 15mm total
+        // Usable height: 279.4mm - 15mm = 264.4mm
+        // Convert to pixels at 96 DPI: (264.4 / 25.4) * 96 ≈ 998px
+        
+        // Account for fixed elements:
+        // - Header (company info + customer info): ~120px
+        // - Table header row: ~25px
+        // - Signature section: ~80px
+        // - Padding/margins: ~40px
+        // Total fixed: ~265px
+        // Available for item rows: 998px - 265px = 733px
+        
+        // Row height: base ~25px + description lines
+        // Average row height: ~25-30px (assuming some items have short descriptions)
+        // More conservative estimate: use 30px average row height to account for descriptions
+        // Max rows: 733px / 30px ≈ 24 rows
+        
+        // Account for print DPI differences and safety margin (≈12.5% reduction)
+        // So: 24 * 0.875 ≈ 21 rows
+        
+        return 21; // Hard cap: at most 21 rows per page
     }
 
     public function updateUnitPrice($index)

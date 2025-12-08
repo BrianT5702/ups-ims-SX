@@ -476,7 +476,7 @@
                         </div>
                         <div class="company-info-right">
                             <h2>Quotation</h2>
-                            <p class="gap"><strong>Quotation No:</strong> {{ $quotation->quotation_num }}</p>
+                            <p class="gap"><strong>Quotation No:</strong> <strong>{{ $quotation->quotation_num }}</strong></p>
                             <p class="gap"><strong>Date:</strong> {{ \Carbon\Carbon::parse($quotation->date)->format('d/m/Y') }}</p>
                             <p class="gap"><strong>Reference No:</strong> {{ $quotation->ref_num ?? '-' }}</p>
                             <p class="gap"><strong>Terms:</strong> {{ $quotation->customerSnapshot->term ?? $quotation->customer->term ?? 'N/A' }}</p>

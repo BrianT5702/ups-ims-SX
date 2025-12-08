@@ -238,7 +238,7 @@
             line-height: 1.3;
             flex: 0 0 auto;
         }
-
+        
         .signature-section p, .signature-section strong {
             text-transform: uppercase;
         }
@@ -265,8 +265,8 @@
             font-weight: bold !important;
             text-align: center !important;
             line-height: 1.3;
-        }
-
+            }
+            
 
         .signature-left {
             width: 45%;
@@ -419,7 +419,7 @@
             max-width: 1000px;
             padding: 20px;
             box-sizing: border-box;
-        }
+            }
 
         .pages-container .print-page:last-child {
             margin-bottom: 0;
@@ -541,11 +541,11 @@
                 font-size: 1.0em !important;
                 color: #000 !important;
             }
-            
+
             .print-button, .back-button {
-                display: none !important;
+                display: none !important; 
             }
-            
+
             html, body {
                 height: auto;
                 margin: 0;
@@ -607,8 +607,8 @@
                 background: white;
             }
             
-            .items-table thead {
-                display: table-header-group;
+            .items-table thead { 
+                display: table-header-group; 
             }
             
             .items-table tr {
@@ -624,7 +624,7 @@
                 position: relative !important;
             }
             
-            .items-table {
+            .items-table { 
                 table-layout: fixed !important;
             }
             .items-table th:nth-child(1), .items-table td:nth-child(1) {
@@ -723,8 +723,8 @@
         <div class="content">
             <div id="print-source">
                 <div class="page-header">
-                    <!-- Company Information Section -->
-                    <div class="company-info">
+            <!-- Company Information Section -->
+            <div class="company-info">
                 <div class="company-info-left">
                     <h2>{{ $companyProfile->company_name }}</h2>
                     <p>{{ $companyProfile->company_no }} | GST No: {{ $companyProfile->gst_no }}</p>
@@ -747,7 +747,7 @@
                 </div>
                 <div class="company-info-right">
                     <h2>Purchase Order</h2>
-                    <p><strong>PO No:</strong> {{ $purchaseOrder->po_num }}</p>
+                    <p><strong>PO No:</strong> <strong>{{ $purchaseOrder->po_num }}</strong></p>
                     <p><strong>Date:</strong> {{ \Carbon\Carbon::parse($purchaseOrder->date)->format('d/m/Y') }}</p>
                     <p><strong>Reference No:</strong> {{ $purchaseOrder->ref_num ?? '-' }}</p>
                 </div>
@@ -834,13 +834,13 @@
             @endif
 
             <!-- Totals Section - only TOTAL, no tax -->
-            @php($poCurrency = $purchaseOrder->supplierSnapshot->currency ?? 'MYR')
+                @php($poCurrency = $purchaseOrder->supplierSnapshot->currency ?? 'MYR')
             <div id="totals-source" class="totals-section" style="border-top: 1px dotted #000; padding-top: 8px;">
                 <div class="total-row" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-weight: bold; font-size: 1.05em; text-transform: uppercase;">
                     <span class="total-label" style="text-align: left; width: 75%;">Total</span>
                     <span class="total-value" style="text-align: right; width: 25%; white-space: nowrap;">{{ $poCurrency }} {{ number_format($purchaseOrder->final_total_price ?? 0, 2) }}</span>
                 </div>
-            </div>
+                </div>
             </div>
 
             <div id="pages-container" class="pages-container"></div>
@@ -927,22 +927,22 @@
             var scheduled = false;
             var building = false;
 
-            function measurePx(value) {
-                var probe = document.createElement('div');
-                probe.style.position = 'absolute';
-                probe.style.visibility = 'hidden';
-                probe.style.height = value;
-                document.body.appendChild(probe);
-                var px = probe.offsetHeight;
-                document.body.removeChild(probe);
-                return px;
-            }
+        function measurePx(value) {
+            var probe = document.createElement('div');
+            probe.style.position = 'absolute';
+            probe.style.visibility = 'hidden';
+            probe.style.height = value;
+            document.body.appendChild(probe);
+            var px = probe.offsetHeight;
+            document.body.removeChild(probe);
+            return px;
+        }
 
             function getPageHeight(force, isPrintContext) {
                 var isPrintMode = isPrintContext || (window.matchMedia && window.matchMedia('print').matches);
                 if (force || !pageHeightCache || isPrintMode) {
-                    var letterPx = measurePx('11in');
-                    var marginPx = measurePx('0.75cm');
+            var letterPx = measurePx('11in');
+            var marginPx = measurePx('0.75cm');
                     var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
                     
                     if (isPrintMode) {
@@ -952,7 +952,7 @@
                     }
                 }
                 return pageHeightCache;
-            }
+        }
 
             function removeIds(node) {
                 if (!node) {
@@ -1015,7 +1015,7 @@
                     tbody: tbody,
                     footer: footerWrapper
                 };
-            }
+        }
 
             function paginatePO(force) {
                 if (building) {
@@ -1023,7 +1023,7 @@
                 }
                 building = true;
 
-                try {
+            try {
                     var source = document.getElementById('print-source');
                     var pagesContainer = document.getElementById('pages-container');
                     var signatureTemplate = document.getElementById('signature-template');
@@ -1150,7 +1150,7 @@
                 } finally {
                     building = false;
                 }
-            }
+        }
 
             function schedulePaginate() {
                 if (scheduled) {
@@ -1187,7 +1187,7 @@
                             paginatePO(true);
                         }
                     });
-                }
+            }
             }
 
             window.addEventListener('beforeprint', function () {

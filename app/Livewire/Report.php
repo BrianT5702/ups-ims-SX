@@ -5,6 +5,9 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Item;
 use App\Models\CompanyProfile;
+use App\Models\Family;
+use App\Models\Category;
+use App\Models\Group;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ItemsExport;
@@ -18,6 +21,9 @@ class Report extends Component
     public $isGenerating = false;
     public $errorMessage = '';
     public $stockFilter = 'all'; // all | gt0 | eq0
+    public $selectedGroupId = null; // Filter by Group
+    public $selectedFamilyId = null; // Filter by Family (Brand)
+    public $selectedCategoryId = null; // Filter by Category (Type)
     public $sortByType = false;
     public $sortByBrand = false;
     public $sortByGroup = false;
@@ -31,7 +37,6 @@ class Report extends Component
         'cash_price' => 'Cash Price',
         'term_price' => 'Term Price',
         'cust_price' => 'Customer',
-        'supplier_name' => 'Supplier Name',
     ];
 
     protected $rules = [
@@ -44,6 +49,9 @@ class Report extends Component
     {
         $this->selectedColumns = ['item_code', 'item_name', 'qty', 'cost', 'cash_price', 'term_price', 'cust_price'];
         $this->stockFilter = 'all';
+        $this->selectedGroupId = null;
+        $this->selectedFamilyId = null;
+        $this->selectedCategoryId = null;
         $this->sortByType = false;
         $this->sortByBrand = false;
         $this->sortByGroup = false;
@@ -85,9 +93,6 @@ class Report extends Component
             if (in_array('cash_price', $finalColumns)) {
                 $query->addSelect('items.cash_price');
             }
-            if (in_array('supplier_name', $finalColumns)) {
-                $query->addSelect('suppliers.sup_name as supplier_name');
-            }
     
             // Join tables correctly (always join for sorting and grouping)
             $query->leftJoin('categories', 'items.cat_id', '=', 'categories.id')
@@ -110,6 +115,21 @@ class Report extends Component
                     break;
             }
 
+            // Apply Group filter
+            if ($this->selectedGroupId) {
+                $query->where('items.group_id', '=', $this->selectedGroupId);
+            }
+
+            // Apply Family (Brand) filter
+            if ($this->selectedFamilyId) {
+                $query->where('items.family_id', '=', $this->selectedFamilyId);
+            }
+
+            // Apply Category (Type) filter
+            if ($this->selectedCategoryId) {
+                $query->where('items.cat_id', '=', $this->selectedCategoryId);
+            }
+
             // Always sort by GROUP, BRAND, TYPE for proper grouping (matching PDF structure)
             $query->orderBy('groups.group_name', 'asc')
                   ->orderBy('families.family_name', 'asc')
@@ -120,18 +140,38 @@ class Report extends Component
             $itemCount = $query->count();
             
             if ($itemCount === 0) {
+                $filterMessages = [];
+                
+                if ($this->selectedGroupId) {
+                    $group = Group::find($this->selectedGroupId);
+                    $filterMessages[] = 'Group: ' . ($group->group_name ?? 'Selected');
+                }
+                
+                if ($this->selectedFamilyId) {
+                    $family = Family::find($this->selectedFamilyId);
+                    $filterMessages[] = 'Brand: ' . ($family->family_name ?? 'Selected');
+                }
+                
+                if ($this->selectedCategoryId) {
+                    $category = Category::find($this->selectedCategoryId);
+                    $filterMessages[] = 'Type: ' . ($category->cat_name ?? 'Selected');
+                }
+                
                 switch ($this->stockFilter) {
                     case 'gt0':
-                        $this->errorMessage = 'No items found with quantity > 0.';
+                        $filterMessages[] = 'Quantity > 0';
                         break;
                     case 'eq0':
-                        $this->errorMessage = 'No items found with quantity = 0.';
-                        break;
-                    case 'all':
-                    default:
-                        $this->errorMessage = 'No items available to generate report.';
+                        $filterMessages[] = 'Quantity = 0';
                         break;
                 }
+                
+                if (!empty($filterMessages)) {
+                    $this->errorMessage = 'No items found with the selected filters (' . implode(', ', $filterMessages) . ').';
+                } else {
+                    $this->errorMessage = 'No items available to generate report.';
+                }
+                
                 $this->isGenerating = false;
                 return null;
             }
@@ -196,6 +236,27 @@ class Report extends Component
     }
     
 
+    protected function shouldShowTotals()
+    {
+        // Check if only Cost and Quantity are selected (plus required Stock Code and Stock Description)
+        $selectedCols = $this->selectedColumns;
+        $requiredCols = ['item_code', 'item_name'];
+        $allowedCols = ['qty', 'cost'];
+        
+        // Remove required columns from check (they're auto-included)
+        $otherCols = array_values(array_diff($selectedCols, $requiredCols));
+        
+        // Should only have qty and cost, nothing else
+        sort($otherCols);
+        sort($allowedCols);
+        
+        // Check that we have exactly qty and cost, and no other columns
+        return count($otherCols) === 2 && 
+               in_array('qty', $otherCols) && 
+               in_array('cost', $otherCols) &&
+               $otherCols === $allowedCols;
+    }
+
     protected function generatePDFContent($query, $itemCount)
     {
         $originalMemoryLimit = ini_get('memory_limit');
@@ -219,6 +280,19 @@ class Report extends Component
             // Get company profile
             $companyProfile = CompanyProfile::first();
             
+            // Check if we should show totals
+            $showTotals = $this->shouldShowTotals();
+            $grandTotal = 0;
+            
+            if ($showTotals) {
+                // Calculate grand total
+                foreach ($items as $item) {
+                    $qty = $item->qty ?? 0;
+                    $cost = $item->cost ?? 0;
+                    $grandTotal += ($qty * $cost);
+                }
+            }
+            
             // Minimal dompdf options for maximum efficiency
             $options = [
                 'isRemoteEnabled' => false,
@@ -238,7 +312,9 @@ class Report extends Component
                 'items' => $items,
                 'columns' => $columnsForView,
                 'companyProfile' => $companyProfile,
-                'useGrouping' => $useGrouping
+                'useGrouping' => $useGrouping,
+                'showTotals' => $showTotals,
+                'grandTotal' => $grandTotal
             ])->setPaper('a4', 'portrait')
               ->setOptions($options);
 
@@ -291,12 +367,27 @@ class Report extends Component
             // Get company profile
             $companyProfile = CompanyProfile::first();
             
+            // Check if we should show totals
+            $showTotals = $this->shouldShowTotals();
+            $grandTotal = 0;
+            
+            if ($showTotals) {
+                // Calculate grand total
+                foreach ($items as $item) {
+                    $qty = $item->qty ?? 0;
+                    $cost = $item->cost ?? 0;
+                    $grandTotal += ($qty * $cost);
+                }
+            }
+            
             // Generate HTML content
             $htmlContent = view('reports.items-html', [
                 'items' => $items,
                 'columns' => $columnsForView,
                 'companyProfile' => $companyProfile,
-                'useGrouping' => $this->showGrouping
+                'useGrouping' => $this->showGrouping,
+                'showTotals' => $showTotals,
+                'grandTotal' => $grandTotal
             ])->render();
             
             return $htmlContent;
@@ -337,8 +428,9 @@ class Report extends Component
     {
         try {
             $columnLabels = array_intersect_key($this->availableColumns, array_flip($this->selectedColumns));
+            $showTotals = $this->shouldShowTotals();
             return Excel::download(
-                new ItemsExport($items, $this->selectedColumns, $columnLabels, $this->showGrouping), 
+                new ItemsExport($items, $this->selectedColumns, $columnLabels, $this->showGrouping, $showTotals), 
                 'inventory_report_' . date('Y-m-d') . '.xlsx'
             );
         } catch (\Exception $e) {
@@ -348,6 +440,15 @@ class Report extends Component
 
     public function render()
     {
-        return view('livewire.report')->layout('layouts.app');
+        // Load groups, families, and categories for filter dropdowns
+        $groups = Group::orderBy('group_name')->get();
+        $families = Family::orderBy('family_name')->get();
+        $categories = Category::orderBy('cat_name')->get();
+        
+        return view('livewire.report', [
+            'groups' => $groups,
+            'families' => $families,
+            'categories' => $categories,
+        ])->layout('layouts.app');
     }
 }

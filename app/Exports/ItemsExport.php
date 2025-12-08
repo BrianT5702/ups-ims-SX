@@ -23,13 +23,15 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
     protected $columns;
     protected $columnLabels;
     protected $useGrouping;
+    protected $showTotals;
 
-    public function __construct($items, array $columns, array $columnLabels = [], $useGrouping = true)
+    public function __construct($items, array $columns, array $columnLabels = [], $useGrouping = true, $showTotals = false)
     {
         $this->items = $items;
         $this->columns = $columns;
         $this->columnLabels = $columnLabels;
         $this->useGrouping = $useGrouping;
+        $this->showTotals = $showTotals;
     }
 
     public function startCell(): string
@@ -48,6 +50,10 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
         foreach ($this->columns as $column) {
             // Use provided label if available, otherwise format the column name
             $headers[] = $this->columnLabels[$column] ?? ucwords(str_replace('_', ' ', $column));
+        }
+        // Add Amount column if totals are enabled
+        if ($this->showTotals) {
+            $headers[] = 'Amount';
         }
         return $headers;
     }
@@ -70,6 +76,15 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
             
             $row[] = $value;
         }
+        
+        // Add subtotal if totals are enabled
+        if ($this->showTotals) {
+            $qty = $item->qty ?? 0;
+            $cost = $item->cost ?? 0;
+            $subtotal = $qty * $cost;
+            $row[] = number_format($subtotal, 2);
+        }
+        
         return $row;
     }
 
@@ -91,6 +106,12 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
             $colIndex++;
         }
         
+        // Format Amount column if totals are enabled
+        if ($this->showTotals) {
+            $amountCol = Coordinate::stringFromColumnIndex($colIndex);
+            $formats[$amountCol] = '#,##0.00';
+        }
+        
         return $formats;
     }
 
@@ -108,7 +129,8 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
                 $time = $now->format('H:i:s');
                 
                 // Add header rows - match PDF/HTML layout
-                $lastCol = Coordinate::stringFromColumnIndex(count($this->columns));
+                $columnCount = count($this->columns) + ($this->showTotals ? 1 : 0);
+                $lastCol = Coordinate::stringFromColumnIndex($columnCount);
                 
                 // Row 1: Company name (left) and Date/Time (right)
                 $sheet->setCellValue('A1', $companyName);
@@ -165,6 +187,48 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
                     ]);
                 }
                 
+                // Add grand total row if totals are enabled
+                if ($this->showTotals) {
+                    $highestRow = $sheet->getHighestRow();
+                    $totalRow = $highestRow + 1;
+                    
+                    // Calculate grand total
+                    $grandTotal = 0;
+                    foreach ($this->items as $item) {
+                        $qty = $item->qty ?? 0;
+                        $cost = $item->cost ?? 0;
+                        $grandTotal += ($qty * $cost);
+                    }
+                    
+                    // Set grand total label (second to last column)
+                    $grandTotalLabelCol = Coordinate::stringFromColumnIndex($columnCount - 1);
+                    $grandTotalCol = $lastCol;
+                    
+                    $sheet->setCellValue($grandTotalLabelCol . $totalRow, 'Grand Total:');
+                    $sheet->setCellValue($grandTotalCol . $totalRow, number_format($grandTotal, 2));
+                    
+                    // Style grand total row
+                    $sheet->getStyle($grandTotalLabelCol . $totalRow . ':' . $grandTotalCol . $totalRow)->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 11],
+                        'borders' => [
+                            'top' => [
+                                'borderStyle' => Border::BORDER_THICK,
+                            ],
+                            'bottom' => [
+                                'borderStyle' => Border::BORDER_THIN,
+                            ],
+                        ],
+                    ]);
+                    
+                    $sheet->getStyle($grandTotalLabelCol . $totalRow)->applyFromArray([
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
+                    ]);
+                    
+                    $sheet->getStyle($grandTotalCol . $totalRow)->applyFromArray([
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
+                    ]);
+                }
+                
                 // Auto-size columns
                 foreach (range('A', $lastCol) as $col) {
                     $sheet->getColumnDimension($col)->setAutoSize(true);
@@ -183,8 +247,12 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
         $prevGroup = '';
         $prevBrand = '';
         $prevType = '';
-        $lastCol = Coordinate::stringFromColumnIndex(count($this->columns));
+        $columnCount = count($this->columns) + ($this->showTotals ? 1 : 0);
+        $lastCol = Coordinate::stringFromColumnIndex($columnCount);
         $itemsArray = $this->items->values()->all();
+        $currentGroupKey = '';
+        $groupSubtotal = 0;
+        $groupStartRow = $row;
         
         foreach ($itemsArray as $index => $item) {
             $groupName = trim($item->group_name ?? '');
@@ -195,16 +263,42 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
                 $typeName = '';
             }
             
+            $currentKey = $groupName . '|' . $brandName . '|' . $typeName;
             $showGroup = $groupName !== $prevGroup;
             $showBrand = $showGroup || ($brandName !== $prevBrand);
             $showType = $showGroup || $showBrand || ($typeName !== $prevType);
+            $isNewGroup = ($currentKey !== $currentGroupKey);
+            
+            // Check if next item is different group
+            $nextItem = $itemsArray[$index + 1] ?? null;
+            $isLastInGroup = false;
+            if ($nextItem) {
+                $nextGroup = trim($nextItem->group_name ?? '');
+                $nextBrand = trim($nextItem->family_name ?? '');
+                $nextType = trim($nextItem->cat_name ?? '');
+                if (strtoupper($nextType) === 'UNDEFINED') {
+                    $nextType = '';
+                }
+                $nextKey = $nextGroup . '|' . $nextBrand . '|' . $nextType;
+                $isLastInGroup = ($nextKey !== $currentKey);
+            } else {
+                $isLastInGroup = true; // Last item overall
+            }
+            
+            // Update group tracking - reset subtotal when starting new group
+            if ($isNewGroup) {
+                // Reset subtotal for the new group (previous group's subtotal was already shown when it ended)
+                if ($currentGroupKey !== '') {
+                    $groupSubtotal = 0; // Reset for new group
+                }
+                $currentGroupKey = $currentKey;
+            }
             
             if ($showGroup || $showBrand || $showType) {
                 // Insert grouping row before current data row
                 $sheet->insertNewRowBefore($row, 1);
                 
                 // Set grouping text in first cell and merge - match PDF/HTML format
-                // Always show "TYPE: " even if empty or UNDEFINED
                 $groupText = 'GROUP: ' . $groupName . ' | BRAND: ' . $brandName . ' | TYPE: ' . $typeName;
                 $sheet->setCellValue('A' . $row, $groupText);
                 $sheet->mergeCells('A' . $row . ':' . $lastCol . $row);
@@ -223,8 +317,6 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
                     ],
                 ]);
                 
-                // Try to align text - left for GROUP, center for BRAND, right for TYPE
-                // Since we can't easily split in Excel, we'll use a workaround with custom text
                 $sheet->getStyle('A' . $row)->applyFromArray([
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
                 ]);
@@ -232,29 +324,61 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
                 $row++; // Move to next row (data row)
             }
             
-            // Check if next item is different group (need blank line after this item)
-            $nextItem = $itemsArray[$index + 1] ?? null;
-            if ($nextItem) {
-                $nextGroup = trim($nextItem->group_name ?? '');
-                $nextBrand = trim($nextItem->family_name ?? '');
-                $nextType = trim($nextItem->cat_name ?? '');
-                // Treat "UNDEFINED" as empty for comparison
-                if (strtoupper($nextType) === 'UNDEFINED') {
-                    $nextType = '';
-                }
-                $needsBlankLine = ($nextGroup !== $groupName) || ($nextBrand !== $brandName) || ($nextType !== $typeName);
+            // Calculate and accumulate subtotal
+            if ($this->showTotals) {
+                $qty = $item->qty ?? 0;
+                $cost = $item->cost ?? 0;
+                $groupSubtotal += ($qty * $cost);
+            }
+            
+            // If last item in group, show subtotal
+            if ($isLastInGroup && $this->showTotals) {
+                $row++; // Move to next row after current item
+                $sheet->insertNewRowBefore($row, 1);
                 
-                if ($needsBlankLine) {
-                    // Insert blank row after current item (before next group)
-                    $sheet->insertNewRowBefore($row + 1, 1);
-                    $row++; // Increment to account for blank row
-                }
+                // Save the subtotal before resetting
+                $finalGroupSubtotal = $groupSubtotal;
+                $groupSubtotal = 0; // Reset for next group
+                
+                $subtotalLabelCol = Coordinate::stringFromColumnIndex($columnCount - 1);
+                $subtotalCol = $lastCol;
+                
+                $sheet->setCellValue($subtotalLabelCol . $row, 'Sub Total:');
+                $sheet->setCellValue($subtotalCol . $row, number_format($finalGroupSubtotal, 2));
+                
+                $sheet->getStyle($subtotalLabelCol . $row . ':' . $subtotalCol . $row)->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 10],
+                    'borders' => [
+                        'top' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                        ],
+                    ],
+                ]);
+                
+                $sheet->getStyle($subtotalLabelCol . $row)->applyFromArray([
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
+                ]);
+                
+                $sheet->getStyle($subtotalCol . $row)->applyFromArray([
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
+                ]);
+                
+                $row++;
+            }
+            
+            // Insert blank line if needed
+            if ($isLastInGroup && $nextItem) {
+                $sheet->insertNewRowBefore($row, 1);
+                $row++;
             }
             
             $prevGroup = $groupName;
             $prevBrand = $brandName;
             $prevType = $typeName;
-            $row++; // Move to next item
+            
+            if (!$isLastInGroup) {
+                $row++; // Move to next item (unless we already moved for subtotal)
+            }
         }
     }
 }
