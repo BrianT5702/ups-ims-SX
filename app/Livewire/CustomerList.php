@@ -30,7 +30,8 @@ class CustomerList extends Component
     }
 
     public function fetchCustomers(){
-        return Customer::where('cust_name', 'like', '%'. $this->customerSearchTerm. '%')->
+        return Customer::with('salesman')
+            ->where('cust_name', 'like', '%'. $this->customerSearchTerm. '%')->
         orderBy($this->sortColumn, $this->sortOrder)->
         paginate(8); 
     }

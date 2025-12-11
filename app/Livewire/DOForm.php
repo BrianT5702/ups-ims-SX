@@ -32,6 +32,7 @@ class DOForm extends Component
     public $ref_num;
     public $date = null;
     public $remark;
+    public $lastValidRemark = '';
     public $salesmanId;
     public $salesman_id;
     public $cust_po;
@@ -66,6 +67,7 @@ class DOForm extends Component
             $this->salesman_id = $deliveryOrder->salesman_id;
             $this->cust_po = $deliveryOrder->cust_po;
             $this->remark = $deliveryOrder->remark;
+            $this->lastValidRemark = $deliveryOrder->remark ?? '';
             $this->total_amount = $deliveryOrder->total_amount;
     
             // Clear previous stackedItems
@@ -265,8 +267,7 @@ class DOForm extends Component
 
             foreach ($this->stackedItems as $key => $stackedItem) {
                 if ($stackedItem['item']['id'] === $item->id) {
-                    // Always allow incrementing quantity, no stock limits
-                    // But check if incrementing will exceed page limit
+                    // Always allow incrementing quantity - quantity changes don't affect row count
                     $this->stackedItems[$key]['item_qty'] += 1;
                     $this->stackedItems[$key]['amount'] = 
                         $this->stackedItems[$key]['item_qty'] * $this->stackedItems[$key]['item_unit_price'];
@@ -276,15 +277,24 @@ class DOForm extends Component
             }
 
             if (!$itemExists) {
+                // DO MUST FIT ON ONE PAGE - check current rows first
+                $maxRows = $this->calculateMaxRows();
+                $currentRows = $this->estimateTotalRows(false);
+                
+                // Block adding if already at or over limit
+                if ($currentRows >= $maxRows) {
+                    toastr()->error('⚠️ PAGE LIMIT REACHED: Cannot add item. Current: ' . $currentRows . ' rows, Maximum: ' . $maxRows . ' rows. Please remove items, shorten descriptions, or shorten remarks before adding new items.');
+                    $this->dispatch('show-limit-error', ['message' => 'Page limit reached (' . $currentRows . '/' . $maxRows . ' rows). Remove items or shorten content to add more.']);
+                    return;
+                }
+                
                 // DO MUST FIT ON ONE PAGE - estimate based on rows
                 // Calculate estimated rows for current items + new item
                 $estimatedRows = $this->estimateTotalRows(true); // true = include new item
                 
-                // Calculate max rows that fit on one page
-                $maxRows = $this->calculateMaxRows();
-                
                 if ($estimatedRows > $maxRows) {
-                    toastr()->error('Cannot add item: Adding this item would exceed the one-page limit (' . $estimatedRows . ' rows estimated, max ' . $maxRows . ' rows). Please remove items, shorten descriptions (including removing newlines), or shorten remarks to fit on a single page.');
+                    toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add item. Adding this item would result in ' . $estimatedRows . ' rows (max: ' . $maxRows . ' rows). Please remove items, shorten descriptions (including removing newlines), or shorten remarks to fit on a single page.');
+                    $this->dispatch('show-limit-error', ['message' => 'Would exceed limit (' . $estimatedRows . '/' . $maxRows . ' rows). Remove items or shorten content first.']);
                     return;
                 }
                 
@@ -462,19 +472,38 @@ class DOForm extends Component
     private function validateAndMaybeRevertDescription(int $index): void
     {
         $currentDesc = $this->stackedItems[$index]['more_description'] ?? '';
+        $lastValidDesc = $this->lastValidDescriptions[$index] ?? '';
 
         // Track last valid value per index
         if (!array_key_exists($index, $this->lastValidDescriptions)) {
             $this->lastValidDescriptions[$index] = $currentDesc;
+            $lastValidDesc = $currentDesc;
         }
 
-        $estimatedRows = $this->estimateTotalRows(false);
         $maxRows = $this->calculateMaxRows();
+        
+        // Check current rows without this description change
+        $this->stackedItems[$index]['more_description'] = $lastValidDesc;
+        $currentRows = $this->estimateTotalRows(false);
+        
+        // If already at limit, block adding descriptions
+        if ($currentRows >= $maxRows) {
+            // Keep the last valid description
+            $this->stackedItems[$index]['more_description'] = $lastValidDesc;
+            toastr()->error('⚠️ PAGE LIMIT REACHED: Cannot add description. Current: ' . $currentRows . ' rows, Maximum: ' . $maxRows . ' rows. Please remove items, shorten other descriptions, or shorten remarks before adding descriptions.');
+            $this->dispatch('show-limit-error', ['message' => 'Page limit reached (' . $currentRows . '/' . $maxRows . ' rows). Remove items or shorten content to add descriptions.']);
+            return;
+        }
+        
+        // Now check with the new description
+        $this->stackedItems[$index]['more_description'] = $currentDesc;
+        $estimatedRows = $this->estimateTotalRows(false);
         
         if ($estimatedRows > $maxRows) {
             // Revert to last valid value
-            $this->stackedItems[$index]['more_description'] = $this->lastValidDescriptions[$index];
-            toastr()->error('Cannot add more description: would exceed one-page limit (' . $estimatedRows . ' rows, max ' . $maxRows . '). Please shorten descriptions/remarks or remove items.');
+            $this->stackedItems[$index]['more_description'] = $lastValidDesc;
+            toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add description. Would result in ' . $estimatedRows . ' rows (max: ' . $maxRows . ' rows). Please shorten descriptions/remarks or remove items.');
+            $this->dispatch('show-limit-error', ['message' => 'Would exceed limit (' . $estimatedRows . '/' . $maxRows . ' rows). Shorten content or remove items first.']);
         } else {
             // Update last valid value
             $this->lastValidDescriptions[$index] = $currentDesc;
@@ -534,13 +563,43 @@ class DOForm extends Component
     {
         // DO MUST FIT ON ONE PAGE - check based on rows (includes items, descriptions, and remarks)
         // This is called on blur/change events
-        $estimatedRows = $this->estimateTotalRows(false);
+        
         $maxRows = $this->calculateMaxRows();
+        $currentRemark = $this->remark ?? '';
+        
+        // Initialize last valid remark if not set
+        if ($this->lastValidRemark === '') {
+            $this->lastValidRemark = $currentRemark;
+        }
+        
+        // Check current rows with last valid remark
+        $tempRemark = $this->remark;
+        $this->remark = $this->lastValidRemark;
+        $currentRows = $this->estimateTotalRows(false);
+        
+        // If already at limit, block adding to remark
+        if ($currentRows >= $maxRows) {
+            $this->remark = $this->lastValidRemark;
+            toastr()->error('⚠️ PAGE LIMIT REACHED: Cannot add to remark. Current: ' . $currentRows . ' rows, Maximum: ' . $maxRows . ' rows. Please remove items, shorten descriptions, or remove lines from remark before adding more.');
+            $this->dispatch('show-limit-error', ['message' => 'Page limit reached (' . $currentRows . '/' . $maxRows . ' rows). Remove items or shorten content to add to remark.']);
+            return;
+        }
+        
+        // Now check with the new remark
+        $this->remark = $tempRemark;
+        $estimatedRows = $this->estimateTotalRows(false);
         
         if ($estimatedRows > $maxRows) {
-            toastr()->error('Content exceeds one page limit! Please remove items, shorten descriptions, or shorten remarks. Current: ' . $estimatedRows . ' rows, max ' . $maxRows . ' rows.');
-        } elseif ($estimatedRows > ($maxRows * 0.9)) {
-            toastr()->warning('Content is getting close to one page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows). Please keep descriptions and remarks short to ensure the DO fits on one page.');
+            // Revert to last valid remark
+            $this->remark = $this->lastValidRemark;
+            toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add to remark. Would result in ' . $estimatedRows . ' rows (max: ' . $maxRows . ' rows). Please remove items, shorten descriptions, or remove lines from remark.');
+            $this->dispatch('show-limit-error', ['message' => 'Would exceed limit (' . $estimatedRows . '/' . $maxRows . ' rows). Remove items or shorten content first.']);
+        } else {
+            // Update last valid remark
+            $this->lastValidRemark = $currentRemark;
+            if ($estimatedRows > ($maxRows * 0.9)) {
+                toastr()->warning('Content is getting close to one page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows). Please keep descriptions and remarks short to ensure the DO fits on one page.');
+            }
         }
     }
     
@@ -608,20 +667,24 @@ class DOForm extends Component
         // Add rows for remarks if present
         $remark = $this->remark ?? '';
         if (!empty($remark)) {
-            // Remark section: base height ~40px (padding + label)
-            // Each line of remark text: ~14px (smaller font 0.75em with line-height 1.3)
-            // Estimate: ~65 chars per line in remark box (more conservative)
+            // Remark section calculation (including all padding and borders):
+            // - Wrapper padding-top: 10px
+            // - Inner padding: 8px top + 8px bottom = 16px
+            // - Border: 1px top + 1px bottom = 2px
+            // - Content: font 0.85em of 15px = 12.75px, line-height 1.3 = 16.575px per line
+            // - Base (label + 1 line): 16.575px
+            // Total base: 10px + 16px + 2px + 16.575px = 44.575px ≈ 45px
+            // At ~30px per row: 45px ÷ 30px = 1.5 rows ≈ 2 rows base
+            
+            // Count actual newlines - each line counts as 1 row
             // MUST account for actual newlines (Enter key presses)
             $remarkLines = explode("\n", $remark);
-            $remarkRows = 0;
-            foreach ($remarkLines as $line) {
-                $lineLength = strlen($line);
-                // More conservative: 65 chars per line instead of 70
-                $estimatedLineCount = max(1, ceil($lineLength / 65));
-                $remarkRows += $estimatedLineCount;
-            }
-            // Base remark section = ~3 rows equivalent, plus text lines
-            $totalRows += 3 + ($remarkRows - 1); // 3 base rows + additional text rows
+            $lineCount = count($remarkLines);
+            
+            // Base remark section = ~2 rows equivalent (padding + border + label)
+            // Each line in remark = 1 row
+            // Total: 2 base rows + number of lines
+            $totalRows += 2 + $lineCount;
         }
         
         return $totalRows;
@@ -636,22 +699,24 @@ class DOForm extends Component
         // Margins: 0.75cm top + 0.75cm bottom = 15mm total
         // Usable height: 279.4mm - 15mm = 264.4mm
         // Convert to pixels at 96 DPI: (264.4 / 25.4) * 96 ≈ 998px
+        // With 5% reduction (matching preview): 998px * 0.95 ≈ 948px
         
-        // Account for fixed elements:
+        // Account for fixed elements (updated with reduced footer padding):
         // - Header (company info + customer info): ~120px
         // - Table header row: ~25px
         // - Signature section: ~80px
+        // - Footer padding-top: ~8px (reduced from 18px, saving 10px)
         // - Padding/margins: ~40px
-        // Total fixed: ~265px
-        // Available for item rows: 998px - 265px = 733px
+        // Total fixed: ~273px
+        // Available for item rows: 948px - 273px = 675px
         
         // Row height: base ~25px + description lines
         // Average row height: ~25-30px (assuming some items have short descriptions)
-        // More conservative estimate: use 30px average row height to account for descriptions
-        // Max rows: 733px / 30px ≈ 24 rows
+        // Use more accurate 28px average row height (between 25-30px)
+        // Max rows: 675px / 28px ≈ 24.1 rows
         
-        // Account for print DPI differences and safety margin (≈12.5% reduction)
-        // So: 24 * 0.875 ≈ 21 rows
+        // Round down to 21 rows to ensure reliable fit
+        // This accounts for items with longer descriptions
         
         return 21; // Hard cap: at most 21 rows per page
     }

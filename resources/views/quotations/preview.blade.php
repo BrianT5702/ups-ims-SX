@@ -219,6 +219,12 @@
             .pages-container [data-page-remark] {
                 position: relative !important;
             }
+
+            /* Reduce spacing around remark in print */
+            .pages-container .print-page-body [data-page-remark] {
+                margin-top: -8px !important;
+                margin-bottom: -8px !important;
+            }
             /* Enforce column widths in print mode */
             .items-table { table-layout: fixed !important; }
             .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 5% !important; min-width: 5% !important; max-width: 5% !important; }
@@ -432,6 +438,13 @@
             flex: 1 1 auto;
         }
 
+        /* Reduce spacing around remark - negative margins to counteract flex gap */
+        .print-page-body [data-page-remark],
+        .pages-container .print-page-body [data-page-remark] {
+            margin-top: -8px !important; /* Reduce top gap from 14px to 6px (14 - 8 = 6) */
+            margin-bottom: -8px !important; /* Reduce bottom gap from 14px to 6px (14 - 8 = 6) */
+        }
+
         .print-page-footer {
             margin-top: auto;
             padding-top: 18px;
@@ -556,7 +569,7 @@
 
                 @if(!empty($quotation->remark))
                     <div id="remark-source" style="margin: 0 0 0 5%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; position: relative; z-index: 5; background: white;">
-                        <div style="font-size: 0.88em; line-height: 1.35; color: #000; display: flex;">
+                        <div style="font-size: 0.85em; font-family: Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
                             <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
                             <div style="flex: 1;">{!! nl2br(e($quotation->remark)) !!}</div>
                         </div>

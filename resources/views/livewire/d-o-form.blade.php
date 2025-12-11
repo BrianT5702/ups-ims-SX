@@ -87,7 +87,7 @@
 
                                 <div class="col-md-6">
                                     <label for="remark">Remark</label>
-                                    <textarea wire:model="remark" id="remark" class="form-control rounded" rows="3" {{ $isView ? 'disabled' : '' }} placeholder="Enter Remark (e.g., delivery address)"></textarea>
+                                    <textarea wire:model.lazy="remark" wire:blur="validateDescriptionLength()" id="remark" class="form-control rounded" rows="3" {{ $isView ? 'disabled' : '' }} placeholder="Enter Remark (e.g., delivery address)"></textarea>
                                     @error('remark') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
                             </div>

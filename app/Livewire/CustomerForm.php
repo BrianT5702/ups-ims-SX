@@ -93,6 +93,7 @@ class CustomerForm extends Component
         $this->isView = request()->routeIs('customers.view');
         
         if ($customer->id) {
+            $customer->load('salesman');
             $this->customer = $customer;
             $this->account = $customer->account;
             $this->cust_name = $customer->cust_name;

@@ -38,6 +38,7 @@
                                         </span></th>
                                         <th>Phone Number</th>
                                         <th>Email</th>
+                                        <th>Salesperson</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -49,6 +50,7 @@
                                             <td><a wire:navigate href="{{ route('customers.view', $customer->id)}}"> {{ $customer->cust_name }}</a></td>
                                             <td><a wire:navigate href="{{ route('customers.view', $customer->id)}}">{{ $customer->phone_num }}</a></td>
                                             <td><a wire:navigate href="{{ route('customers.view', $customer->id)}}">{{ $customer->email }}</a></td>
+                                            <td>{{ $customer->salesman ? $customer->salesman->name : 'N/A' }}</td>
                                             <td>
                                             @can('Manage DO')
                                                 <button wire:click.prevent="showCustomerDO({{ $customer->id }})" class="btn btn-info btn-sm">
@@ -61,7 +63,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="6" class="text-center">No customers found.</td>
+                                            <td colspan="7" class="text-center">No customers found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

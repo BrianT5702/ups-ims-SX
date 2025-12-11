@@ -388,7 +388,7 @@
 
         .print-page-footer {
             margin-top: auto;
-            padding-top: 18px;
+            padding-top: 8px;
             flex: 0 0 auto;
         }
 
@@ -494,6 +494,13 @@
         z-index: 5;
         background: white;
     }
+
+        /* Reduce spacing around remark - negative margins to counteract flex gap */
+        .print-page-body [data-page-remark],
+        .pages-container .print-page-body [data-page-remark] {
+            margin-top: -8px !important; /* Reduce top gap from 14px to 6px (14 - 8 = 6) */
+            margin-bottom: -8px !important; /* Reduce bottom gap from 14px to 6px (14 - 8 = 6) */
+        }
 
     .print-page::after {
         display: block !important;
@@ -671,6 +678,11 @@
                 display: table-footer-group;
             }
 
+            /* Reduce spacing around remark in print */
+            .pages-container .print-page-body [data-page-remark] {
+                margin-top: -8px !important;
+                margin-bottom: -8px !important;
+            }
 
             .content { 
                 overflow: visible; 
@@ -809,21 +821,13 @@
                 </div>
 
                 @if(!empty($deliveryOrder->remark))
-                    @php $lines = explode("\n", $deliveryOrder->remark); @endphp
                     <div id="remark-source">
                         <div style="margin: 0;">
                             <div id="remark-wrapper" style="margin-left: calc(var(--qty-col-width) + var(--col-align-offset)); padding-left: 8px; padding-top: 10px;">
-                                <div style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                                    <div style="font-size: 0.75em; line-height: 1.3; color: #000;">
-                                        <div style="display: flex;">
-                                            <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
-                                            <div style="flex: 1;">
-                                                <div>{{ $lines[0] }}</div>
-                                                @foreach(array_slice($lines, 1) as $line)
-                                                    <div style="margin-top: 2px;">{{ $line }}</div>
-                                                @endforeach
-                                            </div>
-                                        </div>
+                                <div style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <div style="font-size: 0.85em; font-family: Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
+                                        <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
+                                        <div style="flex: 1;">{!! nl2br(e($deliveryOrder->remark)) !!}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1000,8 +1004,9 @@
                     var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
                     
                     // Use a lighter reduction so print can fit more lines (keep screen and print identical)
-                    // Approx 5% reduction: 0.95
-                    pageHeightCache = Math.round(calculatedHeight * 0.95);
+                    // Reduced from 5% to 3% to allow more rows (21 instead of 18)
+                    // Approx 3% reduction: 0.97
+                        pageHeightCache = Math.round(calculatedHeight * 0.97);
                 }
                 return pageHeightCache;
             }
@@ -1098,8 +1103,9 @@
                     // Check if we're in print context (either print media query or beforeprint event)
                     var isPrintMode = window.matchMedia && window.matchMedia('print').matches;
                     var pageHeight = getPageHeight(force, isPrintMode);
-                    // Use the same tolerance for screen and print; allow a bit more room
-                    var tolerance = 6;
+                    // Use increased tolerance to allow 21 rows instead of 18
+                    // Increased from 6px to 12px to account for reduced footer padding
+                    var tolerance = 12;
                     var usableHeight = pageHeight; // Already reduced in getPageHeight
                     var isFirstPage = true;
                     var activePage = null;

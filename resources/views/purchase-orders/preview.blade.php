@@ -28,8 +28,8 @@
             font-family: Arial, sans-serif; /* Use Arial font */
             color: #000;
             background-color: #fff;
-            font-size: 16px; /* Absolute size */
-            line-height: 1.5;
+            font-size: 14px; /* Match print font-size (14px instead of 16px) */
+            line-height: 1.3; /* Match print line-height (1.3 instead of 1.5) */
             zoom: 1; /* Force 1:1 zoom */
             transform: scale(1); /* Additional normalization */
             transform-origin: top left;
@@ -69,7 +69,7 @@
         }
         
         .company-info-left h2 {
-            font-size: calc(1.1em + 1px); /* +1px increase */
+            font-size: 1.0em; /* Match print font size (1.0em) instead of calc(1.1em + 1px) */
             margin-bottom: 8px;
             line-height: 1.2;
         }
@@ -84,37 +84,32 @@
         .company-info-right h2 {
             margin-bottom: 6px;
             white-space: nowrap;
-            font-size: calc(1.0em + 1px); /* +1px increase */
+            font-size: 1.0em; /* Match print font size */
             text-transform: uppercase;
         }
 
         .company-info-right p {
             margin: 2px 0;
-            font-size: calc(0.8em + 1px); /* +1px increase */
+            font-size: 0.8em; /* Match print - remove the +1px increase */
+            line-height: 1.3; /* Explicitly set to match print */
         }
 
         .company-info h2 {
             margin-bottom: 6px;
             color: #000; /* Changed from #333 to black */
             font-weight: bold;
-            font-size: calc(1.1em + 1px); /* +1px increase */
+            font-size: 1.0em; /* Match print font size instead of calc(1.1em + 1px) */
             white-space: nowrap;
             text-transform: uppercase;
         }
 
         .company-info p {
             margin: 1px 0;
-            font-size: calc(0.8em + 1px); /* +1px increase */
+            font-size: 0.8em; /* Match print - remove the +1px increase */
+            line-height: 1.3; /* Explicitly set to match print */
         }
 
-        @media print {
-            .company-info h2,
-            .company-info-right h2 {
-                white-space: nowrap !important;
-                font-size: 1.2em !important;
-                color: #000 !important; /* Ensure black in print */
-            }
-        }
+        /* Removed duplicate print media query - using the one at line 549 instead */
 
         /* Ensure PO top-right info section is fully black */
         .company-info-right { color: #000; }
@@ -149,7 +144,7 @@
             padding: 6px;
             width: 100%;
             font-size: 0.8em;
-            line-height: 1.3;
+            line-height: 1.3; /* Already matches print */
         }
 
         .supplier-info-date {
@@ -228,7 +223,7 @@
             justify-content: space-between !important;
             align-items: flex-end !important;
             border-top: 1px solid #000 !important;
-            padding: 10px 0 8px;
+            padding: 16px 0 12px; /* Match print padding (16px 0 12px instead of 10px 0 8px) */
             margin-top: auto;
             page-break-inside: avoid;
             break-inside: avoid;
@@ -431,6 +426,16 @@
 
         .pages-container[data-measuring="true"] .print-page {
             min-height: auto !important;
+            height: auto !important;
+        }
+        
+        /* During measurement, ensure flexbox calculates correctly */
+        .pages-container[data-measuring="true"] .print-page-body {
+            min-height: 0 !important;
+        }
+        
+        .pages-container[data-measuring="true"] .print-page-footer {
+            min-height: 0 !important;
         }
 
         .print-page {
@@ -501,6 +506,13 @@
             gap: 14px;
             flex: 1 1 auto;
         }
+        
+        /* Reduce spacing around remark - negative margins to counteract flex gap */
+        .print-page-body [data-page-remark],
+        .pages-container .print-page-body [data-page-remark] {
+            margin-top: -8px !important; /* Reduce top gap from 14px to 6px (14 - 8 = 6) */
+            margin-bottom: -8px !important; /* Reduce bottom gap from 14px to 6px (14 - 8 = 6) */
+        }
 
         .print-page-footer {
             margin-top: auto;
@@ -540,6 +552,20 @@
                 white-space: nowrap !important;
                 font-size: 1.0em !important;
                 color: #000 !important;
+                line-height: 1.2 !important; /* Match screen line-height */
+            }
+            
+            .company-info p, .company-info-right p {
+                line-height: 1.3 !important; /* Ensure paragraphs match print */
+            }
+            
+            /* Ensure supplier-info spacing matches print */
+            .supplier-info {
+                margin-bottom: 20px !important;
+            }
+            
+            .supplier-info-frame {
+                padding: 6px !important;
             }
 
             .print-button, .back-button {
@@ -586,7 +612,8 @@
                 margin: 0 !important;
                 padding: 20px !important;
                 box-sizing: border-box !important;
-                min-height: calc(11in - 1.5cm) !important;
+                min-height: calc(11in - 1.5cm) !important; /* Keep min-height for page breaks, but match preview calculation */
+                height: auto !important; /* Let height grow with content, don't force fill */
             }
             
             .signature-section {
@@ -622,6 +649,26 @@
             .pages-container [data-page-remark],
             .pages-container [data-page-total] {
                 position: relative !important;
+            }
+            
+            /* In print, keep totals with remark - prevent page break between them */
+            .pages-container [data-page-remark] {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+            }
+            
+            /* Only add page-break rules for totals - use existing CSS classes for styling */
+            .pages-container [data-page-total] {
+                page-break-before: avoid !important;
+                break-before: avoid !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            /* If remark exists on a page, ensure totals stay with it */
+            .pages-container .print-page:has([data-page-remark]) [data-page-total] {
+                page-break-before: avoid !important;
+                break-before: avoid !important;
             }
             
             .items-table { 
@@ -694,6 +741,31 @@
             .pages-container .print-page-body,
             .pages-container .print-page-footer {
                 position: relative !important;
+            }
+            
+            /* Ensure flex layout works in print mode to match preview spacing */
+            .pages-container .print-page {
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            
+            .pages-container .print-page-body {
+                display: flex !important;
+                flex-direction: column !important;
+                flex: 1 1 auto !important;
+                gap: 14px !important;
+            }
+            
+            /* Reduce spacing around remark in print */
+            .pages-container .print-page-body [data-page-remark] {
+                margin-top: -8px !important;
+                margin-bottom: -8px !important;
+            }
+            
+            .pages-container .print-page-footer {
+                margin-top: auto !important;
+                flex: 0 0 auto !important;
+                padding-top: 18px !important;
             }
         }
         
@@ -826,7 +898,7 @@
 
             @if(!empty($purchaseOrder->remark))
                 <div id="remark-source" style="margin: 0 0 0 5%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; position: relative; z-index: 5; background: white;">
-                    <div style="font-size: 0.88em; line-height: 1.35; color: #000; display: flex;">
+                    <div style="font-size: 0.85em; font-family: Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
                         <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
                         <div style="flex: 1;">{!! nl2br(e($purchaseOrder->remark)) !!}</div>
                     </div>
@@ -941,15 +1013,14 @@
             function getPageHeight(force, isPrintContext) {
                 var isPrintMode = isPrintContext || (window.matchMedia && window.matchMedia('print').matches);
                 if (force || !pageHeightCache || isPrintMode) {
-            var letterPx = measurePx('11in');
-            var marginPx = measurePx('0.75cm');
+                    var letterPx = measurePx('11in');
+                    var marginPx = measurePx('0.75cm');
                     var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
                     
-                    if (isPrintMode) {
-                        pageHeightCache = Math.round(calculatedHeight * 0.93);
-                    } else {
-                        pageHeightCache = Math.round(calculatedHeight * 0.95);
-                    }
+                    // Print engine allows more space than we calculate with hidden elements
+                    // Use minimal reduction (0.97) for preview to match print's actual available space
+                    // This accounts for the fact that print engine calculates spacing more accurately
+                    pageHeightCache = Math.round(calculatedHeight * 0.97);
                 }
                 return pageHeightCache;
         }
@@ -1042,9 +1113,13 @@
                     var rows = Array.from(itemsTable.querySelectorAll('tbody tr'));
                     var remarkSource = document.getElementById('remark-source');
                     var totalsSource = document.getElementById('totals-source');
-                    var isPrintMode = window.matchMedia && window.matchMedia('print').matches;
+                    // Always use preview measurements for pagination - this ensures preview and print match
+                    // The CSS page-break rules will handle actual print layout
+                    var isPrintMode = false; // Force to false to use same measurements as preview
                     var pageHeight = getPageHeight(force, isPrintMode);
-                    var tolerance = isPrintMode ? 15 : 4;
+                    // Increase tolerance to match print engine's more lenient spacing
+                    // Print allows slightly more content before breaking, so we need higher tolerance
+                    var tolerance = 15;
                     var usableHeight = pageHeight;
                     var isFirstPage = true;
                     var activePage = null;
@@ -1052,9 +1127,18 @@
                     pagesContainer.innerHTML = '';
                     pagesContainer.style.display = 'flex';
                     pagesContainer.setAttribute('data-measuring', 'true');
-                    pagesContainer.style.visibility = 'hidden';
-                    pagesContainer.style.position = 'absolute';
-                    pagesContainer.style.left = '-9999px';
+                    // Make it visible but off-screen for accurate measurement
+                    // opacity: 0 still allows accurate offsetHeight measurements
+                    // but position it off-screen so it's not visible
+                    pagesContainer.style.opacity = '1'; // Make visible for accurate measurement
+                    pagesContainer.style.position = 'fixed';
+                    pagesContainer.style.top = '-9999px'; // Off-screen
+                    pagesContainer.style.left = '0';
+                    pagesContainer.style.width = '1000px'; // Match print page width  
+                    pagesContainer.style.height = 'auto';
+                    pagesContainer.style.pointerEvents = 'none'; // Prevent interaction
+                    pagesContainer.style.zIndex = '-9999'; // Behind everything
+                    pagesContainer.style.overflow = 'hidden'; // Prevent scrollbars
 
                     function ensurePage() {
                         if (!activePage) {
@@ -1067,12 +1151,24 @@
                         var clone = row.cloneNode(true);
                         ensurePage();
                         activePage.tbody.appendChild(clone);
+                        
+                        // Force layout recalculation for accurate measurement
+                        activePage.page.getBoundingClientRect();
+                        
+                        // Use the SAME measurement method as appendBlock for consistency
+                        var bodyHeight = activePage.body ? (activePage.body.offsetHeight || 0) : 0;
+                        var footerHeight = activePage.footer ? (activePage.footer.offsetHeight || 0) : 0;
+                        var pagePadding = 40;
+                        var calculatedHeight = bodyHeight + footerHeight + pagePadding;
+                        var pageActualHeight = activePage.page.offsetHeight;
+                        var totalContentHeight = Math.min(calculatedHeight, pageActualHeight);
 
-                        if (activePage.page.offsetHeight > (usableHeight - tolerance)) {
+                        if (totalContentHeight > (usableHeight - tolerance)) {
                             activePage.tbody.removeChild(clone);
                             activePage = null;
                             ensurePage();
                             activePage.tbody.appendChild(clone);
+                            activePage.page.getBoundingClientRect();
                         }
                     });
 
@@ -1091,11 +1187,51 @@
                         }
                         ensurePage();
                         activePage.body.appendChild(clone);
+                        
+                        // Don't apply margin-top: auto yet - measure first without it
+                        // Then apply it only if content fits
                         if (attr === 'data-page-total') {
-                            clone.style.marginTop = 'auto';
+                            // Temporarily set margin-top to 0 to measure actual content height
+                            clone.style.marginTop = '0';
                         }
-                        var pageHeight = activePage.page.offsetHeight;
-                        if (pageHeight > (usableHeight - tolerance)) {
+                        
+                        // Force layout recalculation
+                        activePage.page.getBoundingClientRect();
+                        
+                        // Measure the actual page content height directly
+                        // This is the most accurate - it's what the print engine sees
+                        // The page's offsetHeight gives us the total height including padding
+                        // But we need content height, so measure body + footer + account for layout
+                        var bodyHeight = activePage.body ? (activePage.body.offsetHeight || 0) : 0;
+                        var footerHeight = activePage.footer ? (activePage.footer.offsetHeight || 0) : 0;
+                        
+                        // The page has padding 20px top + 20px bottom
+                        // body and footer measurements are their content heights within the padded area
+                        // So total = body + footer + padding
+                        // BUT - if footer has margin-top: auto, there's flex spacing that's not content
+                        // Since we set margin-top to 0 during measurement, spacing is 0, so this is accurate
+                        var pagePadding = 40;
+                        var totalContentHeight = bodyHeight + footerHeight + pagePadding;
+                        
+                        // Alternative: use page's clientHeight which excludes padding but includes content
+                        // Actually, let's try using the page's offsetHeight directly since it should include everything
+                        var pageActualHeight = activePage.page.offsetHeight;
+                        // Use the smaller of the two for more accurate fitting check
+                        totalContentHeight = Math.min(totalContentHeight, pageActualHeight);
+                        
+                        // Now apply margin-top: auto if it's totals and content fits
+                        if (attr === 'data-page-total') {
+                            if (totalContentHeight <= usableHeight) {
+                                // Content fits, apply auto margin (creates space but doesn't change total height)
+                                clone.style.marginTop = 'auto';
+                                activePage.page.getBoundingClientRect();
+                            } else {
+                                // Content doesn't fit even without auto margin, keep margin 0 for accurate measurement
+                            }
+                        }
+                        
+                        // Check if it fits - use the content height we calculated
+                        if (totalContentHeight > (usableHeight - tolerance)) {
                             activePage.body.removeChild(clone);
                             activePage = null;
                             ensurePage();
@@ -1103,6 +1239,7 @@
                             if (attr === 'data-page-total') {
                                 clone.style.marginTop = 'auto';
                             }
+                            activePage.page.getBoundingClientRect();
                         }
                     }
 
@@ -1130,9 +1267,14 @@
                         renderedPages[renderedPages.length - 1].classList.add('print-page--last');
                     }
 
-                    pagesContainer.style.visibility = '';
+                    pagesContainer.style.opacity = '';
                     pagesContainer.style.position = '';
+                    pagesContainer.style.top = '';
                     pagesContainer.style.left = '';
+                    pagesContainer.style.width = '';
+                    pagesContainer.style.height = '';
+                    pagesContainer.style.pointerEvents = '';
+                    pagesContainer.style.zIndex = '';
                     pagesContainer.style.display = 'flex';
                     pagesContainer.removeAttribute('data-measuring');
                     source.style.display = 'none';
@@ -1172,22 +1314,27 @@
             window.addEventListener('resize', schedulePaginate);
 
             if (window.matchMedia) {
+                // Don't repaginate when entering print mode - keep same layout as preview
+                // This ensures print matches preview exactly
+                // The CSS page-break rules will handle any print-specific layout needs
                 var mq = window.matchMedia('print');
                 if (mq.addEventListener) {
                     mq.addEventListener('change', function (e) {
-                        if (e.matches) {
-                            pageHeightCache = null;
-                            paginatePO(true);
-                        }
+                        // Removed repagination on print - keep preview layout
+                        // if (e.matches) {
+                        //     pageHeightCache = null;
+                        //     paginatePO(true);
+                        // }
                     });
                 } else if (mq.addListener) {
                     mq.addListener(function (e) {
-                        if (e.matches) {
-                            pageHeightCache = null;
-                            paginatePO(true);
-                        }
+                        // Removed repagination on print - keep preview layout
+                        // if (e.matches) {
+                        //     pageHeightCache = null;
+                        //     paginatePO(true);
+                        // }
                     });
-            }
+                }
             }
 
             window.addEventListener('beforeprint', function () {
