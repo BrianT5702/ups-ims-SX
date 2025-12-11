@@ -8,15 +8,26 @@
 <body>
     <h1>Import Data from Excel</h1>
 
-    @if (session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
+    @if ($errors->any())
+        <div style="padding: 10px; background: #fdecea; color: #b71c1c; margin-bottom: 12px;">
+            <strong>Import failed:</strong>
+            <ul style="margin: 6px 0 0 18px;">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
     @if (session('error'))
-        <div class="alert alert-danger">
+        <div style="padding: 10px; background: #fdecea; color: #b71c1c; margin-bottom: 12px;">
             {{ session('error') }}
+        </div>
+    @endif
+
+    @if (session('success'))
+        <div style="padding: 10px; background: #e8f5e9; color: #1b5e20; margin-bottom: 12px;">
+            {{ session('success') }}
         </div>
     @endif
 
@@ -34,9 +45,10 @@
         <div>
             <label for="import_type">Select Import Type:</label>
             <select name="import_type" id="import_type" required>
-                <option value="items">Import Items</option>
-                <option value="customers">Import Customers</option>
-                <option value="suppliers">Import Suppliers</option>
+                <option value="items" {{ old('import_type') === 'items' ? 'selected' : '' }}>Import Items</option>
+                <option value="customers" {{ old('import_type') === 'customers' ? 'selected' : '' }}>Import Customers</option>
+                <option value="suppliers" {{ old('import_type') === 'suppliers' ? 'selected' : '' }}>Import Suppliers</option>
+                <option value="customer_salesman" {{ old('import_type') === 'customer_salesman' ? 'selected' : '' }}>Import Customer-Salesman</option>
             </select>
         </div>
         
@@ -112,6 +124,22 @@
             </ul>
             <p><strong>Note:</strong> Import starts from row 9. Data starts from column B. If Tel & Fax (Column J) contains both values, separate them with "/", "|", or ",". If no separator is found, the value will be treated as phone number only.</p>
         </div>
+
+        <div id="customer-salesman-format-info" style="display: none; margin-top: 10px; padding: 10px; background-color: #f0f0f0;">
+            <h3>Customer-Salesman Import Format:</h3>
+            <p>This import assigns one salesperson (from row 6) to all listed customer accounts.</p>
+            <ul>
+                <li>Row 6, Column D: Text like <strong>SALESMAN: CODE</strong> (spaces ignored). CODE is matched against the salesperson username.</li>
+                <li>Data starts at Row 9.</li>
+                <li>Column B: Account (required) — used to match the customer.</li>
+                <li>Other columns are ignored for this assignment.</li>
+            </ul>
+            <p><strong>Notes:</strong></p>
+            <ul>
+                <li>Only existing customer accounts are updated.</li>
+                <li>The selected database (UPS/URS/UCS) determines which customers are updated.</li>
+            </ul>
+        </div>
         
         <div style="margin-top: 15px;">
             <button type="submit">Import</button>
@@ -124,6 +152,7 @@
             document.getElementById('item-format-info').style.display = 'none';
             document.getElementById('customer-format-info').style.display = 'none';
             document.getElementById('supplier-format-info').style.display = 'none';
+            document.getElementById('customer-salesman-format-info').style.display = 'none';
             
             // Show the appropriate format info based on selection
             if (this.value === 'items') {
@@ -132,8 +161,18 @@
                 document.getElementById('customer-format-info').style.display = 'block';
             } else if (this.value === 'suppliers') {
                 document.getElementById('supplier-format-info').style.display = 'block';
+            } else if (this.value === 'customer_salesman') {
+                document.getElementById('customer-salesman-format-info').style.display = 'block';
             }
         });
+
+        // Show the correct info block on page load based on old selection
+        (function() {
+            const current = "{{ old('import_type', 'items') }}";
+            const event = new Event('change');
+            document.getElementById('import_type').value = current;
+            document.getElementById('import_type').dispatchEvent(event);
+        })();
     </script>
 </body>
 </html>

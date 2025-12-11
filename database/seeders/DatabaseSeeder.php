@@ -462,14 +462,14 @@ class DatabaseSeeder extends Seeder
             ['code' => 'LHQ', 'name' => 'LOW HUA QIN (JOEY)'],
             ['code' => 'LWS', 'name' => 'LOH WEE SENG'],
             ['code' => 'CKY', 'name' => 'CHU KAY YEW (SAM CHU)'],
-            ['code' => 'BEE', 'name' => 'BEE BEE LOH'],
+            ['code' => 'BEE', 'name' => 'BEE LOH'],
             ['code' => 'YWL', 'name' => 'YAP WEE LEONG'],
-            ['code' => 'CZD', 'name' => 'CHAN ZE DAT'],
+            ['code' => 'CZD', 'name' => 'CHAN ZE DAR'],
             ['code' => 'KWC', 'name' => 'KENNY KOK'],
             ['code' => 'CASH', 'name' => 'CASH'],
             ['code' => 'BHW', 'name' => 'BEH HWEE WEN (GERALDINE)'],
             ['code' => 'LCY', 'name' => 'LEE C.Y (MR LEE)'],
-            ['code' => 'BNK', 'name' => 'BASIL NG JIAN'],
+            ['code' => 'BNJ', 'name' => 'BASIL NG JIAN'],
             ['code' => 'YYP', 'name' => 'YAP YOON PHANG (OWEN)'],
         ];
 

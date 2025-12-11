@@ -26,11 +26,23 @@ class CustomerImport implements ToModel, WithStartRow
     public function model(array $row)
     {
         try {
-            // Required fields: Account (A), Name (B), Address 1 (C)
-            if (empty($row[0]) || empty($row[1]) || empty($row[2])) {
-                Log::warning("Skipping row due to missing required fields: " . json_encode($row));
+            // Require at least Account; name/address will be defaulted if missing
+            if (empty($row[0])) {
+                Log::warning("Skipping row due to missing account: " . json_encode($row));
                 $this->failureCount++;
                 return null;
+            }
+
+            $account = $row[0];
+            $custName = $row[1] ?? '';
+            $address1 = $row[2] ?? '';
+
+            // Defaults when source data omits name/address
+            if (trim($custName) === '') {
+                $custName = (string) $account;
+            }
+            if (trim($address1) === '') {
+                $address1 = '-';
             }
     
             $termMappings = [
@@ -48,9 +60,9 @@ class CustomerImport implements ToModel, WithStartRow
             // G=Contact Person, H=Phone, I=Fax, J=Email, K=Class, L=Area, M=Term,
             // N=Business Reg No, O=GST Reg No
             $customer = new Customer;
-            $customer->account = $row[0];  // Column A
-            $customer->cust_name = $row[1];  // Column B
-            $customer->address_line1 = $row[2];  // Column C
+            $customer->account = $account;  // Column A
+            $customer->cust_name = $custName;  // Column B (defaulted to account if missing)
+            $customer->address_line1 = $address1;  // Column C (defaulted to '-' if missing)
             $customer->address_line2 = $row[3] ?? null;  // Column D
             $customer->address_line3 = $row[4] ?? null;  // Column E
             $customer->address_line4 = $row[5] ?? null;  // Column F

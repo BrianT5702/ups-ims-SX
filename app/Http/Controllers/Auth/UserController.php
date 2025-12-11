@@ -15,6 +15,7 @@ use Illuminate\View\View;
 use Illuminate\Validation\ValidationException;
 use App\Imports\ItemImport;
 use App\Imports\CustomerImport;
+use App\Imports\CustomerSalesmanImport;
 use App\Imports\SupplierImport;
 use App\Models\Supplier;
 use App\Models\Customer;
@@ -150,8 +151,11 @@ class UserController extends Controller
     public function importExcel(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls',
-            'import_type' => 'required|in:items,customers,suppliers',
+            'file' => [
+                'required',
+                'file',
+            ],
+            'import_type' => 'required|in:items,customers,suppliers,customer_salesman',
             'db_connection' => 'required|in:ups,urs,ucs',
         ]);
 
@@ -170,7 +174,23 @@ class UserController extends Controller
             elseif($request->import_type === 'suppliers'){
                 Excel::import(new SupplierImport, $request->file('file'));
                 $message = 'Suppliers imported successfully!';
-            }else {
+            }
+            elseif($request->import_type === 'customer_salesman'){
+                $importer = new CustomerSalesmanImport();
+                Excel::import($importer, $request->file('file'));
+
+                $message = 'Customer-salesman assignments updated successfully!';
+                $updated = $importer->getUpdatedCount();
+                $missing = $importer->getMissingAccounts();
+
+                if ($updated > 0) {
+                    $message = "Customer-salesman assignments updated successfully ({$updated} updated)";
+                }
+                if (!empty($missing)) {
+                    $message .= '. Missing accounts (not found): ' . implode(', ', $missing);
+                }
+            }
+            else {
                 Excel::import(new CustomerImport, $request->file('file'));
                 $message = 'Customers imported successfully!';
             }
