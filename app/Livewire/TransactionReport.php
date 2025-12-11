@@ -4,6 +4,11 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\Transaction;
+use App\Models\Item;
+use App\Models\CompanyProfile;
+use App\Models\Family;
+use App\Models\Category;
+use App\Models\Group;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\TransactionsExport;
@@ -12,6 +17,7 @@ use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\DB;
 
 class TransactionReport extends Component
 {
@@ -22,6 +28,10 @@ class TransactionReport extends Component
     public $startDate;
     public $endDate;
     public $selectedTransactionType = 'all';
+    public $stockFilter = 'all'; // all | gt0 | eq0
+    public $selectedGroupId = null;
+    public $selectedFamilyId = null;
+    public $selectedCategoryId = null;
     
     public $availableColumns = [
         'created_at' => 'Transaction Time',
@@ -49,7 +59,8 @@ class TransactionReport extends Component
         'selectedColumns' => 'required|array|min:1',
         'startDate' => 'nullable|date',
         'endDate' => 'nullable|date|after_or_equal:startDate',
-        'selectedTransactionType' => 'required|in:all,Stock In,Stock Out'
+        'selectedTransactionType' => 'required|in:all,Stock In,Stock Out',
+        'stockFilter' => 'required|in:all,gt0,eq0'
     ];
 
     public function mount()
@@ -57,6 +68,10 @@ class TransactionReport extends Component
         $this->selectedColumns = ['item_code', 'item_name', 'created_at', 'qty_on_hand', 'transaction_type', 'transaction_qty'];
         $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::now()->format('Y-m-d');
+        $this->stockFilter = 'all';
+        $this->selectedGroupId = null;
+        $this->selectedFamilyId = null;
+        $this->selectedCategoryId = null;
     }
 
     public function generateReport()
@@ -66,66 +81,133 @@ class TransactionReport extends Component
             $this->isGenerating = true;
             $this->errorMessage = '';
     
-            $finalColumns = array_unique(array_merge(
-                ['item_code', 'item_name', 'qty_on_hand', 'transaction_qty'],
-                $this->selectedColumns
-            ));
-    
-            $query = Transaction::select([
-                'transactions.created_at',
-                'transactions.qty_on_hand',
-                'transactions.transaction_type',
-                'transactions.qty_before',
-                'transactions.qty_after',
-                'transactions.transaction_qty',
-                'transactions.source_doc_num',
-                'transactions.source_type',
-            ])->orderBy('transactions.created_at', 'desc');
+            // Get all transactions in the date range
+            $transactionQuery = Transaction::query();
             
             // Apply date filters
             if ($this->startDate) {
-                $query->whereDate('transactions.created_at', '>=', $this->startDate);
+                $transactionQuery->whereDate('transactions.created_at', '>=', $this->startDate);
             }
             if ($this->endDate) {
-                $query->whereDate('transactions.created_at', '<=', $this->endDate);
+                $transactionQuery->whereDate('transactions.created_at', '<=', $this->endDate);
             }
 
             // Apply transaction type filter
             if ($this->selectedTransactionType !== 'all') {
-                $query->where('transactions.transaction_type', $this->selectedTransactionType);
+                $transactionQuery->where('transactions.transaction_type', $this->selectedTransactionType);
             }
     
-            // Add additional fields if selected
-            if (in_array('item_code', $finalColumns)) {
-                $query->addSelect('items.item_code');
-            }
-            if (in_array('item_name', $finalColumns)) {
-                $query->addSelect('items.item_name');
-            }
-            if (in_array('batch_num', $finalColumns)) {
-                $query->addSelect('batch_trackings.batch_num');
-            }
-            if (in_array('username', $finalColumns)) {
-                $query->addSelect('users.username');
-            }
-    
-            // Join tables correctly
-            $query->leftJoin('items', 'transactions.item_id', '=', 'items.id')
-                  ->leftJoin('batch_trackings', 'transactions.batch_id', '=', 'batch_trackings.id')
-                  ->leftJoin('users', 'transactions.user_id', '=', 'users.id');
-    
-            $items = $query->get();
-    
-            if ($items->isEmpty()) {
-                throw new \Exception('No data available for the selected date range and transaction type.');
+            // Join with items and apply item filters
+            $transactionQuery->leftJoin('items', 'transactions.item_id', '=', 'items.id')
+                  ->leftJoin('categories', 'items.cat_id', '=', 'categories.id')
+                  ->leftJoin('families', 'items.family_id', '=', 'families.id')
+                  ->leftJoin('groups', 'items.group_id', '=', 'groups.id');
+
+            // Apply Group filter
+            if ($this->selectedGroupId) {
+                $transactionQuery->where('items.group_id', '=', $this->selectedGroupId);
             }
 
-            // No need to calculate transaction quantity as it's already stored in the database
-            // The transaction_qty field is already populated with the correct value
+            // Apply Family filter
+            if ($this->selectedFamilyId) {
+                $transactionQuery->where('items.family_id', '=', $this->selectedFamilyId);
+            }
+
+            // Apply Category filter
+            if ($this->selectedCategoryId) {
+                $transactionQuery->where('items.cat_id', '=', $this->selectedCategoryId);
+            }
+
+            // Get all transactions
+            $transactions = $transactionQuery->select([
+                'transactions.item_id',
+                'transactions.qty_before',
+                'transactions.qty_after',
+                'transactions.transaction_qty',
+                'transactions.transaction_type',
+                'transactions.created_at',
+                'items.item_code',
+                'items.item_name',
+                'items.um',
+                'items.group_id',
+                'items.family_id',
+                'items.cat_id',
+                'groups.group_name',
+                'families.family_name',
+                'categories.cat_name'
+            ])->orderBy('transactions.created_at', 'asc')->get();
+
+            if ($transactions->isEmpty()) {
+                throw new \Exception('No data available for the selected date range and filters.');
+            }
+
+            // Group transactions by item and calculate B/F, IN, OUT, BALANCE
+            $itemBalances = [];
+            $itemFirstTransaction = []; // Track first transaction per item for B/F
+            
+            foreach ($transactions as $transaction) {
+                $itemId = $transaction->item_id;
+                
+                if (!isset($itemBalances[$itemId])) {
+                    // Initialize item balance - B/F is the qty_before of the first transaction
+                    $itemBalances[$itemId] = [
+                        'item_id' => $itemId,
+                        'item_code' => $transaction->item_code,
+                        'item_name' => $transaction->item_name,
+                        'um' => $transaction->um ?? 'PCS',
+                        'group_name' => $transaction->group_name ?? '',
+                        'family_name' => $transaction->family_name ?? '',
+                        'cat_name' => $transaction->cat_name ?? '',
+                        'bf' => $transaction->qty_before ?? 0, // Balance Forward (first transaction's qty_before)
+                        'in' => 0,
+                        'out' => 0,
+                        'balance' => 0
+                    ];
+                    $itemFirstTransaction[$itemId] = true;
+                }
+                
+                // Calculate IN and OUT
+                if ($transaction->transaction_type === 'Stock In') {
+                    $itemBalances[$itemId]['in'] += abs($transaction->transaction_qty ?? 0);
+                } elseif ($transaction->transaction_type === 'Stock Out') {
+                    $itemBalances[$itemId]['out'] += abs($transaction->transaction_qty ?? 0);
+                }
+            }
+            
+            // Calculate final balance for each item
+            foreach ($itemBalances as &$balance) {
+                $balance['balance'] = $balance['bf'] + $balance['in'] - $balance['out'];
+            }
+            
+            // Convert to collection and sort
+            $stockBalances = collect($itemBalances)->values();
+            
+            // Apply stock filter
+            if ($this->stockFilter === 'gt0') {
+                $stockBalances = $stockBalances->filter(function($item) {
+                    return $item['balance'] > 0;
+                });
+            } elseif ($this->stockFilter === 'eq0') {
+                $stockBalances = $stockBalances->filter(function($item) {
+                    return $item['balance'] == 0;
+                });
+            }
+            
+            // Sort by Group, Family, Category, Item Code
+            $stockBalances = $stockBalances->sortBy([
+                ['group_name', 'asc'],
+                ['family_name', 'asc'],
+                ['cat_name', 'asc'],
+                ['item_code', 'asc']
+            ])->values();
+    
+            if ($stockBalances->isEmpty()) {
+                throw new \Exception('No data available for the selected filters.');
+            }
     
             $response = $this->fileType === 'pdf'
-                ? $this->downloadPDF($items)
-                : $this->downloadExcel($items);
+                ? $this->downloadPDF($stockBalances)
+                : $this->downloadExcel($stockBalances);
     
             $this->isGenerating = false;
             return $response;
@@ -138,20 +220,31 @@ class TransactionReport extends Component
         }
     }
 
-    protected function downloadPDF($transactions)
+    protected function downloadPDF($stockBalances)
     {
         try {
+            $companyProfile = CompanyProfile::first();
+            
+            // Get filter names
+            $groupName = $this->selectedGroupId ? Group::find($this->selectedGroupId)->group_name ?? 'ALL' : 'ALL';
+            $familyName = $this->selectedFamilyId ? Family::find($this->selectedFamilyId)->family_name ?? 'ALL' : 'ALL';
+            $categoryName = $this->selectedCategoryId ? Category::find($this->selectedCategoryId)->cat_name ?? 'ALL' : 'ALL';
+            $stockFilterName = $this->stockFilter === 'gt0' ? '> 0' : ($this->stockFilter === 'eq0' ? '= 0' : 'ALL');
+            
             $pdf = PDF::loadView('reports.transactions', [
-                'transactions' => $transactions,
-                'columns' => array_intersect_key($this->availableColumns, array_flip($this->selectedColumns)),
+                'stockBalances' => $stockBalances,
                 'startDate' => $this->startDate,
                 'endDate' => $this->endDate,
-                'transactionType' => $this->selectedTransactionType
-            ]);
+                'companyProfile' => $companyProfile,
+                'groupName' => $groupName,
+                'familyName' => $familyName,
+                'categoryName' => $categoryName,
+                'stockFilter' => $stockFilterName
+            ])->setPaper('a4', 'portrait');
 
             return response()->streamDownload(function() use ($pdf) {
                 echo $pdf->output();
-            }, 'transaction_report_' . date('Y-m-d') . '.pdf');
+            }, 'stock_balance_report_' . date('Y-m-d') . '.pdf');
         } catch (\Exception $e) {
             throw new \Exception('PDF generation failed: ' . $e->getMessage());
         }
@@ -171,6 +264,14 @@ class TransactionReport extends Component
 
     public function render()
     {
-        return view('livewire.transaction-report')->layout('layouts.app');
+        $groups = Group::orderBy('group_name')->get();
+        $families = Family::orderBy('family_name')->get();
+        $categories = Category::orderBy('cat_name')->get();
+        
+        return view('livewire.transaction-report', [
+            'groups' => $groups,
+            'families' => $families,
+            'categories' => $categories
+        ])->layout('layouts.app');
     }
 }

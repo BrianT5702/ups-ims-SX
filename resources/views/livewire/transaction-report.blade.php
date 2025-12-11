@@ -1,6 +1,6 @@
 <div class="p-6">
     <div class="mb-6">
-        <h2 class="text-2xl font-bold mb-4">Generate Transaction Report</h2>
+        <h2 class="text-2xl font-bold mb-4">Generate Stock Balance Report</h2>
         
         @if($errorMessage)
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -51,28 +51,56 @@
             </div>
         </div>
 
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium mb-2">Stock Filter</label>
+                <select wire:model="stockFilter" class="rounded-md shadow-sm border-gray-300 w-full">
+                    <option value="all">All Stock</option>
+                    <option value="gt0">Stock > 0</option>
+                    <option value="eq0">Stock = 0</option>
+                </select>
+                @error('stockFilter') 
+                    <span class="text-red-500 text-sm">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-2">Group</label>
+                <select wire:model="selectedGroupId" class="rounded-md shadow-sm border-gray-300 w-full">
+                    <option value="">All Groups</option>
+                    @foreach($groups as $group)
+                        <option value="{{ $group->id }}">{{ $group->group_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-2">Family</label>
+                <select wire:model="selectedFamilyId" class="rounded-md shadow-sm border-gray-300 w-full">
+                    <option value="">All Families</option>
+                    @foreach($families as $family)
+                        <option value="{{ $family->id }}">{{ $family->family_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-2">Category</label>
+                <select wire:model="selectedCategoryId" class="rounded-md shadow-sm border-gray-300 w-full">
+                    <option value="">All Categories</option>
+                    @foreach($categories as $category)
+                        <option value="{{ $category->id }}">{{ $category->cat_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
         <div class="mb-4">
             <label class="block text-sm font-medium mb-2">Report Format</label>
             <select wire:model="fileType" class="rounded-md shadow-sm border-gray-300 w-full">
                 <option value="pdf">PDF</option>
                 <option value="excel">Excel</option>
             </select>
-        </div>
-
-        <div class="mb-4">
-            <label class="block text-sm font-medium mb-2">Select Columns</label>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                @foreach($availableColumns as $value => $label)
-                    <label class="inline-flex items-center">
-                        <input type="checkbox" 
-                            wire:model="selectedColumns" 
-                            value="{{ $value }}"
-                            @if(in_array($value, ['item_code', 'item_name', 'created_at', 'transaction_type', 'qty_on_hand', 'transaction_qty'])) checked disabled @endif
-                            class="rounded border-gray-300">
-                        <span class="ml-2">{{ $label }}</span>
-                    </label>
-                @endforeach
-            </div>
         </div>
 
         <button 
