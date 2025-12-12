@@ -471,6 +471,7 @@ class DatabaseSeeder extends Seeder
             ['code' => 'LCY', 'name' => 'LEE C.Y (MR LEE)'],
             ['code' => 'BNJ', 'name' => 'BASIL NG JIAN'],
             ['code' => 'YYP', 'name' => 'YAP YOON PHANG (OWEN)'],
+            ['code' => 'WXX', 'name' => 'WONG XIANX XUAN'],
         ];
 
         $createdSalespersons = [];
