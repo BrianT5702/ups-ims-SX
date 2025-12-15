@@ -6,8 +6,8 @@
     <style>
         @media print {
             @page {
-                margin-top: 100px;  /* Reserve space for fixed header on EVERY page (85px header + 15px buffer) */
-                margin-bottom: 15mm;
+                margin-top: 10mm; /* modest top margin; header lives inside table */
+                margin-bottom: 15mm; /* footer is removed; use normal margin */
                 margin-left: 15mm;
                 margin-right: 15mm;
                 size: A4;
@@ -30,38 +30,13 @@
                 position: relative;
             }
             
-            /* Fixed header - appears on every page when printing */
-            /* The header sits in the @page margin-top area (top: 0) */
-            .print-header {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                width: 100%;
-                background: white;
-                z-index: 1000;
-                padding: 8px 15mm;
-                border-bottom: 1px solid #000;
-                box-sizing: border-box;
-                height: 85px;
-                max-height: 85px;
-                min-height: 85px;
-                overflow: hidden;
-                margin: 0;
-                page-break-inside: avoid;
-                page-break-after: avoid;
-                display: block !important; /* Ensure it's visible when printing */
-            }
+            /* Page counters are automatic in print media - no reset needed */
             
             /* Ensure body content starts below the margin area */
             body > .content-wrapper {
                 margin-top: 0;
             }
             
-            /* Hide screen header when printing */
-            .screen-header {
-                display: none !important;
-            }
             
             /* Content wrapper - ensure proper spacing on all pages */
             .content-wrapper {
@@ -72,10 +47,11 @@
                 z-index: 1;
             }
             
-            /* Spacer element - hidden, @page margin handles all spacing */
             .print-spacer {
-                display: none !important;
+                display: none !important; /* spacer not needed; header is in table head */
+                height: 0;
             }
+
             
             /* Ensure table headers repeat on each page */
             thead {
@@ -131,40 +107,25 @@
             }
         }
         
-        body { font-family: Arial; font-size: 11px; margin: 8px; }
+        body { font-family: Arial; font-size: 8px; margin: 8px; }
         .header { margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 3px; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #000; padding: 3px 4px; font-size: 10px; }
+        th, td { border: 1px solid #000; padding: 3px 4px; font-size: 8px; }
         th { background-color: #f0f0f0; font-weight: bold; text-align: center; }
+        .report-header-row th { background: white; }
         .gh { background-color: #e0e0e0; font-weight: bold; }
         .n { text-align: right; }
         .q { text-align: center; }
         .no-print { display: none; }
-        .print-header { display: none; } /* Hidden by default, shown only when printing */
         .print-spacer { display: none; } /* Hidden on screen */
         
         @media screen {
             .no-print { display: block; margin: 20px; padding: 10px; background: #f0f0f0; border: 1px solid #ccc; }
-            .print-header { display: none !important; }
-            .screen-header { display: block; }
             .print-spacer { display: none !important; }
         }
     </style>
     <script>
-        // Ensure print header is visible when printing
-        window.addEventListener('beforeprint', function() {
-            var printHeader = document.querySelector('.print-header');
-            if (printHeader) {
-                printHeader.style.display = 'block';
-            }
-        });
-        
-        window.addEventListener('afterprint', function() {
-            var printHeader = document.querySelector('.print-header');
-            if (printHeader && window.matchMedia('screen').matches) {
-                printHeader.style.display = 'none';
-            }
-        });
+        // No header toggle needed; using a single header.
     </script>
 </head>
 <body>
@@ -178,33 +139,36 @@
         <p><strong>Note:</strong> For datasets with more than 3000 items, HTML format is used instead of PDF to ensure reliable generation.</p>
     </div>
 
-    <!-- Print header (fixed on every page when printing) -->
-    <div class="print-header">
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
-            <tr>
-                <td style="text-align: left; font-weight: bold; font-size: 13px; padding: 2px; border: none;">{{ $companyProfile->company_name ?? 'UNITED REFRIGERATION SYSTEM (M) SDN BHD' }}</td>
-                <td style="text-align: right; font-size: 11px; padding: 2px; border: none;">DATE : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y') }}<br>TIME : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('H:i:s') }}</td>
-            </tr>
-        </table>
-        <div style="text-align: center; font-weight: bold; font-size: 16px; margin-top: 4px;">STOCK LISTING</div>
-    </div>
-
-    <!-- Screen header (visible on screen only) -->
-    <div class="screen-header" style="margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 3px;">
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
-            <tr>
-                <td style="text-align: left; font-weight: bold; font-size: 13px; padding: 2px; border: none;">{{ $companyProfile->company_name ?? 'UNITED REFRIGERATION SYSTEM (M) SDN BHD' }}</td>
-                <td style="text-align: right; font-size: 11px; padding: 2px; border: none;">DATE : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y') }}<br>TIME : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('H:i:s') }}</td>
-            </tr>
-        </table>
-        <div style="text-align: center; font-weight: bold; font-size: 16px; margin-top: 4px;">STOCK LISTING</div>
-    </div>
-
     <div class="content-wrapper">
     <!-- Spacer to push content below fixed header when printing -->
     <div class="print-spacer"></div>
     <table>
+        @php
+            $headerColSpan = 2;
+            if (isset($columns['qty'])) $headerColSpan++;
+            if (isset($columns['cost'])) $headerColSpan++;
+            if (isset($columns['cash_price'])) $headerColSpan++;
+            if (isset($columns['term_price'])) $headerColSpan++;
+            if (isset($columns['cust_price'])) $headerColSpan++;
+            if (isset($showTotals) && $showTotals) $headerColSpan++;
+        @endphp
         <thead>
+            <tr class="report-header-row">
+                <th colspan="{{ $headerColSpan }}" style="border: none; text-align: left; font-weight: bold; font-size: 10px; padding: 4px;">
+                    {{ $companyProfile->company_name ?? 'UNITED REFRIGERATION SYSTEM (M) SDN BHD' }}
+                </th>
+            </tr>
+            <tr class="report-header-row">
+                <th colspan="{{ $headerColSpan }}" style="border: none; text-align: left; font-size: 8px; padding: 4px;">
+                    DATE : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y') }} &nbsp;&nbsp;
+                    TIME : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('H:i:s') }}
+                </th>
+            </tr>
+            <tr class="report-header-row">
+                <th colspan="{{ $headerColSpan }}" style="border: none; text-align: center; font-weight: bold; font-size: 12px; padding: 6px 4px;">
+                    STOCK LISTING
+                </th>
+            </tr>
             <tr>
                 <th>Stock Code</th>
                 <th>Stock Description</th>
