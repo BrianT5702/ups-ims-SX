@@ -47,9 +47,9 @@
         .company-info p { margin: 0; font-size: 0.75em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
         .customer-info { display: flex; justify-content: space-between; margin-bottom: 14px; }
         .customer-info-frame { border: 1px solid #000; padding: 6px; width: 100%; font-size: 0.8em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
-        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; font-size: 0.85em; /* Smaller font */ }
-        .items-table th { padding: 6px 8px 4px 8px; /* Reduced padding */ text-align: left; border-bottom: 1px solid #000; border-top: 1px solid #000; font-weight: bold; text-transform: uppercase; font-size: 0.7em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
-        .items-table td { padding: 4px 8px; /* Reduced padding */ text-align: left; vertical-align: top; border-bottom: none; font-size: 0.85em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; font-size: 0.92em; /* Increased by 1px */ }
+        .items-table th { padding: 6px 8px 4px 8px; /* Reduced padding */ text-align: left; border-bottom: 1px solid #000; border-top: 1px solid #000; font-weight: bold; text-transform: uppercase; font-size: 0.77em; /* Increased by 1px */ line-height: 1.3; /* Reduced line spacing */ }
+        .items-table td { padding: 4px 8px; /* Reduced padding */ text-align: left; vertical-align: top; border-bottom: none; font-size: 0.92em; /* Increased by 1px */ line-height: 1.3; /* Reduced line spacing */ }
         .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 5%; text-align: center; }
         .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 60%; }
         .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 8%; text-align: right; white-space: nowrap; }
@@ -567,7 +567,7 @@
                     </table>
                 </div>
 
-                @if(!empty($quotation->remark))
+                @if(!empty(trim($quotation->remark ?? '')))
                     <div id="remark-source" style="margin: 0 0 0 5%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; position: relative; z-index: 5; background: white;">
                         <div style="font-size: 0.85em; font-family: Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
                             <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
@@ -932,6 +932,22 @@
                     function appendBlock(sourceNode, attr) {
                         if (!sourceNode) {
                             return;
+                        }
+                        // For remarks, check if there's actual content (not just whitespace)
+                        if (attr === 'data-page-remark') {
+                            // Look for the actual content div, not just the outer container
+                            var contentDiv = sourceNode.querySelector('div[style*="flex: 1"]') || sourceNode.querySelector('div:last-child');
+                            var remarkText = '';
+                            if (contentDiv) {
+                                remarkText = contentDiv.textContent || contentDiv.innerText || '';
+                            } else {
+                                // Fallback: get all text and remove "Remark:" label
+                                remarkText = sourceNode.textContent || sourceNode.innerText || '';
+                                remarkText = remarkText.replace(/^\s*Remark\s*:?\s*/i, '').trim();
+                            }
+                            if (!remarkText.trim().length) {
+                                return; // Skip empty remarks
+                            }
                         }
                         var clone = sourceNode.cloneNode(true);
                         removeIds(clone);

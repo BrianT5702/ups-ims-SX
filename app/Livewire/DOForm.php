@@ -715,10 +715,10 @@ class DOForm extends Component
         // Use more accurate 28px average row height (between 25-30px)
         // Max rows: 675px / 28px ≈ 24.1 rows
         
-        // Round down to 21 rows to ensure reliable fit
+        // Round down to 19 rows to ensure reliable fit (including remarks if any)
         // This accounts for items with longer descriptions
         
-        return 21; // Hard cap: at most 21 rows per page
+        return 19; // Hard cap: at most 19 rows per page (including remarks)
     }
 
     public function updateUnitPrice($index)
