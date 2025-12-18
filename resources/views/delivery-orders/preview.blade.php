@@ -182,7 +182,7 @@
             border-collapse: collapse;
             margin-bottom: 0; /* keep tight to allow continuous vertical line */
             padding-bottom: 0;
-            font-size: 0.92em;
+            font-size: 0.85em;
             table-layout: fixed;
             position: relative;
         }
@@ -194,7 +194,7 @@
             border-top: 1px solid #000;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 0.77em;
+            font-size: 0.7em;
             line-height: 1.3;
             vertical-align: middle;
         }
@@ -203,7 +203,7 @@
             padding: 4px 8px;
             text-align: left;
             border-bottom: none;
-            font-size: 0.92em;
+            font-size: 0.85em;
             line-height: 1.3;
             vertical-align: top;
             word-wrap: break-word;
@@ -290,7 +290,7 @@
 
         /* Make signature padding in pages-container match print (no horizontal padding since page has padding) */
         .pages-container .print-page-footer .signature-section {
-            padding: 2px 0 12px !important;
+            padding: 16px 0 12px !important;
         }
 
         .pages-container[data-measuring="true"] .print-page {
@@ -383,12 +383,12 @@
             display: flex;
             flex-direction: column;
             gap: 14px;
-            flex: 1 1 auto; /* Allow body to grow and fill space */
+            flex: 1 1 auto;
         }
 
         .print-page-footer {
-            margin-top: auto; /* Push footer to bottom */
-            padding-top: 0; /* No padding */
+            margin-top: auto;
+            padding-top: 8px;
             flex: 0 0 auto;
         }
 
@@ -397,7 +397,7 @@
             justify-content: space-between;
             align-items: flex-end;
             border-top: 1px solid #000;
-            padding: 2px 0 12px;
+            padding: 16px 0 12px;
             page-break-inside: avoid;
             break-inside: avoid;
             font-size: 13px;
@@ -498,7 +498,7 @@
         /* Reduce spacing around remark - negative margins to counteract flex gap */
         .print-page-body [data-page-remark],
         .pages-container .print-page-body [data-page-remark] {
-            margin-top: -12px !important; /* Reduce top gap from 14px to 2px (14 - 12 = 2) */
+            margin-top: -8px !important; /* Reduce top gap from 14px to 6px (14 - 8 = 6) */
             margin-bottom: -8px !important; /* Reduce bottom gap from 14px to 6px (14 - 8 = 6) */
         }
 
@@ -680,7 +680,7 @@
 
             /* Reduce spacing around remark in print */
             .pages-container .print-page-body [data-page-remark] {
-                margin-top: -12px !important;
+                margin-top: -8px !important;
                 margin-bottom: -8px !important;
             }
 
@@ -820,11 +820,11 @@
                     </table>
                 </div>
 
-                @if(!empty(trim($deliveryOrder->remark ?? '')))
+                @if(!empty($deliveryOrder->remark))
                     <div id="remark-source">
                         <div style="margin: 0;">
-                            <div id="remark-wrapper" style="margin-left: calc(var(--qty-col-width) + var(--col-align-offset)); padding-left: 4px; padding-top: 5px;">
-                                <div style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <div id="remark-wrapper" style="margin-left: calc(var(--qty-col-width) + var(--col-align-offset)); padding-left: 8px; padding-top: 10px;">
+                                <div style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     <div style="font-size: 0.85em; font-family: Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
                                         <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
                                         <div style="flex: 1;">{!! nl2br(e($deliveryOrder->remark)) !!}</div>
@@ -1003,10 +1003,10 @@
                     var marginPx = measurePx('0.75cm');
                     var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
                     
-                    // Use minimal reduction to maximize space for items (keep screen and print identical)
-                    // Reduced from 3% to 1% to allow more rows (fit all 19+ rows)
-                    // Approx 1% reduction: 0.99
-                        pageHeightCache = Math.round(calculatedHeight * 0.99);
+                    // Use a lighter reduction so print can fit more lines (keep screen and print identical)
+                    // Reduced from 5% to 3% to allow more rows (21 instead of 18)
+                    // Approx 3% reduction: 0.97
+                        pageHeightCache = Math.round(calculatedHeight * 0.97);
                 }
                 return pageHeightCache;
             }
@@ -1103,9 +1103,9 @@
                     // Check if we're in print context (either print media query or beforeprint event)
                     var isPrintMode = window.matchMedia && window.matchMedia('print').matches;
                     var pageHeight = getPageHeight(force, isPrintMode);
-                    // Use increased tolerance to allow more rows to fit
-                    // Increased from 12px to 20px to maximize item list space
-                    var tolerance = 20;
+                    // Use increased tolerance to allow 21 rows instead of 18
+                    // Increased from 6px to 12px to account for reduced footer padding
+                    var tolerance = 12;
                     var usableHeight = pageHeight; // Already reduced in getPageHeight
                     var isFirstPage = true;
                     var activePage = null;
@@ -1135,14 +1135,9 @@
                         ensurePage();
                         activePage.tbody.appendChild(clone);
 
-                        // Measure actual content height (body + footer) instead of page height
-                        // Page has min-height which makes offsetHeight always full page height
-                        var bodyHeight = activePage.body ? activePage.body.offsetHeight : 0;
-                        var footerHeight = activePage.footer ? activePage.footer.offsetHeight : 0;
-                        var actualContentHeight = bodyHeight + footerHeight;
-                        
-                        // Check if actual content exceeds usable height
-                        if (actualContentHeight > (usableHeight - tolerance)) {
+                        // Use same check as quotations - check page height directly
+                        // The signature is already part of the page, so offsetHeight includes it
+                        if (activePage.page.offsetHeight > (usableHeight - tolerance)) {
                             // DO MUST FIT ON ONE PAGE - remove the row and mark as exceeded
                             activePage.tbody.removeChild(clone);
                             pageExceeded = true;
@@ -1168,48 +1163,33 @@
                     }
 
                     if (remarkSource && !pageExceeded) {
-                        // Check if remark has actual visible content (not just whitespace)
-                        // Look for the actual content div, not just the outer container
-                        var contentDiv = remarkSource.querySelector('div[style*="flex: 1"]') || remarkSource.querySelector('div:last-child');
-                        var remarkText = '';
-                        if (contentDiv) {
-                            remarkText = contentDiv.textContent || contentDiv.innerText || '';
-                        } else {
-                            // Fallback: get all text and remove "Remark:" label
-                            remarkText = remarkSource.textContent || remarkSource.innerText || '';
-                            remarkText = remarkText.replace(/^\s*Remark\s*:?\s*/i, '').trim();
-                        }
-                        var hasContent = remarkText.trim().length > 0;
-                        
-                        if (hasContent) {
-                            var remarkClone = remarkSource.cloneNode(true);
-                            removeIds(remarkClone);
-                            remarkClone.setAttribute('data-page-remark', '');
+                        var remarkClone = remarkSource.cloneNode(true);
+                        removeIds(remarkClone);
+                        remarkClone.setAttribute('data-page-remark', '');
 
-                            ensurePage();
-                            activePage.body.appendChild(remarkClone);
-                            // Check if page overflows, accounting for signature footer
-                            // DO MUST FIT ON ONE PAGE - stricter check
-                            var currentPageHeight = activePage.page.offsetHeight;
-                            if (currentPageHeight > (usableHeight - tolerance)) {
-                                // Allow slight overflow (30px) to keep signature together, but warn if more
-                                if (currentPageHeight > (usableHeight + 30)) {
-                                    // Content exceeds one page - remove remark and show warning
-                                    activePage.body.removeChild(remarkClone);
-                                    pageExceeded = true;
-                                    var warningMsg = '⚠️ Content exceeds one page limit. Please shorten the remark to fit on a single page.';
-                                    if (!document.getElementById('do-page-limit-warning')) {
-                                        var warningDiv = document.createElement('div');
-                                        warningDiv.id = 'do-page-limit-warning';
-                                        warningDiv.style.cssText = 'position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #ff6b6b; color: white; padding: 15px 20px; border-radius: 5px; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: bold; max-width: 600px; text-align: center;';
-                                        warningDiv.textContent = warningMsg;
-                                        document.body.appendChild(warningDiv);
-                                        setTimeout(function() {
-                                            if (warningDiv.parentNode) {
-                                                warningDiv.parentNode.removeChild(warningDiv);
-                                            }
-                                        }, 5000);
-                                    }
+                        ensurePage();
+                        activePage.body.appendChild(remarkClone);
+                        // Check if page overflows, accounting for signature footer
+                        // DO MUST FIT ON ONE PAGE - stricter check
+                        var currentPageHeight = activePage.page.offsetHeight;
+                        if (currentPageHeight > (usableHeight - tolerance)) {
+                            // Allow slight overflow (30px) to keep signature together, but warn if more
+                            if (currentPageHeight > (usableHeight + 30)) {
+                                // Content exceeds one page - remove remark and show warning
+                                activePage.body.removeChild(remarkClone);
+                                pageExceeded = true;
+                                var warningMsg = '⚠️ Content exceeds one page limit. Please shorten the remark to fit on a single page.';
+                                if (!document.getElementById('do-page-limit-warning')) {
+                                    var warningDiv = document.createElement('div');
+                                    warningDiv.id = 'do-page-limit-warning';
+                                    warningDiv.style.cssText = 'position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #ff6b6b; color: white; padding: 15px 20px; border-radius: 5px; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: bold; max-width: 600px; text-align: center;';
+                                    warningDiv.textContent = warningMsg;
+                                    document.body.appendChild(warningDiv);
+                                    setTimeout(function() {
+                                        if (warningDiv.parentNode) {
+                                            warningDiv.parentNode.removeChild(warningDiv);
+                                        }
+                                    }, 5000);
                                 }
                             }
                         }

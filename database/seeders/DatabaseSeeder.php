@@ -507,15 +507,15 @@ class DatabaseSeeder extends Seeder
         $conn = $connection;
         $company = [
             'ups' => [
-                'company_name' => 'UNITED PANEL SYSTEM (M) SDN. BHD.',
+                'company_name' => 'UNITED PANEL-SYSTEM (M) SDN. BHD.',
                 'company_no' => '772009-A',
             ],
             'urs' => [
-                'company_name' => 'UNITED REFRIGERATION SYSTEM (M) SDN. BHD.',
+                'company_name' => 'UNITED REFRIGERATION-SYSTEM (M) SDN. BHD.',
                 'company_no' => '772011-D',
             ],
             'ucs' => [
-                'company_name' => 'UNITED COLD SYSTEM (M) SDN. BHD.',
+                'company_name' => 'UNITED COLD-SYSTEM (M) SDN. BHD.',
                 'company_no' => '748674-K',
             ],
         ][$conn] ?? [

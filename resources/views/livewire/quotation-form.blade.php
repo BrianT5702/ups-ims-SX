@@ -171,7 +171,7 @@
                                                 <div style="flex: 1; cursor: pointer; position: relative;" 
                                                      @mouseenter="hoverTimeout = setTimeout(() => { showMemo = true }, 1000)"
                                                      @mouseleave="clearTimeout(hoverTimeout); showMemo = false">
-                                                    {{ $stackedItems[$index]['custom_item_name'] ?? $item['item']['item_name'] }}
+                                                    <span wire:key="item-name-{{ $index }}-{{ $stackedItems[$index]['custom_item_name'] ?? 'default' }}">{{ $stackedItems[$index]['custom_item_name'] ?? $item['item']['item_name'] }}</span>
                                                     @if(!empty($item['item']['memo']))
                                                         <div x-show="showMemo" 
                                                              x-transition
@@ -232,12 +232,15 @@
                                                 " class="mt-2">
                                                     <div x-show="open" class="card card-body p-2">
                                                         <label class="small mb-1">Edit Item Name (this order only)</label>
-                                                        <input type="text" class="form-control form-control-sm" 
-                                                            wire:model.defer="stackedItems.{{ $index }}.custom_item_name"
-                                                            placeholder="Enter custom item name">
+                                                        <input type="text" 
+                                                            id="custom-name-input-{{ $index }}"
+                                                            class="form-control form-control-sm" 
+                                                            wire:model.live="stackedItems.{{ $index }}.custom_item_name"
+                                                            placeholder="Enter custom item name"
+                                                            value="{{ $stackedItems[$index]['custom_item_name'] ?? '' }}">
                                                         <div class="mt-2 d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-primary" @click="open=false">Done</button>
-                                                            <button type="button" class="btn btn-sm btn-outline-secondary" @click="$wire.set('stackedItems.{{ $index }}.custom_item_name', null); open=false;">Reset</button>
+                                                            <button type="button" class="btn btn-sm btn-primary" @click="$wire.$refresh(); open=false;">Done</button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary" @click="$wire.set('stackedItems.{{ $index }}.custom_item_name', null); $wire.$refresh(); open=false;">Reset</button>
                                                         </div>
                                                     </div>
                                                 </div>
