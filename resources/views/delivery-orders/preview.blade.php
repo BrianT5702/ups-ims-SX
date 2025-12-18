@@ -280,7 +280,7 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin: 0 auto 28px;
             max-width: 1000px;
-            padding: 20px;
+            padding: 20px 20px 4px 20px; /* top right bottom left - minimal bottom padding */
             box-sizing: border-box;
         }
 
@@ -301,7 +301,7 @@
             display: flex;
             flex-direction: column;
             position: relative;
-            min-height: calc(11in - (0.75cm * 2));
+            min-height: calc(11in - 0.75cm - 0.15cm); /* top margin + minimal bottom margin */
             page-break-after: always;
             page-break-inside: avoid;
             break-inside: avoid;
@@ -388,7 +388,7 @@
 
         .print-page-footer {
             margin-top: auto;
-            padding-top: 8px;
+            padding-top: 2px;
             flex: 0 0 auto;
         }
 
@@ -410,11 +410,11 @@
         }
 
         .signature-left {
-            width: 45%;
+            width: 48%;
         }
 
         .signature-right {
-            width: 45%;
+            width: 48%;
             text-align: center;
         }
 
@@ -440,7 +440,7 @@
     }
     
     @page {
-        margin: 0.75cm;
+        margin: 0.75cm 0.75cm 0.15cm 0.75cm; /* top right bottom left - minimal bottom margin */
         size: letter;
     }
     
@@ -469,14 +469,14 @@
     }
     
     /* Print pages should match exactly what's shown in preview */
-    .pages-container .print-page {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 20px !important;
-        box-sizing: border-box !important;
-        min-height: calc(11in - 1.5cm) !important;
-    }
+            .pages-container .print-page {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 20px 20px 4px 20px !important; /* top right bottom left - minimal bottom padding */
+                box-sizing: border-box !important;
+                min-height: calc(11in - 0.75cm - 0.15cm) !important; /* top margin + minimal bottom margin */
+            }
 
 
     
@@ -570,15 +570,15 @@
         }
 
         @page {
-            margin: 0.75cm; /* Slightly smaller margins for more usable space */
+            margin: 0.75cm 0.75cm 0.15cm 0.75cm; /* top right bottom left - minimal bottom margin */
             size: letter; /* Changed from A4 to letter size */
         }
 
         @media print {
-            /* Force standardized print settings */
+            /* Force standardized print settings - MUST match preview exactly */
             html {
                 zoom: 1 !important;
-                font-size: 16px !important;
+                font-size: 16px !important; /* Base font size - not affected by browser settings */
             }
             
             body {
@@ -589,7 +589,8 @@
                 -webkit-print-color-adjust: exact;
                 zoom: 1 !important;
                 transform: scale(1) !important;
-                font-size: 16px !important;
+                font-size: 15px !important; /* Match preview: 15px for more rows */
+                line-height: 1.45 !important; /* Match preview line-height exactly */
             }
 
             .print-button, .back-button {
@@ -624,8 +625,21 @@
                 border: none !important;
                 box-shadow: none !important;
                 margin: 0 !important;
-                padding: 20px !important;
+                padding: 20px 20px 4px 20px !important; /* top right bottom left - minimal bottom padding */
                 position: relative !important;
+            }
+
+            /* Ensure table cells match preview exactly - critical for 24 rows */
+            .items-table td {
+                padding: 4px 8px !important;
+                font-size: 0.85em !important;
+                line-height: 1.3 !important;
+            }
+
+            .items-table th {
+                padding: 6px 8px 4px 8px !important;
+                font-size: 0.7em !important;
+                line-height: 1.3 !important;
             }
             
             /* Ensure print-page-body and print-page-footer use normal flow */
@@ -792,10 +806,17 @@
                         <tbody>
                             @foreach ($deliveryOrder->items as $index => $item)
                             <tr>
-                                <td>{{ $item->qty }} {{ $item->item->um ?? 'UNIT' }}</td>
                                 <td>
-                                    {{ $item->custom_item_name ?? ($item->item->item_name ?? 'N/A') }}
-                                    @if(!empty($item->item->details))
+                                    @if($item->item_id === null)
+                                        {{-- Text-only item: leave qty empty --}}
+                                        &nbsp;
+                                    @else
+                                        {{ $item->qty }} {{ $item->item->um ?? 'UNIT' }}
+                                    @endif
+                                </td>
+                                <td>
+                                    {{ $item->custom_item_name ?? ($item->item_id !== null && $item->item ? $item->item->item_name : 'N/A') }}
+                                    @if($item->item_id !== null && $item->item && !empty($item->item->details))
                                         <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
                                             @foreach(explode("\n", $item->item->details) as $line)
                                                 @if(trim($line) !== '')
@@ -1000,13 +1021,14 @@
                     // Use a more accurate method that accounts for print DPI
                     // In print mode, browsers use different DPI, so we need to recalculate
                     var letterPx = measurePx('11in');
-                    var marginPx = measurePx('0.75cm');
-                    var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
+                    var topMarginPx = measurePx('0.75cm');
+                    var bottomMarginPx = measurePx('0.15cm'); // Minimal bottom margin
+                    var calculatedHeight = Math.max(1, Math.round(letterPx - topMarginPx - bottomMarginPx));
                     
-                    // Use a lighter reduction so print can fit more lines (keep screen and print identical)
-                    // Reduced from 5% to 3% to allow more rows (21 instead of 18)
-                    // Approx 3% reduction: 0.97
-                        pageHeightCache = Math.round(calculatedHeight * 0.97);
+                    // Use same reduction factor for both screen and print since font sizes now match exactly
+                    // Both use 15px font-size and 1.45 line-height, so same reduction applies
+                    // Minimal reduction (0.995) to ensure 24 rows fit in both preview and print
+                    pageHeightCache = Math.round(calculatedHeight * 0.995);
                 }
                 return pageHeightCache;
             }
@@ -1076,7 +1098,7 @@
                 };
             }
 
-            function paginateDeliveryOrder(force) {
+            function paginateDeliveryOrder(force, forcePrintMode) {
                 if (building) {
                     return;
                 }
@@ -1100,12 +1122,12 @@
 
                     var rows = Array.from(itemsTable.querySelectorAll('tbody tr'));
                     var remarkSource = document.getElementById('remark-source');
-                    // Check if we're in print context (either print media query or beforeprint event)
-                    var isPrintMode = window.matchMedia && window.matchMedia('print').matches;
-                    var pageHeight = getPageHeight(force, isPrintMode);
-                    // Use increased tolerance to allow 21 rows instead of 18
-                    // Increased from 6px to 12px to account for reduced footer padding
-                    var tolerance = 12;
+                    // Check if we're in print context (either print media query, beforeprint event, or forced)
+                    var isPrintMode = forcePrintMode || (window.matchMedia && window.matchMedia('print').matches);
+                    var pageHeight = getPageHeight(force || forcePrintMode, isPrintMode);
+                    // Increased tolerance to allow 24 rows to fit
+                    // Use same tolerance for both since font sizes now match exactly
+                    var tolerance = 40;
                     var usableHeight = pageHeight; // Already reduced in getPageHeight
                     var isFirstPage = true;
                     var activePage = null;
@@ -1137,7 +1159,8 @@
 
                         // Use same check as quotations - check page height directly
                         // The signature is already part of the page, so offsetHeight includes it
-                        if (activePage.page.offsetHeight > (usableHeight - tolerance)) {
+                        // Allow more tolerance to ensure 24 rows can fit - check against usableHeight + tolerance instead of subtracting
+                        if (activePage.page.offsetHeight > (usableHeight + tolerance)) {
                             // DO MUST FIT ON ONE PAGE - remove the row and mark as exceeded
                             activePage.tbody.removeChild(clone);
                             pageExceeded = true;
@@ -1170,11 +1193,11 @@
                         ensurePage();
                         activePage.body.appendChild(remarkClone);
                         // Check if page overflows, accounting for signature footer
-                        // DO MUST FIT ON ONE PAGE - stricter check
+                        // DO MUST FIT ON ONE PAGE - allow more tolerance for 24 rows
                         var currentPageHeight = activePage.page.offsetHeight;
-                        if (currentPageHeight > (usableHeight - tolerance)) {
-                            // Allow slight overflow (30px) to keep signature together, but warn if more
-                            if (currentPageHeight > (usableHeight + 30)) {
+                        if (currentPageHeight > (usableHeight + tolerance)) {
+                            // Allow more overflow to keep signature together, but warn if excessive
+                            if (currentPageHeight > (usableHeight + tolerance + 50)) {
                                 // Content exceeds one page - remove remark and show warning
                                 activePage.body.removeChild(remarkClone);
                                 pageExceeded = true;
@@ -1313,7 +1336,7 @@
                         if (e.matches) {
                             // Clear cache and force recalculation when entering print mode
                             pageHeightCache = null;
-                            paginateDeliveryOrder(true);
+                            paginateDeliveryOrder(true, true); // Force recalculation AND force print mode
                             // Recalculate vertical lines after print styles are applied
                             // Use multiple timeouts to ensure layout is fully settled
                             setTimeout(function() {
@@ -1352,10 +1375,10 @@
 
             window.addEventListener('beforeprint', function () {
                 // Clear cache and force recalculation with print context
-                // Use a small delay to ensure print media query is active
+                // Explicitly force print mode to ensure correct height calculations
                 pageHeightCache = null;
                 setTimeout(function() {
-                    paginateDeliveryOrder(true);
+                    paginateDeliveryOrder(true, true); // Force recalculation AND force print mode
                     // Recalculate vertical lines after print layout is applied
                     // Need to wait for print styles to be fully applied and layout to settle
                     setTimeout(function() {

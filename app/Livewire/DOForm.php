@@ -50,6 +50,7 @@ class DOForm extends Component
     public $status = 'Save to Draft';
     private bool $isPreviewMode = false;
     public array $lastValidDescriptions = [];
+    public array $freeFormTextRows = []; // Store free-form text for empty rows
 
     public function mount(DeliveryOrder $deliveryOrder)
     {
@@ -75,52 +76,78 @@ class DOForm extends Component
     
             // Load delivery order items
             foreach ($deliveryOrder->items as $doItem) {
-                // Determine if the price was manually modified by comparing with tier prices
-                $tierPrices = [
-                    'Customer Price' => $doItem->item->cust_price,
-                    'Term Price' => $doItem->item->term_price,
-                    'Cash Price' => $doItem->item->cash_price,
-                ];
-                
-                $pricingTier = $doItem->pricing_tier ?? '';
-                $priceManuallyModified = false;
-                
-                // If pricing tier is set, check if price matches the tier price
-                if ($pricingTier && in_array($pricingTier, ['Customer Price', 'Term Price', 'Cash Price'])) {
-                    $expectedPrice = match ($pricingTier) {
+                // Check if this is a text-only item (item_id is null)
+                if ($doItem->item_id === null || !$doItem->item) {
+                    // This is a text-only item (free-form text)
+                    $this->stackedItems[] = [
+                        'item' => [
+                            'id' => null,
+                            'item_code' => '',
+                            'item_name' => '',
+                            'um' => '',
+                            'details' => '',
+                        ],
+                        'custom_item_name' => $doItem->custom_item_name ?? '',
+                        'item_qty' => 0,
+                        'item_unit_price' => 0,
+                        'amount' => 0,
+                        'pricing_tier' => null,
+                        'more_description' => null,
+                        'is_text_only' => true,
+                    ];
+                } else {
+                    // Regular item - ensure item exists
+                    if (!$doItem->item) {
+                        continue; // Skip if item doesn't exist
+                    }
+                    
+                    // Determine if the price was manually modified by comparing with tier prices
+                    $tierPrices = [
                         'Customer Price' => $doItem->item->cust_price,
                         'Term Price' => $doItem->item->term_price,
                         'Cash Price' => $doItem->item->cash_price,
-                        default => $doItem->item->cust_price
-                    };
-                    $priceManuallyModified = ($doItem->unit_price != $expectedPrice);
-                } else {
-                    // No pricing tier means custom price
-                    $priceManuallyModified = true;
+                    ];
+                    
+                    $pricingTier = $doItem->pricing_tier ?? '';
+                    $priceManuallyModified = false;
+                    
+                    // If pricing tier is set, check if price matches the tier price
+                    if ($pricingTier && in_array($pricingTier, ['Customer Price', 'Term Price', 'Cash Price'])) {
+                        $expectedPrice = match ($pricingTier) {
+                            'Customer Price' => $doItem->item->cust_price,
+                            'Term Price' => $doItem->item->term_price,
+                            'Cash Price' => $doItem->item->cash_price,
+                            default => $doItem->item->cust_price
+                        };
+                        $priceManuallyModified = ($doItem->unit_price != $expectedPrice);
+                    } else {
+                        // No pricing tier means custom price
+                        $priceManuallyModified = true;
+                    }
+                    
+                    $this->stackedItems[] = [
+                        'item' => [
+                            'id' => $doItem->item->id,
+                            'item_code' => $doItem->item->item_code,
+                            'item_name' => $doItem->item->item_name,
+                            'qty' => $doItem->item->qty, // Current inventory quantity
+                            'cost' => $doItem->item->cost,
+                            'cust_price' => $doItem->item->cust_price,
+                            'term_price' => $doItem->item->term_price,
+                            'cash_price' => $doItem->item->cash_price,
+                            'latest_do_price' => $this->getLatestDOPriceForItem($doItem->item->id, $this->cust_id),
+                            'latest_do_date' => $this->getLatestDODateForItem($doItem->item->id, $this->cust_id),
+                        'details' => $doItem->item->details,
+                        ],
+                        'item_qty' => $doItem->qty, // Quantity in this specific delivery order
+                        'pricing_tier' => $pricingTier, // Load the saved pricing tier
+                        'item_unit_price' => $doItem->unit_price,
+                        'amount' => $doItem->amount,
+                        'more_description' => $doItem->more_description,
+                        'custom_item_name' => $doItem->custom_item_name ?? $doItem->item->item_name,
+                        'price_manually_modified' => $priceManuallyModified,
+                    ];
                 }
-                
-                $this->stackedItems[] = [
-                    'item' => [
-                        'id' => $doItem->item->id,
-                        'item_code' => $doItem->item->item_code,
-                        'item_name' => $doItem->item->item_name,
-                        'qty' => $doItem->item->qty, // Current inventory quantity
-                        'cost' => $doItem->item->cost,
-                        'cust_price' => $doItem->item->cust_price,
-                        'term_price' => $doItem->item->term_price,
-                        'cash_price' => $doItem->item->cash_price,
-                        'latest_do_price' => $this->getLatestDOPriceForItem($doItem->item->id, $this->cust_id),
-                        'latest_do_date' => $this->getLatestDODateForItem($doItem->item->id, $this->cust_id),
-                    'details' => $doItem->item->details,
-                    ],
-                    'item_qty' => $doItem->qty, // Quantity in this specific delivery order
-                    'pricing_tier' => $pricingTier, // Load the saved pricing tier
-                    'item_unit_price' => $doItem->unit_price,
-                    'amount' => $doItem->amount,
-                    'more_description' => $doItem->more_description,
-                    'custom_item_name' => $doItem->custom_item_name ?? $doItem->item->item_name,
-                    'price_manually_modified' => $priceManuallyModified,
-                ];
             }
     
             // Set search terms for customer and salesman
@@ -278,12 +305,12 @@ class DOForm extends Component
 
             if (!$itemExists) {
                 // DO MUST FIT ON ONE PAGE - check current rows first
-                $maxRows = $this->calculateMaxRows();
+                $maxRows = 24; // Fixed 24-row limit
                 $currentRows = $this->estimateTotalRows(false);
                 
                 // Block adding if already at or over limit
                 if ($currentRows >= $maxRows) {
-                    toastr()->error('⚠️ PAGE LIMIT REACHED: Cannot add item. Current: ' . $currentRows . ' rows, Maximum: ' . $maxRows . ' rows. Please remove items, shorten descriptions, or shorten remarks before adding new items.');
+                    toastr()->error('⚠️ PAGE LIMIT REACHED: Cannot add item. Current: ' . $currentRows . ' rows, Maximum: ' . $maxRows . ' rows. Please remove items or shorten descriptions before adding new items.');
                     $this->dispatch('show-limit-error', ['message' => 'Page limit reached (' . $currentRows . '/' . $maxRows . ' rows). Remove items or shorten content to add more.']);
                     return;
                 }
@@ -293,7 +320,7 @@ class DOForm extends Component
                 $estimatedRows = $this->estimateTotalRows(true); // true = include new item
                 
                 if ($estimatedRows > $maxRows) {
-                    toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add item. Adding this item would result in ' . $estimatedRows . ' rows (max: ' . $maxRows . ' rows). Please remove items, shorten descriptions (including removing newlines), or shorten remarks to fit on a single page.');
+                    toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add item. Adding this item would result in ' . $estimatedRows . ' rows (max: ' . $maxRows . ' rows). Please remove items or shorten descriptions to fit on a single page.');
                     $this->dispatch('show-limit-error', ['message' => 'Would exceed limit (' . $estimatedRows . '/' . $maxRows . ' rows). Remove items or shorten content first.']);
                     return;
                 }
@@ -316,6 +343,7 @@ class DOForm extends Component
                         'latest_do_price' => $this->getLatestDOPriceForItem($item->id, $this->cust_id),
                         'latest_do_date' => $this->getLatestDODateForItem($item->id, $this->cust_id),
                     'details' => $item->details,
+                    'um' => $item->um ?? 'UNIT',
                     ],
                     'item_qty' => 1,
                     'pricing_tier' => '',
@@ -332,6 +360,28 @@ class DOForm extends Component
             $this->itemSearchResults = [];
 
             $this->calculateTotalAmount();
+        }
+    }
+
+    public function addItemToRow($itemId, $rowIndex)
+    {
+        if (!$this->isView) {
+            // Calculate how many rows remarks take
+            $remarkRows = 0;
+            if (!empty($this->remark)) {
+                $remarkLines = explode("\n", $this->remark);
+                $remarkRows = 2 + count($remarkLines);
+            }
+            $maxItemRows = 24 - $remarkRows;
+            
+            // Check if row is available (not in remark section)
+            if ($rowIndex >= $maxItemRows) {
+                toastr()->error('Cannot add item to remark section row.');
+                return;
+            }
+            
+            // Use existing addItem logic but ensure it fits
+            $this->addItem($itemId);
         }
     }
 
@@ -458,15 +508,8 @@ class DOForm extends Component
             $this->updatePriceLine($index);
         }
         
-        // Check if more_description was updated - validate immediately when the model updates (triggered on blur via wire:model.lazy)
-        if (strpos($key, 'more_description') !== false) {
-            // Extract index from key (e.g., "stackedItems.0.more_description" -> 0)
-            $parts = explode('.', $key);
-            if (count($parts) >= 2 && is_numeric($parts[1])) {
-                $index = (int)$parts[1];
-                $this->validateAndMaybeRevertDescription($index);
-            }
-        }
+        // Don't validate description on every update - only validate when Save button is clicked
+        // This prevents focus loss and allows users to type freely
     }
     
     private function validateAndMaybeRevertDescription(int $index): void
@@ -552,6 +595,60 @@ class DOForm extends Component
             }
         }
     }
+
+    public function validateDescriptionRowsOnShow($index)
+    {
+        // Called when "+desc" button is clicked to show description field
+        // Just show the field, don't validate yet - validation happens on Save
+        if (!isset($this->stackedItems[$index])) {
+            return;
+        }
+    }
+
+    public function saveDescriptionAndValidate($index)
+    {
+        // Called when "Save" button is clicked for description
+        // Validates and locks in the description rows
+        if (!isset($this->stackedItems[$index])) {
+            return;
+        }
+
+        $maxRows = 24; // Fixed 24-row limit
+        $currentDesc = $this->stackedItems[$index]['more_description'] ?? '';
+        $lastValidDesc = $this->lastValidDescriptions[$index] ?? '';
+        
+        // Temporarily revert to last valid to calculate rows without new description
+        $this->stackedItems[$index]['more_description'] = $lastValidDesc;
+        $rowsWithoutNewDesc = $this->estimateTotalRows(false);
+        
+        // Count lines in NEW description (each line = 1 row)
+        $descLines = 0;
+        if (!empty($currentDesc)) {
+            $lines = explode("\n", $currentDesc);
+            foreach ($lines as $line) {
+                $lineLength = strlen($line);
+                // If line wraps, count wrapped lines
+                $wrappedLines = max(1, ceil($lineLength / 60));
+                $descLines += $wrappedLines;
+            }
+        }
+        
+        // Calculate total rows with new description
+        $this->stackedItems[$index]['more_description'] = $currentDesc;
+        $estimatedRows = $this->estimateTotalRows(false);
+        
+        if ($estimatedRows > $maxRows) {
+            // Revert to last valid description
+            $this->stackedItems[$index]['more_description'] = $lastValidDesc;
+            toastr()->error('⚠️ Description exceeds page limit! Description has ' . $descLines . ' line(s) = ' . $descLines . ' rows. Total would be: ' . $estimatedRows . ' rows (max: ' . $maxRows . '). Please remove items or shorten descriptions.');
+            $this->dispatch('show-limit-error', ['message' => 'Description: ' . $descLines . ' rows. Total: ' . $estimatedRows . '/' . $maxRows . ' rows.']);
+        } else {
+            // Save as valid description - keep the new description
+            $this->lastValidDescriptions[$index] = $currentDesc;
+            $remainingRows = $maxRows - $estimatedRows;
+            toastr()->success('Description saved: ' . $descLines . ' line(s) = ' . $descLines . ' rows. Total: ' . $estimatedRows . '/' . $maxRows . ' rows (remaining: ' . $remainingRows . ' rows).');
+        }
+    }
     
     public function updatedRemark($value)
     {
@@ -604,6 +701,52 @@ class DOForm extends Component
     }
     
     /**
+     * Get current row count for display in view
+     */
+    public function getCurrentRowCount()
+    {
+        return $this->estimateTotalRows(false);
+    }
+
+    private function convertFreeFormTextToItems()
+    {
+        // Convert free-form text rows into stackedItems entries (text-only items)
+        foreach ($this->freeFormTextRows as $rowIndex => $text) {
+            if (!empty(trim($text))) {
+                // Check if this text row already exists as an item
+                $exists = false;
+                foreach ($this->stackedItems as $item) {
+                    if (isset($item['is_text_only']) && $item['is_text_only'] && 
+                        isset($item['custom_item_name']) && $item['custom_item_name'] === trim($text)) {
+                        $exists = true;
+                        break;
+                    }
+                }
+                
+                if (!$exists) {
+                    // Add as a text-only item
+                    $this->stackedItems[] = [
+                        'item' => [
+                            'id' => null,
+                            'item_code' => '',
+                            'item_name' => '',
+                            'um' => '',
+                            'details' => '',
+                        ],
+                        'custom_item_name' => trim($text),
+                        'item_qty' => 0,
+                        'item_unit_price' => 0,
+                        'amount' => 0,
+                        'pricing_tier' => '',
+                        'more_description' => '',
+                        'is_text_only' => true, // Flag to identify text-only items
+                    ];
+                }
+            }
+        }
+    }
+
+    /**
      * Estimate total rows needed for all items + remarks
      * Each item = 1 base row + additional rows for descriptions
      * Remarks = estimated rows based on text length
@@ -618,16 +761,19 @@ class DOForm extends Component
         // Average characters per line in description column: ~60-70 chars (depends on column width)
         
         foreach ($items as $stackedItem) {
+            // Text-only items count as 1 row
+            if (isset($stackedItem['is_text_only']) && $stackedItem['is_text_only']) {
+                $totalRows += 1;
+                continue;
+            }
+            
             $totalRows += 1; // Base row for each item
             
             // Estimate description rows - MUST account for actual newlines (Enter key)
+            // Each description line counts as 1 full row (since we have fixed 24-row table)
             $desc = $stackedItem['more_description'] ?? '';
             if (!empty($desc)) {
-                // Count actual newlines first (each \n = 1 new line)
-                $newlineCount = substr_count($desc, "\n");
-                $descLines = $newlineCount + 1; // At least 1 line even if no newlines
-                
-                // For each line, estimate if it wraps (if line length > 60 chars - more conservative)
+                // Count actual newlines - each line counts as 1 row
                 $lines = explode("\n", $desc);
                 $totalDescRows = 0;
                 foreach ($lines as $line) {
@@ -637,8 +783,8 @@ class DOForm extends Component
                     $totalDescRows += $wrappedLines;
                 }
                 
-                // Additional rows beyond base = total description rows - 1 (since base row already counted)
-                $totalRows += ($totalDescRows - 1);
+                // Each description line counts as a full row (no subtraction)
+                $totalRows += $totalDescRows;
             }
 
             // Estimate details rows (item details shown as bullet list)
@@ -695,30 +841,8 @@ class DOForm extends Component
      */
     private function calculateMaxRows()
     {
-        // Page dimensions: Letter size (11in = 279.4mm)
-        // Margins: 0.75cm top + 0.75cm bottom = 15mm total
-        // Usable height: 279.4mm - 15mm = 264.4mm
-        // Convert to pixels at 96 DPI: (264.4 / 25.4) * 96 ≈ 998px
-        // With 5% reduction (matching preview): 998px * 0.95 ≈ 948px
-        
-        // Account for fixed elements (updated with reduced footer padding):
-        // - Header (company info + customer info): ~120px
-        // - Table header row: ~25px
-        // - Signature section: ~80px
-        // - Footer padding-top: ~8px (reduced from 18px, saving 10px)
-        // - Padding/margins: ~40px
-        // Total fixed: ~273px
-        // Available for item rows: 948px - 273px = 675px
-        
-        // Row height: base ~25px + description lines
-        // Average row height: ~25-30px (assuming some items have short descriptions)
-        // Use more accurate 28px average row height (between 25-30px)
-        // Max rows: 675px / 28px ≈ 24.1 rows
-        
-        // Round down to 19 rows to ensure reliable fit (including remarks if any)
-        // This accounts for items with longer descriptions
-        
-        return 19; // Hard cap: at most 19 rows per page (including remarks)
+        // Fixed 24-row limit for the new table structure
+        return 24;
     }
 
     public function updateUnitPrice($index)
@@ -751,15 +875,30 @@ class DOForm extends Component
         // Posting should finalize unless explicitly saving draft
 
         // Custom validation for pricing tier - only required if not manually modified
-        $this->validate([
+        // Convert free-form text to items first
+        $this->convertFreeFormTextToItems();
+        
+        // Only validate stackedItems if there are items
+        $validationRules = [
             'do_num' => ['required', new UniqueInCurrentDatabase('delivery_orders', 'do_num', $this->deliveryOrder?->id)],
             'cust_id' => ['required', new ExistsInCurrentDatabase('customers', 'id')],
             'salesman_id' => ['required', new ExistsInCurrentDatabase('users', 'id')],
             'date' => 'required|date',
             'cust_po' => 'required',
-            'stackedItems.*.item_qty' => 'required|integer|min:1',
-            'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
-        ], [
+        ];
+        
+        // Only validate regular items (exclude text-only items from qty/price validation)
+        if (!empty($this->stackedItems)) {
+            foreach ($this->stackedItems as $index => $item) {
+                // Skip validation for text-only items
+                if (!isset($item['is_text_only']) || !$item['is_text_only']) {
+                    $validationRules["stackedItems.{$index}.item_qty"] = 'required|integer|min:1';
+                    $validationRules["stackedItems.{$index}.item_unit_price"] = 'required|numeric|min:0';
+                }
+            }
+        }
+        
+        $this->validate($validationRules, [
             'do_num.required' => 'The DO number field is required.',
             'do_num.unique' => 'The DO number is already taken.',
             'cust_id.required' => 'The customer field is required.',
@@ -776,12 +915,27 @@ class DOForm extends Component
             'stackedItems.*.item_unit_price.numeric' => 'The unit price must be a number.',
             'stackedItems.*.item_unit_price.min' => 'The unit price must be at least 0.',
         ]);
+        
+        // Check if there's at least some content (items or free-form text)
+        $hasContent = !empty($this->stackedItems) || !empty(array_filter($this->freeFormTextRows ?? []));
+        if (!$hasContent) {
+            toastr()->error('Please add at least one item or enter some text before saving.');
+            return;
+        }
 
         // Custom validation for pricing tier - only required if price hasn't been manually modified
-        foreach ($this->stackedItems as $index => $item) {
-            if (!isset($item['price_manually_modified']) || !$item['price_manually_modified']) {
-                if (empty($item['pricing_tier']) || !in_array($item['pricing_tier'], ['Customer Price', 'Term Price', 'Cash Price', 'Cost', 'Previous Price'])) {
-                    $this->addError("stackedItems.{$index}.pricing_tier", 'The pricing tier is required when using standard pricing.');
+        // Only validate if there are items (skip text-only items)
+        if (!empty($this->stackedItems)) {
+            foreach ($this->stackedItems as $index => $item) {
+                // Skip text-only items
+                if (isset($item['is_text_only']) && $item['is_text_only']) {
+                    continue;
+                }
+                
+                if (!isset($item['price_manually_modified']) || !$item['price_manually_modified']) {
+                    if (empty($item['pricing_tier']) || !in_array($item['pricing_tier'], ['Customer Price', 'Term Price', 'Cash Price', 'Cost', 'Previous Price'])) {
+                        $this->addError("stackedItems.{$index}.pricing_tier", 'The pricing tier is required when using standard pricing.');
+                    }
                 }
             }
         }
@@ -794,6 +948,8 @@ class DOForm extends Component
 
         try {
             DB::beginTransaction();
+            
+            // Free-form text is already converted in validation step above
             
             $this->updateItemUnitPrices();
             $this->calculateTotalAmount();
@@ -816,6 +972,10 @@ class DOForm extends Component
                     ->toArray();
 
                 $newQtyByItem = collect($this->stackedItems)
+                    ->filter(function($item) {
+                        // Exclude text-only items from stock calculations
+                        return !(isset($item['is_text_only']) && $item['is_text_only']);
+                    })
                     ->mapWithKeys(function($item) {
                         return [$item['item']['id'] => (int) ($item['item_qty'] ?? 0)];
                     })
@@ -830,6 +990,11 @@ class DOForm extends Component
                     if ($previousStatus === 'Completed' && $newStatus === 'Save to Draft') {
                         // Special case: Restore all stock when changing from Completed to Draft
                         foreach ($this->stackedItems as $item) {
+                            // Skip text-only items
+                            if (isset($item['is_text_only']) && $item['is_text_only']) {
+                                continue;
+                            }
+                            
                             $itemId = $item['item']['id'];
                             $qty = (int) ($item['item_qty'] ?? 0);
                             
@@ -849,6 +1014,11 @@ class DOForm extends Component
                         // Special case: Deduct stock when changing from Draft to Completed
                         // Allow negative stock - no validation
                         foreach ($this->stackedItems as $item) {
+                            // Skip text-only items
+                            if (isset($item['is_text_only']) && $item['is_text_only']) {
+                                continue;
+                            }
+                            
                             $itemId = $item['item']['id'];
                             $qty = (int) ($item['item_qty'] ?? 0);
                             
@@ -946,17 +1116,31 @@ class DOForm extends Component
             
             // Process each item in the delivery order (create/update DO items records only)
             foreach ($this->stackedItems as $item) {
-                $itemId = $item['item']['id'];
-                DeliveryOrderItem::create([
-                    'do_id' => $this->deliveryOrder->id,
-                    'item_id' => $itemId,
-                    'custom_item_name' => $item['custom_item_name'] ?? null,
-                    'qty' => $item['item_qty'],
-                    'unit_price' => $item['item_unit_price'],
-                    'pricing_tier' => $item['pricing_tier'] ?? null,
-                    'more_description' => $item['more_description'] ?? null,
-                    'amount' => $item['item_qty'] * $item['item_unit_price'],
-                ]);
+                $itemId = $item['item']['id'] ?? null;
+                // For text-only items, item_id can be null
+                if (isset($item['is_text_only']) && $item['is_text_only']) {
+                    DeliveryOrderItem::create([
+                        'do_id' => $this->deliveryOrder->id,
+                        'item_id' => null, // Text-only items have no item_id
+                        'custom_item_name' => $item['custom_item_name'] ?? null,
+                        'qty' => 0,
+                        'unit_price' => 0,
+                        'pricing_tier' => null,
+                        'more_description' => null,
+                        'amount' => 0,
+                    ]);
+                } else {
+                    DeliveryOrderItem::create([
+                        'do_id' => $this->deliveryOrder->id,
+                        'item_id' => $itemId,
+                        'custom_item_name' => $item['custom_item_name'] ?? null,
+                        'qty' => $item['item_qty'],
+                        'unit_price' => $item['item_unit_price'],
+                        'pricing_tier' => $item['pricing_tier'] ?? null,
+                        'more_description' => $item['more_description'] ?? null,
+                        'amount' => $item['item_qty'] * $item['item_unit_price'],
+                    ]);
+                }
             }
 
             // Handle stock changes for new delivery orders
@@ -964,12 +1148,17 @@ class DOForm extends Component
                 // For new DOs going to Completed status, deduct stock
                 // Allow negative stock - no validation
                 foreach ($this->stackedItems as $item) {
+                    // Skip text-only items
+                    if (isset($item['is_text_only']) && $item['is_text_only']) {
+                        continue;
+                    }
+                    
                     $itemId = $item['item']['id'];
                     $qty = (int) ($item['item_qty'] ?? 0);
-                    
+
                     if ($qty > 0) {
                         $this->deductFromBatchesFifo($itemId, $qty, false);
-                        
+
                         // Update item qty to reflect current batches (can be negative)
                         $itemRecord = Item::find($itemId);
                         if ($itemRecord) {
@@ -1308,7 +1497,10 @@ class DOForm extends Component
         if ($this->isView) {
             return;
         }
-        
+
+        // Convert free-form text to items before preview
+        $this->convertFreeFormTextToItems();
+
         // If order is already completed, don't change status or stock
         if ($this->deliveryOrder && $this->deliveryOrder->status === 'Completed') {
             return redirect()->route('print.delivery-order.preview', $this->deliveryOrder->id);

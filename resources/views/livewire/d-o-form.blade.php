@@ -85,54 +85,6 @@
                                     @error('cust_po') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
 
-                                <div class="col-md-6">
-                                    <label for="remark">Remark</label>
-                                    <textarea wire:model.lazy="remark" wire:blur="validateDescriptionLength()" id="remark" class="form-control rounded" rows="3" {{ $isView ? 'disabled' : '' }} placeholder="Enter Remark (e.g., delivery address)"></textarea>
-                                    @error('remark') <p class="text-danger">{{ $message }}</p> @enderror
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                            @if(!$isView)
-                                <div class="col-md-6" x-data="{ hi: 0 }">
-                                        <label for="search">Search Items</label>
-                                        <input type="text" wire:model.debounce.100ms="itemSearchTerm" wire:input.debounce.200ms="searchItems" id="searchItem" 
-                                            class="form-control rounded" placeholder="Search by Item Code or Name" {{ $isView ? 'disabled' : ''}} autocomplete="off"
-                                            x-on:input="hi = 0"
-                                            x-on:keydown.arrow-down.prevent="(() => { const list = $refs.list; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
-                                            x-on:keydown.arrow-up.prevent="(() => { const list = $refs.list; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
-                                            x-on:keydown.enter.prevent="(() => { const list = $refs.list; const items = list ? list.querySelectorAll('li') : []; const el = items && items[hi]; if(el) el.click(); })()">
-
-                                        @if(count($itemSearchResults) > 0)
-                                            <div class="search-results mt-2">
-                                                <ul class="list-group" x-ref="list">
-                                                    @foreach($itemSearchResults as $idx => $result)
-                                                        <li class="list-group-item d-flex justify-content-between align-items-center" data-idx="{{ $idx }}"
-                                                        wire:click="addItem({{ $result->id }})"
-                                                        :class="{ 'active': hi === {{ $idx }} }"
-                                                        style="cursor: pointer;">
-                                                        <span>{{ $result->item_code }} - {{ $result->item_name }} 
-                                                            @if($result->qty > 0)
-                                                                <span class="ms-2 badge bg-success text-white">Qty: {{ $result->qty }}</span>
-                                                            @else
-                                                                <span class="ms-2 badge bg-warning text-dark">Out of Stock</span>
-                                                            @endif
-                                                        </span>
-                                                    </li>
-                                                    @endforeach
-                                                </ul>
-                                            </div>
-                                        @elseif(!empty($itemSearchTerm))
-                                            <div class="search-results mt-2">
-                                                <div class="alert alert-info">
-                                                    <i class="fas fa-info-circle"></i> No items found matching your search.
-                                                </div>
-                                            </div>
-                                        @endif
-                                    
-                                </div>
-                                @endif
-                                
-
                                 <div class="col-md-3">
                                     <label for="salesman">Salesperson <span class="text-danger">*</span></label>
                                     <select id="salesman" class="form-select rounded" wire:model.live="salesman_id" {{ ($isView || empty($cust_id)) ? 'disabled' : '' }}>
@@ -146,73 +98,227 @@
                                     @enderror
                                 </div>
 
-
                                 <div class="col-md-3 pt-3">
                                     <label for="created_by">Created By</label>
                                     <p><b> {{ Auth::user()->name}}</b></p>
                                 </div>
-
-                                
-
-
                             </div>
 
-                            <div class="selected-items mb-3">
-                                <h6>Selected Item for DO:</h6>
+                            <div class="do-items-table mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">Delivery Order Items (Max 24 rows)</h6>
+                                    @php
+                                        // Calculate current row count
+                                        $currentRowCount = 0;
+                                        foreach ($stackedItems as $item) {
+                                            $currentRowCount += 1; // Base row for each item
+                                            
+                                            // Count description rows
+                                            $desc = $item['more_description'] ?? '';
+                                            if (!empty($desc)) {
+                                                $lines = explode("\n", $desc);
+                                                foreach ($lines as $line) {
+                                                    $lineLength = strlen($line);
+                                                    $wrappedLines = max(1, ceil($lineLength / 60));
+                                                    $currentRowCount += $wrappedLines;
+                                                }
+                                            }
+                                            
+                                            // Count item details rows
+                                            $details = $item['item']['details'] ?? '';
+                                            if (!empty($details)) {
+                                                $detailLines = explode("\n", $details);
+                                                foreach ($detailLines as $line) {
+                                                    $line = trim($line);
+                                                    if ($line === '') continue;
+                                                    $lineLength = strlen($line);
+                                                    $wrappedLines = max(1, ceil($lineLength / 60));
+                                                    $currentRowCount += $wrappedLines;
+                                                }
+                                            }
+                                        }
+                                        $remainingRows = 24 - $currentRowCount;
+                                    @endphp
+                                    <small class="text-muted">
+                                        Used: <strong>{{ $currentRowCount }}</strong> / 24 rows | 
+                                        Remaining: <strong>{{ $remainingRows }}</strong> rows
+                                    </small>
+                                </div>
                                 @error('stackedItems')
                                     <p class="text-danger">{{ $message }}</p>
                                 @enderror
-                                <table class="table table-bordered">
+                                <table class="table table-bordered do-fixed-table">
                                     <thead>
                                         <tr>
-                                            <th>#</th>
-                                            <th>Item Code</th>
-                                            <th>Item Name</th>
-                                            <th>Qty On Hand</th>
-                                            <th>Order Quantity</th>
-                                            <th>Unit Price</th>
-                                            <th>Amount</th>
-                            @if(!$isView)
-                                <th class="col-actions">Actions</th>
-                            @endif
+                                            <th style="width: 100px;">QTY</th>
+                                            <th>Description</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($stackedItems as $index => $item)
-                                        <tr>
-                                            <td>{{ $index + 1 }}</td>
-                                            <td>{{ $item['item']['item_code'] }}</td>
-                                            <td x-data="{ 
-                                                    showDescription: {{ !empty($stackedItems[$index]['more_description']) ? 'true' : 'false' }},
+                                        @php
+                                            // Calculate total rows used by items (including descriptions)
+                                            $totalUsedRows = 0;
+                                            foreach ($stackedItems as $item) {
+                                                $totalUsedRows += 1; // Base row for each item
+                                                
+                                                // Count description rows (each line = 1 row)
+                                                $desc = $item['more_description'] ?? '';
+                                                if (!empty($desc)) {
+                                                    $lines = explode("\n", $desc);
+                                                    foreach ($lines as $line) {
+                                                        $lineLength = strlen($line);
+                                                        $wrappedLines = max(1, ceil($lineLength / 60));
+                                                        $totalUsedRows += $wrappedLines;
+                                                    }
+                                                }
+                                                
+                                                // Count item details rows
+                                                $details = $item['item']['details'] ?? '';
+                                                if (!empty($details)) {
+                                                    $detailLines = explode("\n", $details);
+                                                    foreach ($detailLines as $line) {
+                                                        $line = trim($line);
+                                                        if ($line === '') continue;
+                                                        $lineLength = strlen($line);
+                                                        $wrappedLines = max(1, ceil($lineLength / 60));
+                                                        $totalUsedRows += $wrappedLines;
+                                                    }
+                                                }
+                                            }
+                                            
+                                            // Calculate how many rows we should actually show
+                                            // totalUsedRows includes items + descriptions (calculated rows)
+                                            // We want to show exactly 24 rows, but limit empty rows based on calculation
+                                            $itemRows = count($stackedItems);
+                                            
+                                            // Calculate available empty rows: 24 - totalUsedRows
+                                            // This ensures users can't add beyond the limit
+                                            $emptyRowsAvailable = max(0, 24 - $totalUsedRows);
+                                            
+                                            // Total rows to show: items + available empty rows (capped at 24)
+                                            $rowsToShow = min(24, $itemRows + $emptyRowsAvailable);
+                                        @endphp
+                                        @for($rowIndex = 0; $rowIndex < $rowsToShow; $rowIndex++)
+                                            @php
+                                                // Map row index to item index (items take 1 visual row each)
+                                                $itemIndex = null;
+                                                if ($rowIndex < $itemRows) {
+                                                    $itemIndex = $rowIndex;
+                                                }
+                                                $item = $itemIndex !== null ? $stackedItems[$itemIndex] : null;
+                                                $isEmptyRow = ($itemIndex === null);
+                                            @endphp
+                                            <tr class="item-row">
+                                                <td style="width: 100px; vertical-align: top;">
+                                                    @if($item)
+                                                        @if((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
+                                                            {{-- Text-only item: empty qty column --}}
+                                                            <div style="padding: 4px;">
+                                                                &nbsp;
+                                                            </div>
+                                                        @else
+                                                            <div class="d-flex flex-column gap-1">
+                                                                <input type="number" 
+                                                                    wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
+                                                                    class="form-control form-control-sm @error('stackedItems.'.$itemIndex.'.item_qty') is-invalid @enderror" 
+                                                                    min="1" 
+                                                                    wire:change="updatePriceLine({{ $itemIndex }})" 
+                                                                    {{ ($isView || ($deliveryOrder && ($deliveryOrder->status ?? '') === 'Completed')) ? 'disabled' : '' }}
+                                                                    style="width: 100%;">
+                                                                <small class="text-muted" style="font-size: 0.75em;">
+                                                                    {{ $item['item']['um'] ?? 'UNIT' }}
+                                                                </small>
+                                                                @error('stackedItems.'.$itemIndex.'.item_qty')
+                                                                    <div class="text-danger small">!</div>
+                                                                @enderror
+                                                            </div>
+                                                        @endif
+                                                    @elseif(!$isView)
+                                                        <input type="text" 
+                                                            class="form-control form-control-sm" 
+                                                            placeholder="Qty"
+                                                            disabled
+                                                            style="width: 100%; background-color: #f8f9fa;">
+                                                    @endif
+                                                </td>
+                                                <td style="vertical-align: top; position: relative;">
+                                                    @if($item)
+                                                        @if(isset($item['is_text_only']) && $item['is_text_only'])
+                                                            {{-- Text-only item: just show the text --}}
+                                                            <div class="d-flex align-items-center">
+                                                                <span>{{ $item['custom_item_name'] ?? '' }}</span>
+                                                                @if(!$isView)
+                                                                    <button type="button" 
+                                                                        class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0 ms-2"
+                                                                        wire:click="removeItem({{ $itemIndex }})"
+                                                                        title="Delete"
+                                                                        style="font-size: 0.7rem;">
+                                                                        ×
+                                                                    </button>
+                                                                @endif
+                                                            </div>
+                                                        @else
+                                                        <div x-data="{ 
+                                                                showDescription: {{ !empty($stackedItems[$itemIndex]['more_description']) ? 'true' : 'false' }},
                                                     showMemo: false,
-                                                    hoverTimeout: null
+                                                                hoverTimeout: null,
+                                                                editingName: false
                                                 }" 
                                                 x-init="
                                                     $watch('showDescription', value => {
-                                                        if (!value) {
-                                                            $wire.set('stackedItems.{{ $index }}.more_description', null);
+                                                                    if (value) {
+                                                                        $wire.call('validateDescriptionRowsOnShow', {{ $itemIndex }});
                                                         }
                                                     })
                                                 ">
-                                                <div class="d-flex gap-2" style="align-items: flex-start; position: relative;">
-                                                    <div style="flex: 1; cursor: pointer; position: relative;" 
-                                                         @mouseenter="hoverTimeout = setTimeout(() => { showMemo = true }, 1000)"
-                                                         @mouseleave="clearTimeout(hoverTimeout); showMemo = false">
-                                                        <span wire:key="item-name-{{ $index }}-{{ $stackedItems[$index]['custom_item_name'] ?? 'default' }}">{{ $stackedItems[$index]['custom_item_name'] ?? $item['item']['item_name'] }}</span>
+                                                            <div class="d-flex gap-2 align-items-start" style="position: relative;">
+                                                                <div style="flex: 1;">
+                                                                    <template x-if="!editingName">
+                                                                        <div>
+                                                                            <span wire:key="item-name-{{ $itemIndex }}-{{ $stackedItems[$itemIndex]['custom_item_name'] ?? 'default' }}">
+                                                                                {{ $stackedItems[$itemIndex]['custom_item_name'] ?? $item['item']['item_name'] }}
+                                                                            </span>
                                                         @if(!empty($item['item']['memo']))
                                                             <div x-show="showMemo" 
                                                                  x-transition
                                                                  @mouseenter="clearTimeout(hoverTimeout); showMemo = true"
                                                                  @mouseleave="showMemo = false"
-                                                                 style="position: absolute; background: #fff; border: 1px solid #ccc; padding: 6px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000; margin-top: 2px; width: auto; max-width: 200px; max-height: 150px; overflow-y: auto; font-size: 0.8em; white-space: pre-wrap; left: 0; top: 100%; word-wrap: break-word; text-align: left; line-height: 1.4;"
-                                                                 @click.stop>
+                                                                                     style="position: absolute; background: #fff; border: 1px solid #ccc; padding: 6px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000; margin-top: 2px; width: auto; max-width: 200px; max-height: 150px; overflow-y: auto; font-size: 0.8em; white-space: pre-wrap; left: 0; top: 100%; word-wrap: break-word; text-align: left; line-height: 1.4;">
                                                                 <strong style="font-size: 0.85em; display: block; margin-bottom: 3px;">Memo:</strong>
                                                                 <div style="font-size: 0.8em; text-align: left; white-space: pre-wrap; word-wrap: break-word; line-height: 1.4;">{{ $item['item']['memo'] }}</div>
                                                             </div>
                                                         @endif
+                                                                        </div>
+                                                                    </template>
+                                                                    <template x-if="editingName">
+                                                                        <div class="d-flex gap-1 align-items-center">
+                                                                            <input type="text" 
+                                                                                x-ref="nameInput"
+                                                                                class="form-control form-control-sm" 
+                                                                                wire:model="stackedItems.{{ $itemIndex }}.custom_item_name"
+                                                                                placeholder="{{ $item['item']['item_name'] }}"
+                                                                                @keydown.enter.prevent="editingName = false"
+                                                                                @keydown.escape="editingName = false"
+                                                                                style="font-size: 0.85em;">
+                                                                            <button type="button" 
+                                                                                class="btn btn-sm btn-success p-1 px-2"
+                                                                                @click="editingName = false"
+                                                                                style="font-size: 0.7rem; line-height: 1;">
+                                                                                ✓
+                                                                            </button>
+                                                                            <button type="button" 
+                                                                                class="btn btn-sm btn-outline-secondary p-1 px-2"
+                                                                                @click="$wire.set('stackedItems.{{ $itemIndex }}.custom_item_name', null); editingName = false"
+                                                                                style="font-size: 0.7rem; line-height: 1;"
+                                                                                title="Reset to original">
+                                                                                ↺
+                                                                            </button>
+                                                                        </div>
+                                                                    </template>
                                                     </div>
                                                     @if(!$isView)
                                                         <button type="button" 
+                                                                        x-show="!editingName"
                                                             class="btn btn-sm p-0 px-1 flex-shrink-0" 
                                                             :class="showDescription ? 'btn-primary' : 'btn-outline-primary'"
                                                             @click="showDescription = !showDescription"
@@ -220,15 +326,23 @@
                                                             <span x-text="showDescription ? '- desc' : '+ desc'"></span>
                                                         </button>
                                                         <button type="button" 
+                                                                        x-show="!editingName"
                                                             class="btn btn-sm p-0 px-1 btn-outline-secondary flex-shrink-0"
-                                                            @click="$dispatch('open-edit-name-{{ $index }}')"
+                                                                        @click="editingName = true; $nextTick(() => $refs.nameInput?.focus())"
+                                                                        style="font-size: 0.7rem;">
+                                                                        Edit
+                                                                    </button>
+                                                                    <button type="button" 
+                                                                        class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0"
+                                                                        wire:click="removeItem({{ $itemIndex }})"
+                                                                        title="Delete"
                                                             style="font-size: 0.7rem;">
-                                                            Edit Name
+                                                                        ×
                                                         </button>
                                                     @endif
                                                 </div>
                                                 @if(!empty($item['item']['details']))
-                                                    <div class="mt-1 ms-3 text-muted" style="font-size: 0.85em;">
+                                                                <div class="mt-1 ms-0 text-muted" style="font-size: 0.85em;">
                                                         @foreach(explode("\n", $item['item']['details']) as $line)
                                                             @if(trim($line) !== '')
                                                                 <div>• {{ $line }}</div>
@@ -236,9 +350,9 @@
                                                         @endforeach
                                                     </div>
                                                 @endif
-                                                @if($isView && !empty($stackedItems[$index]['more_description']))
-                                                    <div class="mt-1 ms-3 text-muted" style="font-size: 0.85em;">
-                                                        @foreach(explode("\n", $stackedItems[$index]['more_description']) as $line)
+                                                            @if($isView && !empty($stackedItems[$itemIndex]['more_description']))
+                                                                <div class="mt-1 ms-0 text-muted" style="font-size: 0.85em;">
+                                                                    @foreach(explode("\n", $stackedItems[$itemIndex]['more_description']) as $line)
                                                             @if(trim($line) !== '')
                                                                 <div>• {{ $line }}</div>
                                                             @endif
@@ -246,170 +360,143 @@
                                                     </div>
                                                 @endif
                                                 @if(!$isView)
-                                                    <div x-show="showDescription" class="mt-2">
+                                                                <div x-show="showDescription" class="mt-2 mb-3 p-2" style="background-color: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
                                                         <textarea 
-                                                            wire:model.lazy="stackedItems.{{ $index }}.more_description"
-                                                            wire:blur="checkDescriptionLimit({{ $index }})"
+                                                                        wire:model="stackedItems.{{ $itemIndex }}.more_description"
                                                             class="form-control form-control-sm"
                                                             rows="3"
-                                                            placeholder="Enter additional description..."
-                                                            title="Keep description short to ensure DO fits on one page"
-                                                            id="description-{{ $index }}"
-                                                        ></textarea>
-                                                        <small class="text-muted">Keep descriptions short to fit on one page</small>
+                                                                        placeholder="Enter additional description (each line = 1 row)"
+                                                                        style="font-size: 0.85em; resize: vertical;"></textarea>
+                                                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                                                        <small class="text-muted" style="font-size: 0.75em;">
+                                                                            Each line counts as 1 row. Max 24 rows total.
+                                                                        </small>
+                                                                        <button type="button"
+                                                                            wire:click="saveDescriptionAndValidate({{ $itemIndex }})"
+                                                                            class="btn btn-sm btn-primary"
+                                                                            style="font-size: 0.75em; padding: 4px 12px;">
+                                                                            Save
+                                                                        </button>
+                                                                    </div>
                                                     </div>
-                                                    @if(!$isView)
-                                                    <div x-data="{ open: false }" x-init="
-                                                        window.addEventListener('open-edit-name-{{ $index }}', () => { open = true })
-                                                    " class="mt-2">
-                                                        <div x-show="open" class="card card-body p-2">
-                                                            <label class="small mb-1">Edit Item Name (this order only)</label>
+                                                                <div class="mt-2 d-flex justify-content-between align-items-center gap-3" style="font-size: 0.85em;">
+                                                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                                        <span class="text-muted fw-medium" style="white-space: nowrap;">Price:</span>
+                                                                        @php
+                                                                            $price = $stackedItems[$itemIndex]['item_unit_price'] ?? 0;
+                                                                            $tier = $stackedItems[$itemIndex]['pricing_tier'] ?? '';
+                                                                        @endphp
+                                                                        <select wire:model.live="stackedItems.{{ $itemIndex }}.pricing_tier" 
+                                                                                wire:change="selectPricingTier({{ $itemIndex }}, $event.target.value)"
+                                                                                class="form-select form-select-sm" 
+                                                                                style="width: 180px; font-size: 0.85em; flex-shrink: 0;">
+                                                                            <option value="">Custom</option>
+                                                                            <option value="Cash Price">Cash: {{ number_format($item['item']['cash_price'] ?? 0, 2) }}</option>
+                                                                            <option value="Term Price">Term: {{ number_format($item['item']['term_price'] ?? 0, 2) }}</option>
+                                                                            <option value="Customer Price">Customer: {{ number_format($item['item']['cust_price'] ?? 0, 2) }}</option>
+                                                                            <option value="Cost">Cost: {{ number_format($item['item']['cost'] ?? 0, 2) }}</option>
+                                                                            @if($cust_id && ($item['item']['latest_do_price'] ?? 0) > 0)
+                                                                                <option value="Previous Price">Previous: {{ number_format($item['item']['latest_do_price'], 2) }}</option>
+                                                                            @endif
+                                                                        </select>
+                                                                        @if(($tier ?? '') === '')
                                                             <input type="text" 
-                                                                id="custom-name-input-{{ $index }}"
+                                                                                inputmode="decimal"
+                                                                                wire:model.lazy="stackedItems.{{ $itemIndex }}.item_unit_price"
+                                                                                wire:change="updateUnitPrice({{ $itemIndex }})"
                                                                 class="form-control form-control-sm" 
-                                                                wire:model.live="stackedItems.{{ $index }}.custom_item_name"
-                                                                placeholder="Enter custom item name"
-                                                                value="{{ $stackedItems[$index]['custom_item_name'] ?? '' }}">
-                                                            <div class="mt-2 d-flex gap-2">
-                                                                <button type="button" class="btn btn-sm btn-primary" @click="$wire.$refresh(); open=false;">Done</button>
-                                                                <button type="button" class="btn btn-sm btn-outline-secondary" @click="$wire.set('stackedItems.{{ $index }}.custom_item_name', null); $wire.$refresh(); open=false;">Reset</button>
+                                                                                placeholder="0.00"
+                                                                                style="width: 110px; font-size: 0.85em; text-align: right; flex-shrink: 0;">
+                                                                        @else
+                                                                            <span class="fw-bold form-control form-control-sm d-inline-block" style="width: 110px; font-size: 0.85em; text-align: right; background-color: #f8f9fa; border: 1px solid #ced4da; border-radius: 0.25rem; padding: 0.25rem 0.5rem; line-height: 1.5; flex-shrink: 0;">{{ number_format($price, 2) }}</span>
+                                                                        @endif
                                                             </div>
+                                                                    <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
+                                                                        <span class="text-muted fw-medium" style="white-space: nowrap;">Amount:</span>
+                                                                        <span class="fw-bold" style="font-size: 0.95em; min-width: 90px; text-align: right; color: #0d6efd; white-space: nowrap;">{{ number_format($stackedItems[$itemIndex]['amount'] ?? 0, 2) }}</span>
                                                         </div>
                                                     </div>
                                                     @endif
                                                 @endif
-                                            </td>
-                                            <td>{{ ($item['item']['qty'] ?? 0) }}</td>
-                                            <td>
-                                                <div class="d-flex flex-column">
-                                                    <div class="d-flex align-items-center">
-                                                        <input type="number" 
-                                                            wire:model.lazy="stackedItems.{{ $index }}.item_qty" 
-                                                            class="form-control rounded @error('stackedItems.'.$index.'.item_qty') is-invalid @enderror" 
-                                                            min="1" 
-                                                            @if($deliveryOrder && $deliveryOrder->status === 'Completed')
-                                                                max="{{ $item['item']['qty'] }}"
-                                                            @endif
-                                                            wire:change="updatePriceLine({{ $index }})" 
-                                                            {{ ($isView || ($deliveryOrder && ($deliveryOrder->status ?? '') === 'Completed')) ? 'disabled' : '' }}
-                                                            style="width: 100%;">
-                                                        
-                                                        @error('stackedItems.'.$index.'.item_qty')
-                                                            <div class="text-danger small ml-2">!</div>
-                                                        @enderror
-                                                    </div>
-                                                    
-                                                </div>
-                                            </td>
-                                            <td class="price-cell position-relative" x-data="{ open: false }" @keydown.escape.window="open = false">
-                                                <div class="w-100" wire:key="price-{{ $index }}">
-                                                    @php
-                                                        $price = $stackedItems[$index]['item_unit_price'] ?? 0;
-                                                        $tier = $stackedItems[$index]['pricing_tier'] ?? '';
-                                                    @endphp
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm w-100 d-flex justify-content-between align-items-center text-start small" @click="open = !open" :aria-expanded="open" {{ $isView ? 'disabled' : '' }}>
-                                                        <span>
-                                                            @if(($tier ?? '') === '')
-                                                                Custom Price
+                                                    @elseif(!$isView && $isEmptyRow)
+                                                        {{-- Show empty row input (rows are already limited by rowsToShow calculation above) --}}
+                                                            <div x-data="{ 
+                                                                    showSearch: false,
+                                                                    searchTerm: '',
+                                                                    highlightIndex: -1,
+                                                                    showResults: false
+                                                                }" 
+                                                                class="d-flex gap-2 align-items-center" 
+                                                                style="position: relative; width: 100%;">
+                                                                <input type="text" 
+                                                                    x-show="!showSearch"
+                                                                    wire:model.lazy="freeFormTextRows.{{ $rowIndex }}"
+                                                                    class="form-control form-control-sm flex-grow-1" 
+                                                                    placeholder="Type anything here (remarks, notes, etc.)"
+                                                                    style="font-size: 0.85em;">
+                                                                <div x-show="showSearch" class="position-relative flex-grow-1">
+                                                                    <input type="text" 
+                                                                        x-ref="searchInput"
+                                                                        x-model="searchTerm"
+                                                                        class="form-control form-control-sm" 
+                                                                        placeholder="Search item code or name..."
+                                                                        autocomplete="off"
+                                                                        @keydown.escape="showSearch = false; searchTerm = ''; showResults = false"
+                                                                        @keydown.arrow-down.prevent="highlightIndex = Math.min(highlightIndex + 1, $wire.itemSearchResults.length - 1)"
+                                                                        @keydown.arrow-up.prevent="highlightIndex = Math.max(highlightIndex - 1, -1)"
+                                                                        @keydown.enter.prevent="if(highlightIndex >= 0 && $wire.itemSearchResults[highlightIndex]) { $wire.call('addItemToRow', $wire.itemSearchResults[highlightIndex].id, {{ $rowIndex }}); searchTerm = ''; showResults = false; showSearch = false; }"
+                                                                        @input="$wire.set('itemSearchTerm', searchTerm); $wire.call('searchItems'); if(searchTerm.length > 0) showResults = true"
+                                                                        @focus="if($wire.itemSearchResults.length > 0) showResults = true"
+                                                                        @blur="setTimeout(() => showResults = false, 200)"
+                                                                        style="font-size: 0.85em; width: 100%;">
+                                                                    @if(count($itemSearchResults) > 0)
+                                                                        <ul x-show="showResults && searchTerm.length > 0" 
+                                                                            class="list-group position-absolute w-100" 
+                                                                            style="z-index: 1000; max-height: 200px; overflow-y: auto; margin-top: 2px;"
+                                                                            x-cloak>
+                                                                            @foreach($itemSearchResults as $idx => $result)
+                                                                                <li class="list-group-item list-group-item-action" 
+                                                                                    :class="{ 'active': highlightIndex === {{ $idx }} }"
+                                                                                    wire:click="addItemToRow({{ $result->id }}, {{ $rowIndex }})"
+                                                                                    @click="showSearch = false; searchTerm = ''"
+                                                                                    style="cursor: pointer; font-size: 0.85em;">
+                                                                                    <span>{{ $result->item_code }} - {{ $result->item_name }}</span>
+                                                                                    @if($result->qty > 0)
+                                                                                        <span class="badge bg-success ms-2">Qty: {{ $result->qty }}</span>
                                                             @else
-                                                                {{ number_format($price ?? 0, 2) }}
+                                                                                        <span class="badge bg-warning ms-2">Out of Stock</span>
                                                             @endif
-                                                        </span>
-                                                        <span class="ms-2">▼</span>
-                                                    </button>
-                                                    <ul x-show="open" x-transition.origin.top.right @click.outside="open = false" class="dropdown-menu dropdown-menu-end w-100 p-1 small show" style="display: block; position: absolute; inset: auto 0 auto auto;">
-                                                        <li>
-                                                            <a class="dropdown-item py-1 d-flex justify-content-between align-items-center" href="#" @click.prevent="$wire.selectPricingTier({{ $index }}, ''); open = false" :class="{ 'active': '{{ $tier }}' === '' }">
-                                                                <div class="d-flex flex-column">
-                                                                    <span class="text-muted small">Custom Price</span>
-                                                                    <span class="fw-semibold">{{ number_format((float)($stackedItems[$index]['item_unit_price'] ?? 0), 2) }}</span>
-                                                                </div>
-                                                            </a>
                                                         </li>
-                                                        <li>
-                                                            <a class="dropdown-item py-1 d-flex justify-content-between align-items-center" href="#" @click.prevent="$wire.selectPricingTier({{ $index }}, 'Cash Price'); open = false" :class="{ 'active': '{{ $tier }}' === 'Cash Price' }">
-                                                                <div class="d-flex flex-column">
-                                                                    <span class="text-muted small">Cash Price</span>
-                                                                    <span class="fw-semibold">{{ number_format((float)($item['item']['cash_price'] ?? 0), 2) }}</span>
-                                                                </div>
-                                                            </a>
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item py-1 d-flex justify-content-between align-items-center" href="#" @click.prevent="$wire.selectPricingTier({{ $index }}, 'Term Price'); open = false" :class="{ 'active': '{{ $tier }}' === 'Term Price' }">
-                                                                <div class="d-flex flex-column">
-                                                                    <span class="text-muted small">Term Price</span>
-                                                                    <span class="fw-semibold">{{ number_format((float)($item['item']['term_price'] ?? 0), 2) }}</span>
-                                                                </div>
-                                                            </a>
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item py-1 d-flex justify-content-between align-items-center" href="#" @click.prevent="$wire.selectPricingTier({{ $index }}, 'Customer Price'); open = false" :class="{ 'active': '{{ $tier }}' === 'Customer Price' }">
-                                                                <div class="d-flex flex-column">
-                                                                    <span class="text-muted small">Customer Price</span>
-                                                                    <span class="fw-semibold">{{ number_format((float)($item['item']['cust_price'] ?? 0), 2) }}</span>
-                                                                </div>
-                                                            </a>
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item py-1 d-flex justify-content-between align-items-center" href="#" @click.prevent="$wire.selectPricingTier({{ $index }}, 'Cost'); open = false" :class="{ 'active': '{{ $tier }}' === 'Cost' }">
-                                                                <div class="d-flex flex-column">
-                                                                    <span class="text-muted small">Cost</span>
-                                                                    <span class="fw-semibold">{{ number_format((float)($item['item']['cost'] ?? 0), 2) }}</span>
-                                                                </div>
-                                                            </a>
-                                                        </li>
-                                                        @if($cust_id)
-                                                        <li>
-                                                            <a class="dropdown-item py-1 d-flex justify-content-between align-items-center" href="#" @click.prevent="$wire.selectPricingTier({{ $index }}, 'Previous Price'); open = false" :class="{ 'active': '{{ $tier }}' === 'Previous Price' }">
-                                                                <div class="d-flex flex-column">
-                                                                    <span class="text-muted small">Previous Price</span>
-                                                                    <span class="fw-semibold">{{ number_format((float)(($item['item']['latest_do_price'] ?? 0) ?: 0), 2) }}</span>
-                                                                    @php $prevDate = $item['item']['latest_do_date'] ?? null; @endphp
-                                                                    @if($prevDate)
-                                                                        <span class="text-muted small">{{ \Carbon\Carbon::parse($prevDate)->format('Y-m-d') }}</span>
+                                                                            @endforeach
+                                                                        </ul>
                                                                     @endif
                                                                 </div>
-                                                            </a>
-                                                        </li>
-                                                        @endif
-                                                    </ul>
-                                                </div>
-                                                @if(($stackedItems[$index]['pricing_tier'] ?? '') === '')
-                                                    <div class="mt-2">
-                                                        <div class="input-group input-group-sm">
-                                                            <input type="text" inputmode="decimal" placeholder="0.00" class="form-control form-control-sm"
-                                                                x-data
-                                                                x-init="$nextTick(() => { const n = parseFloat($el.value || 0); $el.value = isNaN(n) ? '' : n.toFixed(2); })"
-                                                                x-on:blur="const n = parseFloat($el.value || 0); $el.value = isNaN(n) ? '' : n.toFixed(2)"
-                                                                wire:model.lazy="stackedItems.{{ $index }}.item_unit_price"
-                                                                wire:change="updateUnitPrice({{ $index }})" {{ $isView ? 'disabled' : '' }}>
-                                                        </div>
+                                                                <button type="button" 
+                                                                    x-show="!showSearch"
+                                                                    @click="showSearch = true; $nextTick(() => { $refs.searchInput?.focus(); })"
+                                                                    class="btn btn-sm btn-outline-primary"
+                                                                    style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;">
+                                                                    + Add Item
+                                                                </button>
+                                                                <button type="button" 
+                                                                    x-show="showSearch"
+                                                                    @click="showSearch = false; searchTerm = ''; showResults = false"
+                                                                    class="btn btn-sm btn-outline-secondary"
+                                                                    style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;">
+                                                                    Cancel
+                                                                </button>
                                                     </div>
                                                 @endif
-                                                @error('stackedItems.'.$index.'.pricing_tier')
-                                                    <div class="text-danger small mt-1">{{ $message }}</div>
-                                                @enderror
-                                                @error('stackedItems.'.$index.'.item_unit_price')
-                                                    <p class="text-danger">{{ $message }}</p>
-                                                @enderror
                                             </td>
-                                            <td>
-                                                {{ number_format((float)($stackedItems[$index]['amount'] ?? 0), 2) ?? 0 }}
+                                            </tr>
+                                        @endfor
+                                        @if($totalUsedRows >= 24)
+                                            <tr>
+                                                <td colspan="2" class="text-center text-danger" style="padding: 8px; font-size: 0.85em;">
+                                                    ⚠️ Row limit reached ({{ $totalUsedRows }}/24 rows used). Please remove items or shorten descriptions to add more.
                                             </td>
-                                            @if(!$isView)
-                                            <td class="col-actions">
-                                                <button type="button" class="btn btn-danger btn-sm" 
-                                                     wire:click="removeItem({{ $index }})" 
-                                                     title="Delete" aria-label="Delete"
-                                                           {{ $isView ? 'disabled' : ''}}>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                                        <path d="M5.5 5.5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m5 0a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5M2.5 3a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h2.5a1 1 0 0 1 0 2H2.5a1 1 0 0 1 0-2M3.5 4l1 10.5A2 2 0 0 0 6.49 16h3.02a2 2 0 0 0 1.99-1.5L12.5 4z"/>
-                                                    </svg>
-                                                </button>
-                                            </td>
+                                            </tr>
                                             @endif
-                                        </tr>
-                                        @endforeach
                                     </tbody>
                                 </table>
                             </div>
@@ -434,17 +521,29 @@
                                     <a href="{{ route('delivery-orders') }}" class="btn btn-secondary">Back</a>
                                 </div>
                                 <div class="text-end">
+                                    @php
+                                        // Check if there are items or free-form text
+                                        $hasItems = !empty($stackedItems) && is_array($stackedItems) && count($stackedItems) > 0;
+                                        $hasFreeFormText = false;
+                                        if (!empty($freeFormTextRows) && is_array($freeFormTextRows)) {
+                                            $filtered = array_filter($freeFormTextRows, function($text) {
+                                                return !empty(trim($text ?? ''));
+                                            });
+                                            $hasFreeFormText = count($filtered) > 0;
+                                        }
+                                        $hasContent = $hasItems || $hasFreeFormText;
+                                    @endphp
                                     @if(!$deliveryOrder || $deliveryOrder->status !== 'Completed')
-                                        <button type="submit" class="btn btn-success me-2" @if(empty($stackedItems)) disabled @endif>Post</button>
+                                        <button type="submit" class="btn btn-success me-2" @if(!$hasContent) disabled @endif>Post</button>
                                     @endif
-                                    <button type="button" class="btn btn-secondary me-2" wire:click="saveDraft" @if(empty($stackedItems)) disabled @endif>
+                                    <button type="button" class="btn btn-secondary me-2" wire:click="saveDraft" @if(!$hasContent) disabled @endif>
                                         @if($deliveryOrder && $deliveryOrder->status === 'Completed')
                                             Restore All
                                         @else
                                             Save Draft
                                         @endif
                                     </button>
-                                    <button type="button" class="btn btn-info" wire:click="preview" {{ empty($stackedItems) ? 'disabled' : '' }}>
+                                    <button type="button" class="btn btn-info" wire:click="preview" @if(!$hasContent) disabled @endif>
                                         Preview
                                     </button>
                                 </div>
@@ -494,63 +593,66 @@
             background-color: #f1f1f1;
         }
         
-        /* Fixed table layout and responsive column widths */
-        .table { 
+        /* Fixed 24-row table layout */
+        .do-fixed-table { 
             table-layout: fixed;
             width: 100%;
         }
-        /* Common styles for all cells */
-        .table th, .table td {
-            padding: 0.5rem;
-            vertical-align: middle;
+        
+        .do-fixed-table th, .do-fixed-table td {
+            padding: 4px 8px;
+            vertical-align: top;
             word-wrap: break-word;
-            min-width: 0; /* Allows columns to shrink below content width */
         }
-        /* Header specific styles */
-        .table th {
+        
+        .do-fixed-table th {
             font-size: 0.85em;
-            line-height: 1.2;
-            height: 40px; /* Fixed height for headers */
-            vertical-align: middle;
-            white-space: normal; /* Allow wrapping */
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 2px solid #000;
         }
-        /* Column widths */
-        .table th:nth-child(1), .table td:nth-child(1) { width: 3%; } /* # */
-        .table th:nth-child(2), .table td:nth-child(2) { width: 10%; } /* Item Code */
-        .table th:nth-child(3), .table td:nth-child(3) { width: 30%; } /* Item Name - largest */
-        .table th:nth-child(4), .table td:nth-child(4) { width: 8%; } /* Qty On Hand */
-        .table th:nth-child(5), .table td:nth-child(5) { width: 8%; } /* Order Qty */
-        .table th:nth-child(6), .table td:nth-child(6) { width: 12%; } /* Unit Price */
-        .table th:nth-child(7), .table td:nth-child(7) { width: 10%; } /* Amount */
-        .table th:nth-child(8), .table td:nth-child(8) { width: 5%; } /* Actions */
+        
+        .do-fixed-table tbody tr {
+            min-height: 30px;
+        }
+        
+        .do-fixed-table .remark-row {
+            background-color: #f8f9fa;
+        }
+        
+        .do-fixed-table .item-row:hover {
+            background-color: #f0f0f0;
+        }
 
         /* Input fields in table */
-        .table input[type="text"],
-        .table input[type="number"] {
+        .do-fixed-table input[type="text"],
+        .do-fixed-table input[type="number"],
+        .do-fixed-table textarea {
             width: 100%;
             padding: 0.25rem;
-            font-size: 0.9em;
+            font-size: 0.85em;
+            border: 1px solid #ddd;
         }
-
-        /* Price cell specific styles */
-        .table td.price-cell { 
-            overflow: visible; 
-            padding: 0.5rem;
-        }
-        .price-cell .dropdown-menu { 
-            z-index: 2000;
-            max-width: 100%;
-        }
-        /* Ensure keyboard-highlighted list items remain readable when hovered */
-        .list-group .active { background-color: #0d6efd; color: #fff; }
-        .list-group .active:hover { background-color: #0b5ed7; color: #fff; }
         
-        /* Actions column */
-        .col-actions { 
-            width: 5%; 
-            text-align: center;
-            white-space: nowrap;
+        /* Search dropdown */
+        .do-fixed-table .list-group {
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
+        
+        .do-fixed-table .list-group-item {
+            padding: 6px 10px;
+            font-size: 0.85em;
+            cursor: pointer;
+        }
+        
+        .do-fixed-table .list-group-item:hover,
+        .do-fixed-table .list-group-item.active {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+        
+        [x-cloak] { display: none !important; }
     </style>
     
 </div>
