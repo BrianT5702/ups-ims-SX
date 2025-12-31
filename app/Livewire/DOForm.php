@@ -88,7 +88,7 @@ class DOForm extends Component
                             'details' => '',
                         ],
                         'custom_item_name' => $doItem->custom_item_name ?? '',
-                        'item_qty' => 0,
+                        'item_qty' => $doItem->qty ?? 0, // Load qty for text-only items
                         'item_unit_price' => 0,
                         'amount' => 0,
                         'pricing_tier' => null,
@@ -282,6 +282,10 @@ class DOForm extends Component
     public function addItem($itemId)
     {
         if (!$this->isView) {
+            // Convert any free-form text to text-only items BEFORE adding new item
+            // This preserves text entries when items are added, preventing them from being "wiped"
+            $this->convertFreeFormTextToItems();
+            
             $item = Item::find($itemId);
 
             // Enhanced validation: Check if item exists and has sufficient stock
@@ -366,19 +370,11 @@ class DOForm extends Component
     public function addItemToRow($itemId, $rowIndex)
     {
         if (!$this->isView) {
-            // Calculate how many rows remarks take
-            $remarkRows = 0;
-            if (!empty($this->remark)) {
-                $remarkLines = explode("\n", $this->remark);
-                $remarkRows = 2 + count($remarkLines);
-            }
-            $maxItemRows = 24 - $remarkRows;
-            
-            // Check if row is available (not in remark section)
-            if ($rowIndex >= $maxItemRows) {
-                toastr()->error('Cannot add item to remark section row.');
-                return;
-            }
+            // Convert any free-form text to text-only items BEFORE adding new item
+            // This preserves text entries when items are added, preventing them from being "wiped"
+            // Note: convertFreeFormTextToItems() is already called in addItem(), but we call it here too
+            // to ensure text is preserved even if addItem() logic changes in the future
+            $this->convertFreeFormTextToItems();
             
             // Use existing addItem logic but ensure it fits
             $this->addItem($itemId);
@@ -711,6 +707,7 @@ class DOForm extends Component
     private function convertFreeFormTextToItems()
     {
         // Convert free-form text rows into stackedItems entries (text-only items)
+        $convertedRows = [];
         foreach ($this->freeFormTextRows as $rowIndex => $text) {
             if (!empty(trim($text))) {
                 // Check if this text row already exists as an item
@@ -742,7 +739,15 @@ class DOForm extends Component
                         'is_text_only' => true, // Flag to identify text-only items
                     ];
                 }
+                // Mark this row as converted so we can clear it
+                $convertedRows[] = $rowIndex;
             }
+        }
+        
+        // Clear converted rows from freeFormTextRows to prevent duplicates
+        // This ensures text appears as items, not in empty row inputs
+        foreach ($convertedRows as $rowIndex) {
+            unset($this->freeFormTextRows[$rowIndex]);
         }
     }
 
@@ -1123,7 +1128,7 @@ class DOForm extends Component
                         'do_id' => $this->deliveryOrder->id,
                         'item_id' => null, // Text-only items have no item_id
                         'custom_item_name' => $item['custom_item_name'] ?? null,
-                        'qty' => 0,
+                        'qty' => intval($item['item_qty'] ?? 0), // Allow qty for text-only items
                         'unit_price' => 0,
                         'pricing_tier' => null,
                         'more_description' => null,

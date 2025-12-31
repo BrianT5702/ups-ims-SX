@@ -212,9 +212,17 @@
                                                 <td style="width: 100px; vertical-align: top;">
                                                     @if($item)
                                                         @if((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
-                                                            {{-- Text-only item: empty qty column --}}
-                                                            <div style="padding: 4px;">
-                                                                &nbsp;
+                                                            {{-- Text-only item: allow qty input --}}
+                                                            <div class="d-flex flex-column gap-1">
+                                                                <input type="number" 
+                                                                    wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
+                                                                    class="form-control form-control-sm" 
+                                                                    min="0" 
+                                                                    {{ ($isView || ($deliveryOrder && ($deliveryOrder->status ?? '') === 'Completed')) ? 'disabled' : '' }}
+                                                                    style="width: 100%;">
+                                                                <small class="text-muted" style="font-size: 0.75em;">
+                                                                    {{ $item['item']['um'] ?? 'UNIT' }}
+                                                                </small>
                                                             </div>
                                                         @else
                                                             <div class="d-flex flex-column gap-1">

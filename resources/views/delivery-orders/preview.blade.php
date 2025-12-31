@@ -808,8 +808,12 @@
                             <tr>
                                 <td>
                                     @if($item->item_id === null)
-                                        {{-- Text-only item: leave qty empty --}}
-                                        &nbsp;
+                                        {{-- Text-only item: show qty only if not 0 --}}
+                                        @if($item->qty > 0)
+                                            {{ $item->qty }} {{ 'UNIT' }}
+                                        @else
+                                            &nbsp;
+                                        @endif
                                     @else
                                         {{ $item->qty }} {{ $item->item->um ?? 'UNIT' }}
                                     @endif
