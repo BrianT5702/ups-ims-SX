@@ -192,7 +192,7 @@
             border: 1px solid #000;
             padding: 4px;
             width: 100%;
-            font-size: 0.8em;
+            font-size: 0.9em;
             
             /* FIX: Lock the height so the table NEVER moves down */
             height: 110px; /* Adjust this number if you want the table higher/lower */
