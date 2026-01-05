@@ -121,7 +121,8 @@
             text-align: right;
             margin-top: 0; /* Align with company name like PO */
             width: 28%; /* Match PO width */
-            min-width: 200px; /* Match PO width */
+            min-width: 300px; /* Increased to match print width and prevent wrapping */
+            flex-shrink: 0; /* Prevent shrinking to ensure text stays on one line */
         }
 
         .company-info h2 {
@@ -154,12 +155,31 @@
                 font-size: 1.2em !important;
                 color: #000 !important; /* Ensure black in print */
             }
+            
+            /* Ensure Salesman and Customer PO No stay on one line in print */
+            .company-info-right p {
+                white-space: nowrap !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+            }
+            
+            /* Ensure company-info-right has enough width in print to prevent wrapping */
+            .company-info-right {
+                min-width: 250px !important;
+                width: auto !important;
+                flex-shrink: 0 !important;
+            }
         }
 
         /* Top-right details: ensure black and match PO styling */
         .company-info-right { color: #000; }
         .company-info-right h2 { color: #000; }
-        .company-info-right p { color: #000; margin: 2px 0; font-size: calc(0.8em + 1px); /* +1px increase */ }
+        .company-info-right p { 
+            color: #000; 
+            margin: 2px 0; 
+            font-size: calc(0.8em + 1px); /* +1px increase */
+            white-space: nowrap; /* Prevent wrapping to match browser print behavior */
+        }
         .company-info-right strong { text-transform: uppercase; }
 
         .customer-info {
@@ -629,9 +649,9 @@
                 position: relative !important;
             }
 
-            /* Ensure table cells match preview exactly - critical for 23 rows */
+            /* Ensure table cells match preview exactly - critical for 24 rows */
             .items-table td {
-                padding: 4px 8px !important;
+                padding: 3.95px 8px !important;
                 font-size: 0.85em !important;
                 line-height: 1.3 !important;
             }
@@ -809,7 +829,7 @@
                                 $rowToItemMap = [];
                                 $itemsWithoutRowIndex = [];
                                 foreach ($deliveryOrder->items as $item) {
-                                    if ($item->row_index !== null && $item->row_index >= 0 && $item->row_index < 23) {
+                                    if ($item->row_index !== null && $item->row_index >= 0 && $item->row_index < 24) {
                                         $rowToItemMap[$item->row_index] = $item;
                                     } else {
                                         // Backward compatibility: items without row_index
@@ -819,16 +839,16 @@
                                 // For items without row_index, assign them sequentially to available rows
                                 $nextAvailableRow = 0;
                                 foreach ($itemsWithoutRowIndex as $item) {
-                                    while (isset($rowToItemMap[$nextAvailableRow]) && $nextAvailableRow < 23) {
+                                    while (isset($rowToItemMap[$nextAvailableRow]) && $nextAvailableRow < 24) {
                                         $nextAvailableRow++;
                                     }
-                                    if ($nextAvailableRow < 23) {
+                                    if ($nextAvailableRow < 24) {
                                         $rowToItemMap[$nextAvailableRow] = $item;
                                         $nextAvailableRow++;
                                     }
                                 }
                             @endphp
-                            @for($rowIndex = 0; $rowIndex < 23; $rowIndex++)
+                            @for($rowIndex = 0; $rowIndex < 24; $rowIndex++)
                                 @php
                                     $item = $rowToItemMap[$rowIndex] ?? null;
                                 @endphp
@@ -1062,10 +1082,16 @@
                     var bottomMarginPx = measurePx('0.15cm'); // Minimal bottom margin
                     var calculatedHeight = Math.max(1, Math.round(letterPx - topMarginPx - bottomMarginPx));
                     
-                    // Use same reduction factor for both screen and print since font sizes now match exactly
-                    // Both use 15px font-size and 1.45 line-height, so same reduction applies
-                    // Minimal reduction (0.995) to ensure 23 rows fit in both preview and print
-                    pageHeightCache = Math.round(calculatedHeight * 0.995);
+                    // Use different reduction factors for screen vs print
+                    // Print mode may need slightly more space due to DPI differences
+                    // Use different reduction factors for screen vs print
+                    if (isPrintMode) {
+                        // FIX: Give print mode the full calculated height. Do not reduce it.
+                        pageHeightCache = calculatedHeight; 
+                    } else {
+                        // For screen preview: use even less reduction to allow 24 rows to fit
+                        pageHeightCache = Math.round(calculatedHeight * 0.999);
+                    }
                 }
                 return pageHeightCache;
             }
@@ -1162,9 +1188,11 @@
                     // Check if we're in print context (either print media query, beforeprint event, or forced)
                     var isPrintMode = forcePrintMode || (window.matchMedia && window.matchMedia('print').matches);
                     var pageHeight = getPageHeight(force || forcePrintMode, isPrintMode);
-                    // Increased tolerance to allow 23 rows to fit
-                    // Use same tolerance for both since font sizes now match exactly
-                    var tolerance = 40;
+                    // Use different tolerance for print vs screen to account for DPI differences
+                    // Print mode may need more tolerance due to browser print DPI variations
+                    // Increased tolerance for screen to ensure 24 rows can fit - be more lenient
+                    // New code - Increased print tolerance to prevents false "page full" errors
+                    var tolerance = isPrintMode ? 150 : 100;
                     var usableHeight = pageHeight; // Already reduced in getPageHeight
                     var isFirstPage = true;
                     var activePage = null;
@@ -1196,7 +1224,7 @@
 
                         // Use same check as quotations - check page height directly
                         // The signature is already part of the page, so offsetHeight includes it
-                        // Allow more tolerance to ensure 23 rows can fit - check against usableHeight + tolerance instead of subtracting
+                        // Allow more tolerance to ensure 24 rows can fit - check against usableHeight + tolerance instead of subtracting
                         if (activePage.page.offsetHeight > (usableHeight + tolerance)) {
                             // DO MUST FIT ON ONE PAGE - remove the row and mark as exceeded
                             activePage.tbody.removeChild(clone);
@@ -1230,7 +1258,7 @@
                         ensurePage();
                         activePage.body.appendChild(remarkClone);
                         // Check if page overflows, accounting for signature footer
-                        // DO MUST FIT ON ONE PAGE - allow more tolerance for 23 rows
+                        // DO MUST FIT ON ONE PAGE - allow more tolerance for 24 rows
                         var currentPageHeight = activePage.page.offsetHeight;
                         if (currentPageHeight > (usableHeight + tolerance)) {
                             // Allow more overflow to keep signature together, but warn if excessive

@@ -314,7 +314,7 @@ class DOForm extends Component
 
             if (!$itemExists) {
                 // DO MUST FIT ON ONE PAGE - check current rows first
-                $maxRows = 23; // Fixed 23-row limit
+                $maxRows = 24; // Fixed 24-row limit
                 $currentRows = $this->estimateTotalRows(false);
                 
                 // Block adding if already at or over limit
@@ -614,7 +614,7 @@ class DOForm extends Component
             return;
         }
 
-        $maxRows = 23; // Fixed 23-row limit
+        $maxRows = 24; // Fixed 24-row limit
         $currentDesc = $this->stackedItems[$index]['more_description'] ?? '';
         $lastValidDesc = $this->lastValidDescriptions[$index] ?? '';
         
@@ -794,7 +794,7 @@ class DOForm extends Component
             $totalRows += 1; // Base row for each item
             
             // Estimate description rows - MUST account for actual newlines (Enter key)
-            // Each description line counts as 1 full row (since we have fixed 23-row table)
+            // Each description line counts as 1 full row (since we have fixed 24-row table)
             $desc = $stackedItem['more_description'] ?? '';
             if (!empty($desc)) {
                 // Count actual newlines - each line counts as 1 row
@@ -865,8 +865,8 @@ class DOForm extends Component
      */
     private function calculateMaxRows()
     {
-        // Fixed 23-row limit for the new table structure
-        return 23;
+        // Fixed 24-row limit for the new table structure
+        return 24;
     }
 
     public function updateUnitPrice($index)
@@ -1160,10 +1160,10 @@ class DOForm extends Component
                     $rowToItemMap[$item['original_row_index']] = $idx;
                 } else {
                     // Regular item: find first available row that doesn't have a text-only item
-                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 23) {
+                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
                         $regularItemIndex++;
                     }
-                    if ($regularItemIndex < 23) {
+                    if ($regularItemIndex < 24) {
                         $rowToItemMap[$regularItemIndex] = $idx;
                         $regularItemIndex++;
                     }
