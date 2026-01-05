@@ -185,15 +185,24 @@
         .customer-info {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 14px;
+            margin-bottom: 10px;
         }
 
         .customer-info-frame {
             border: 1px solid #000;
-            padding: 6px;
+            padding: 4px;
             width: 100%;
             font-size: 0.8em;
-            line-height: 1.3;
+            
+            /* FIX: Lock the height so the table NEVER moves down */
+            height: 110px; /* Adjust this number if you want the table higher/lower */
+            overflow: hidden; /* Ensures text never pushes the box open */
+            
+            /* Tighter lines to ensure 4-line addresses fit in the fixed box */
+            line-height: 1.1; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Optional: Centers content vertically if short */
         }
 
         /* Table styles matching Quotation */
@@ -208,7 +217,7 @@
         }
 
         .items-table th {
-            padding: 6px 8px 4px 8px;
+            padding: 4px 8px 4px 8px;
             text-align: left;
             border-bottom: 1px solid #000;
             border-top: 1px solid #000;
