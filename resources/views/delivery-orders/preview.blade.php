@@ -629,7 +629,7 @@
                 position: relative !important;
             }
 
-            /* Ensure table cells match preview exactly - critical for 24 rows */
+            /* Ensure table cells match preview exactly - critical for 23 rows */
             .items-table td {
                 padding: 4px 8px !important;
                 font-size: 0.85em !important;
@@ -809,7 +809,7 @@
                                 $rowToItemMap = [];
                                 $itemsWithoutRowIndex = [];
                                 foreach ($deliveryOrder->items as $item) {
-                                    if ($item->row_index !== null && $item->row_index >= 0 && $item->row_index < 24) {
+                                    if ($item->row_index !== null && $item->row_index >= 0 && $item->row_index < 23) {
                                         $rowToItemMap[$item->row_index] = $item;
                                     } else {
                                         // Backward compatibility: items without row_index
@@ -819,16 +819,16 @@
                                 // For items without row_index, assign them sequentially to available rows
                                 $nextAvailableRow = 0;
                                 foreach ($itemsWithoutRowIndex as $item) {
-                                    while (isset($rowToItemMap[$nextAvailableRow]) && $nextAvailableRow < 24) {
+                                    while (isset($rowToItemMap[$nextAvailableRow]) && $nextAvailableRow < 23) {
                                         $nextAvailableRow++;
                                     }
-                                    if ($nextAvailableRow < 24) {
+                                    if ($nextAvailableRow < 23) {
                                         $rowToItemMap[$nextAvailableRow] = $item;
                                         $nextAvailableRow++;
                                     }
                                 }
                             @endphp
-                            @for($rowIndex = 0; $rowIndex < 24; $rowIndex++)
+                            @for($rowIndex = 0; $rowIndex < 23; $rowIndex++)
                                 @php
                                     $item = $rowToItemMap[$rowIndex] ?? null;
                                 @endphp
@@ -1064,7 +1064,7 @@
                     
                     // Use same reduction factor for both screen and print since font sizes now match exactly
                     // Both use 15px font-size and 1.45 line-height, so same reduction applies
-                    // Minimal reduction (0.995) to ensure 24 rows fit in both preview and print
+                    // Minimal reduction (0.995) to ensure 23 rows fit in both preview and print
                     pageHeightCache = Math.round(calculatedHeight * 0.995);
                 }
                 return pageHeightCache;
@@ -1162,7 +1162,7 @@
                     // Check if we're in print context (either print media query, beforeprint event, or forced)
                     var isPrintMode = forcePrintMode || (window.matchMedia && window.matchMedia('print').matches);
                     var pageHeight = getPageHeight(force || forcePrintMode, isPrintMode);
-                    // Increased tolerance to allow 24 rows to fit
+                    // Increased tolerance to allow 23 rows to fit
                     // Use same tolerance for both since font sizes now match exactly
                     var tolerance = 40;
                     var usableHeight = pageHeight; // Already reduced in getPageHeight
@@ -1196,7 +1196,7 @@
 
                         // Use same check as quotations - check page height directly
                         // The signature is already part of the page, so offsetHeight includes it
-                        // Allow more tolerance to ensure 24 rows can fit - check against usableHeight + tolerance instead of subtracting
+                        // Allow more tolerance to ensure 23 rows can fit - check against usableHeight + tolerance instead of subtracting
                         if (activePage.page.offsetHeight > (usableHeight + tolerance)) {
                             // DO MUST FIT ON ONE PAGE - remove the row and mark as exceeded
                             activePage.tbody.removeChild(clone);
@@ -1230,7 +1230,7 @@
                         ensurePage();
                         activePage.body.appendChild(remarkClone);
                         // Check if page overflows, accounting for signature footer
-                        // DO MUST FIT ON ONE PAGE - allow more tolerance for 24 rows
+                        // DO MUST FIT ON ONE PAGE - allow more tolerance for 23 rows
                         var currentPageHeight = activePage.page.offsetHeight;
                         if (currentPageHeight > (usableHeight + tolerance)) {
                             // Allow more overflow to keep signature together, but warn if excessive
