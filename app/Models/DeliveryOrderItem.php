@@ -20,6 +20,7 @@ class DeliveryOrderItem extends BaseModel
         'pricing_tier',
         'amount',
         'more_description',
+        'row_index',
     ];
 
     public function deliveryOrder()

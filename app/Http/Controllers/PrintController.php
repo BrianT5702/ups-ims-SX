@@ -34,6 +34,8 @@ class PrintController extends Controller
     public function previewDO($id)
     {
         $deliveryOrder = DeliveryOrder::with(['items.item', 'customerSnapshot', 'user'])->findOrFail($id);
+        // Order items by row_index to preserve absolute row positions (nulls last for backward compatibility)
+        $deliveryOrder->setRelation('items', $deliveryOrder->items()->orderByRaw('row_index IS NULL, row_index')->get());
         $companyProfile = CompanyProfile::first();
         return view('delivery-orders.preview', compact('deliveryOrder', 'companyProfile'));
     }

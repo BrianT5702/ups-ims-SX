@@ -156,7 +156,8 @@
                                     </thead>
                                     <tbody>
                                         @php
-                                            // Calculate total rows used by items (including descriptions)
+                                            // Always show exactly 24 rows (items stay in absolute positions)
+                                            // Calculate total used rows for validation purposes
                                             $totalUsedRows = 0;
                                             foreach ($stackedItems as $item) {
                                                 $totalUsedRows += 1; // Base row for each item
@@ -185,26 +186,33 @@
                                                     }
                                                 }
                                             }
-                                            
-                                            // Calculate how many rows we should actually show
-                                            // totalUsedRows includes items + descriptions (calculated rows)
-                                            // We want to show exactly 24 rows, but limit empty rows based on calculation
-                                            $itemRows = count($stackedItems);
-                                            
-                                            // Calculate available empty rows: 24 - totalUsedRows
-                                            // This ensures users can't add beyond the limit
-                                            $emptyRowsAvailable = max(0, 24 - $totalUsedRows);
-                                            
-                                            // Total rows to show: items + available empty rows (capped at 24)
-                                            $rowsToShow = min(24, $itemRows + $emptyRowsAvailable);
                                         @endphp
-                                        @for($rowIndex = 0; $rowIndex < $rowsToShow; $rowIndex++)
-                                            @php
-                                                // Map row index to item index (items take 1 visual row each)
-                                                $itemIndex = null;
-                                                if ($rowIndex < $itemRows) {
-                                                    $itemIndex = $rowIndex;
+                                        @php
+                                            // Build a map from row index to item index (for absolute row positioning)
+                                            $rowToItemMap = [];
+                                            $regularItemIndex = 0;
+                                            
+                                            foreach ($stackedItems as $idx => $item) {
+                                                // Both text-only and regular items can have original_row_index
+                                                if (isset($item['original_row_index']) && $item['original_row_index'] !== null) {
+                                                    // Item has stored row position: use it
+                                                    $rowToItemMap[$item['original_row_index']] = $idx;
+                                                } else {
+                                                    // Item doesn't have row position: find first available row
+                                                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
+                                                        $regularItemIndex++;
+                                                    }
+                                                    if ($regularItemIndex < 24) {
+                                                        $rowToItemMap[$regularItemIndex] = $idx;
+                                                        $regularItemIndex++;
+                                                    }
                                                 }
+                                            }
+                                        @endphp
+                                        @for($rowIndex = 0; $rowIndex < 24; $rowIndex++)
+                                            @php
+                                                // Map row index to item index (preserve absolute row positions)
+                                                $itemIndex = $rowToItemMap[$rowIndex] ?? null;
                                                 $item = $itemIndex !== null ? $stackedItems[$itemIndex] : null;
                                                 $isEmptyRow = ($itemIndex === null);
                                             @endphp
@@ -241,6 +249,19 @@
                                                                 @enderror
                                                             </div>
                                                         @endif
+                                                    @elseif(!$isView && $isEmptyRow)
+                                                        {{-- Empty row: allow qty input for text entries --}}
+                                                        <div class="d-flex flex-column gap-1">
+                                                            <input type="number" 
+                                                                wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.qty" 
+                                                                class="form-control form-control-sm" 
+                                                                min="0" 
+                                                                placeholder="0"
+                                                                style="width: 100%;">
+                                                            <small class="text-muted" style="font-size: 0.75em;">
+                                                                UNIT
+                                                            </small>
+                                                        </div>
                                                     @elseif(!$isView)
                                                         <input type="text" 
                                                             class="form-control form-control-sm" 
@@ -252,12 +273,14 @@
                                                 <td style="vertical-align: top; position: relative;">
                                                     @if($item)
                                                         @if(isset($item['is_text_only']) && $item['is_text_only'])
-                                                            {{-- Text-only item: just show the text --}}
-                                                            <div class="d-flex align-items-center">
-                                                                <span>{{ $item['custom_item_name'] ?? '' }}</span>
+                                                            {{-- Text-only item: show text with delete button on the right --}}
+                                                            <div class="d-flex gap-2 align-items-center" style="position: relative;">
+                                                                <div style="flex: 1;">
+                                                                    <span>{{ $item['custom_item_name'] ?? '' }}</span>
+                                                                </div>
                                                                 @if(!$isView)
                                                                     <button type="button" 
-                                                                        class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0 ms-2"
+                                                                        class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0"
                                                                         wire:click="removeItem({{ $itemIndex }})"
                                                                         title="Delete"
                                                                         style="font-size: 0.7rem;">
@@ -438,7 +461,7 @@
                                                                 style="position: relative; width: 100%;">
                                                                 <input type="text" 
                                                                     x-show="!showSearch"
-                                                                    wire:model.lazy="freeFormTextRows.{{ $rowIndex }}"
+                                                                    wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text"
                                                                     class="form-control form-control-sm flex-grow-1" 
                                                                     placeholder="Type anything here (remarks, notes, etc.)"
                                                                     style="font-size: 0.85em;">
@@ -498,13 +521,6 @@
                                             </td>
                                             </tr>
                                         @endfor
-                                        @if($totalUsedRows >= 24)
-                                            <tr>
-                                                <td colspan="2" class="text-center text-danger" style="padding: 8px; font-size: 0.85em;">
-                                                    ⚠️ Row limit reached ({{ $totalUsedRows }}/24 rows used). Please remove items or shorten descriptions to add more.
-                                            </td>
-                                            </tr>
-                                            @endif
                                     </tbody>
                                 </table>
                             </div>
@@ -534,10 +550,13 @@
                                         $hasItems = !empty($stackedItems) && is_array($stackedItems) && count($stackedItems) > 0;
                                         $hasFreeFormText = false;
                                         if (!empty($freeFormTextRows) && is_array($freeFormTextRows)) {
-                                            $filtered = array_filter($freeFormTextRows, function($text) {
-                                                return !empty(trim($text ?? ''));
-                                            });
-                                            $hasFreeFormText = count($filtered) > 0;
+                                            foreach ($freeFormTextRows as $rowData) {
+                                                $text = is_array($rowData) ? ($rowData['text'] ?? '') : $rowData;
+                                                if (!empty(trim($text ?? ''))) {
+                                                    $hasFreeFormText = true;
+                                                    break;
+                                                }
+                                            }
                                         }
                                         $hasContent = $hasItems || $hasFreeFormText;
                                     @endphp

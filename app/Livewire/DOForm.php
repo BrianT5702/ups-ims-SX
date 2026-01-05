@@ -74,8 +74,10 @@ class DOForm extends Component
             // Clear previous stackedItems
             $this->stackedItems = [];
     
-            // Load delivery order items
-            foreach ($deliveryOrder->items as $doItem) {
+            // Load delivery order items - order by row_index to preserve positions (nulls last for backward compatibility)
+            $doItems = $deliveryOrder->items()->orderByRaw('row_index IS NULL, row_index')->get();
+            
+            foreach ($doItems as $doItem) {
                 // Check if this is a text-only item (item_id is null)
                 if ($doItem->item_id === null || !$doItem->item) {
                     // This is a text-only item (free-form text)
@@ -94,6 +96,7 @@ class DOForm extends Component
                         'pricing_tier' => null,
                         'more_description' => null,
                         'is_text_only' => true,
+                        'original_row_index' => $doItem->row_index, // Restore row position from database
                     ];
                 } else {
                     // Regular item - ensure item exists
@@ -125,6 +128,7 @@ class DOForm extends Component
                         $priceManuallyModified = true;
                     }
                     
+                    // Regular item - store row_index for absolute positioning
                     $this->stackedItems[] = [
                         'item' => [
                             'id' => $doItem->item->id,
@@ -146,6 +150,7 @@ class DOForm extends Component
                         'more_description' => $doItem->more_description,
                         'custom_item_name' => $doItem->custom_item_name ?? $doItem->item->item_name,
                         'price_manually_modified' => $priceManuallyModified,
+                        'original_row_index' => $doItem->row_index, // Restore row position from database
                     ];
                 }
             }
@@ -707,8 +712,15 @@ class DOForm extends Component
     private function convertFreeFormTextToItems()
     {
         // Convert free-form text rows into stackedItems entries (text-only items)
+        // Preserve row positions by sorting by row index and inserting in order
         $convertedRows = [];
-        foreach ($this->freeFormTextRows as $rowIndex => $text) {
+        $textItemsToAdd = [];
+        
+        foreach ($this->freeFormTextRows as $rowIndex => $rowData) {
+            // Handle both old format (string) and new format (array with 'text' and 'qty')
+            $text = is_array($rowData) ? ($rowData['text'] ?? '') : $rowData;
+            $qty = is_array($rowData) ? (intval($rowData['qty'] ?? 0)) : 0;
+            
             if (!empty(trim($text))) {
                 // Check if this text row already exists as an item
                 $exists = false;
@@ -721,8 +733,8 @@ class DOForm extends Component
                 }
                 
                 if (!$exists) {
-                    // Add as a text-only item
-                    $this->stackedItems[] = [
+                    // Store item with original row index to preserve position
+                    $textItemsToAdd[$rowIndex] = [
                         'item' => [
                             'id' => null,
                             'item_code' => '',
@@ -731,17 +743,24 @@ class DOForm extends Component
                             'details' => '',
                         ],
                         'custom_item_name' => trim($text),
-                        'item_qty' => 0,
+                        'item_qty' => $qty, // Use qty from freeFormTextRows
                         'item_unit_price' => 0,
                         'amount' => 0,
                         'pricing_tier' => '',
                         'more_description' => '',
                         'is_text_only' => true, // Flag to identify text-only items
+                        'original_row_index' => $rowIndex, // Store original row position
                     ];
                 }
                 // Mark this row as converted so we can clear it
                 $convertedRows[] = $rowIndex;
             }
+        }
+        
+        // Add items directly (preserves absolute row positions - no sorting needed)
+        // Items will be mapped by original_row_index during rendering
+        foreach ($textItemsToAdd as $item) {
+            $this->stackedItems[] = $item;
         }
         
         // Clear converted rows from freeFormTextRows to prevent duplicates
@@ -922,7 +941,18 @@ class DOForm extends Component
         ]);
         
         // Check if there's at least some content (items or free-form text)
-        $hasContent = !empty($this->stackedItems) || !empty(array_filter($this->freeFormTextRows ?? []));
+        // Handle both old format (string) and new format (array with 'text' and 'qty')
+        $hasFreeFormText = false;
+        if (!empty($this->freeFormTextRows)) {
+            foreach ($this->freeFormTextRows as $rowData) {
+                $text = is_array($rowData) ? ($rowData['text'] ?? '') : $rowData;
+                if (!empty(trim($text))) {
+                    $hasFreeFormText = true;
+                    break;
+                }
+            }
+        }
+        $hasContent = !empty($this->stackedItems) || $hasFreeFormText;
         if (!$hasContent) {
             toastr()->error('Please add at least one item or enter some text before saving.');
             return;
@@ -1119,9 +1149,38 @@ class DOForm extends Component
                 ]);
             }
             
+            // Calculate row_index for all items before saving
+            // Build mapping: row_index => item index in stackedItems
+            $rowToItemMap = [];
+            $regularItemIndex = 0;
+            
+            foreach ($this->stackedItems as $idx => $item) {
+                if (isset($item['is_text_only']) && $item['is_text_only'] && isset($item['original_row_index'])) {
+                    // Text-only item: use original row index
+                    $rowToItemMap[$item['original_row_index']] = $idx;
+                } else {
+                    // Regular item: find first available row that doesn't have a text-only item
+                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
+                        $regularItemIndex++;
+                    }
+                    if ($regularItemIndex < 24) {
+                        $rowToItemMap[$regularItemIndex] = $idx;
+                        $regularItemIndex++;
+                    }
+                }
+            }
+            
+            // Build reverse map: item index => row_index
+            $itemToRowMap = [];
+            foreach ($rowToItemMap as $rowIndex => $itemIndex) {
+                $itemToRowMap[$itemIndex] = $rowIndex;
+            }
+            
             // Process each item in the delivery order (create/update DO items records only)
-            foreach ($this->stackedItems as $item) {
+            foreach ($this->stackedItems as $idx => $item) {
                 $itemId = $item['item']['id'] ?? null;
+                $rowIndex = $itemToRowMap[$idx] ?? null; // Get row_index for this item
+                
                 // For text-only items, item_id can be null
                 if (isset($item['is_text_only']) && $item['is_text_only']) {
                     DeliveryOrderItem::create([
@@ -1133,6 +1192,7 @@ class DOForm extends Component
                         'pricing_tier' => null,
                         'more_description' => null,
                         'amount' => 0,
+                        'row_index' => $rowIndex, // Store row position
                     ]);
                 } else {
                     DeliveryOrderItem::create([
@@ -1144,6 +1204,7 @@ class DOForm extends Component
                         'pricing_tier' => $item['pricing_tier'] ?? null,
                         'more_description' => $item['more_description'] ?? null,
                         'amount' => $item['item_qty'] * $item['item_unit_price'],
+                        'row_index' => $rowIndex, // Store row position
                     ]);
                 }
             }

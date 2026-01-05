@@ -804,43 +804,76 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($deliveryOrder->items as $index => $item)
-                            <tr>
-                                <td>
-                                    @if($item->item_id === null)
-                                        {{-- Text-only item: show qty only if not 0 --}}
-                                        @if($item->qty > 0)
-                                            {{ $item->qty }} {{ 'UNIT' }}
-                                        @else
-                                            &nbsp;
-                                        @endif
+                            @php
+                                // Build a map from row_index to item for absolute positioning
+                                $rowToItemMap = [];
+                                $itemsWithoutRowIndex = [];
+                                foreach ($deliveryOrder->items as $item) {
+                                    if ($item->row_index !== null && $item->row_index >= 0 && $item->row_index < 24) {
+                                        $rowToItemMap[$item->row_index] = $item;
+                                    } else {
+                                        // Backward compatibility: items without row_index
+                                        $itemsWithoutRowIndex[] = $item;
+                                    }
+                                }
+                                // For items without row_index, assign them sequentially to available rows
+                                $nextAvailableRow = 0;
+                                foreach ($itemsWithoutRowIndex as $item) {
+                                    while (isset($rowToItemMap[$nextAvailableRow]) && $nextAvailableRow < 24) {
+                                        $nextAvailableRow++;
+                                    }
+                                    if ($nextAvailableRow < 24) {
+                                        $rowToItemMap[$nextAvailableRow] = $item;
+                                        $nextAvailableRow++;
+                                    }
+                                }
+                            @endphp
+                            @for($rowIndex = 0; $rowIndex < 24; $rowIndex++)
+                                @php
+                                    $item = $rowToItemMap[$rowIndex] ?? null;
+                                @endphp
+                                <tr>
+                                    @if($item)
+                                        <td>
+                                            @if($item->item_id === null)
+                                                {{-- Text-only item: show qty only if not 0 --}}
+                                                @if($item->qty > 0)
+                                                    {{ $item->qty }} {{ 'UNIT' }}
+                                                @else
+                                                    &nbsp;
+                                                @endif
+                                            @else
+                                                {{ $item->qty }} {{ $item->item->um ?? 'UNIT' }}
+                                            @endif
+                                        </td>
+                                        <td>
+                                            {{ $item->custom_item_name ?? ($item->item_id !== null && $item->item ? $item->item->item_name : 'N/A') }}
+                                            @if($item->item_id !== null && $item->item && !empty($item->item->details))
+                                                <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
+                                                    @foreach(explode("\n", $item->item->details) as $line)
+                                                        @if(trim($line) !== '')
+                                                            <div>• {{ $line }}</div>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                            @if(!empty($item->more_description))
+                                                <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
+                                                    @foreach(explode("\n", $item->more_description) as $line)
+                                                        @if(trim($line) !== '')
+                                                            <div>• {{ $line }}</div>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </td>
                                     @else
-                                        {{ $item->qty }} {{ $item->item->um ?? 'UNIT' }}
+                                        {{-- Empty row --}}
+                                        <td>&nbsp;</td>
+                                        <td>&nbsp;</td>
                                     @endif
-                                </td>
-                                <td>
-                                    {{ $item->custom_item_name ?? ($item->item_id !== null && $item->item ? $item->item->item_name : 'N/A') }}
-                                    @if($item->item_id !== null && $item->item && !empty($item->item->details))
-                                        <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
-                                            @foreach(explode("\n", $item->item->details) as $line)
-                                                @if(trim($line) !== '')
-                                                    <div>• {{ $line }}</div>
-                                                @endif
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                    @if(!empty($item->more_description))
-                                        <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
-                                            @foreach(explode("\n", $item->more_description) as $line)
-                                                @if(trim($line) !== '')
-                                                    <div>• {{ $line }}</div>
-                                                @endif
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </td>
-                            </tr>
-                            @endforeach
+                                </tr>
+                            @endfor
                         </tbody>
                     </table>
                 </div>
