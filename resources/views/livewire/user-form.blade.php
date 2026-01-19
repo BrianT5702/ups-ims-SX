@@ -84,17 +84,23 @@
 
                         @if(!$hidePermissions)
                             <div class="form-group mb-3">
-                                <label class="form-label">User-specific Permissions</label>
-                                <div id="permissions-container" class="border rounded p-2">
-                                    <div class="permission-header">Select permissions to grant directly to this user</div>
-                                    <div class="select-all">
-                                        <button class="btn btn-outline-secondary btn-sm" type="button" wire:click="selectAllPermissions">Toggle Select All</button>
+                                <label class="form-label fw-semibold mb-2">User-specific Permissions</label>
+                                <div id="permissions-container" class="border rounded p-3 bg-light">
+                                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                        <h6 class="mb-0 fw-semibold text-muted">Select permissions to grant directly to this user</h6>
+                                        <button class="btn btn-outline-primary btn-sm" type="button" wire:click="selectAllPermissions">
+                                            Toggle Select All
+                                        </button>
                                     </div>
-                                    <div class="row">
+                                    <div class="row g-3">
                                         @foreach($permissions as $perm)
-                                            <div class="col-md-4 permission-item">
-                                                <input type="checkbox" id="perm_{{ $perm->id }}" value="{{ $perm->name }}" wire:model="selectedPermissions" {{ $isView ? 'disabled' : '' }}>
-                                                <label for="perm_{{ $perm->id }}" class="ms-1">{{ $perm->name }}</label>
+                                            <div class="col-md-4 col-lg-3">
+                                                <div class="form-check permission-checkbox">
+                                                    <input class="form-check-input" type="checkbox" id="perm_{{ $perm->id }}" value="{{ $perm->name }}" wire:model="selectedPermissions" {{ $isView ? 'disabled' : '' }}>
+                                                    <label class="form-check-label" for="perm_{{ $perm->id }}">
+                                                        {{ $perm->name }}
+                                                    </label>
+                                                </div>
                                             </div>
                                         @endforeach
                                     </div>
@@ -121,29 +127,62 @@
 const style = document.createElement('style');
 style.textContent = `
 #permissions-container {
-    max-height: 250px;
+    max-height: 400px;
     overflow-y: auto;
+    background-color: #f8f9fa !important;
 }
 
-.permission-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 8px;
+#permissions-container::-webkit-scrollbar {
+    width: 8px;
 }
 
-.permission-item input {
-    margin-right: 10px;
+#permissions-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
 }
 
-.permission-header {
-    font-weight: bold;
-    margin-bottom: 10px;
-    text-align: center;
+#permissions-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
 }
 
-.select-all {
-    margin-bottom: 15px;
-    text-align: center;
+#permissions-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.permission-checkbox {
+    padding: 8px 12px;
+    margin: 0;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.permission-checkbox:hover {
+    background-color: #e9ecef;
+}
+
+.permission-checkbox .form-check-input {
+    margin-top: 0.35em;
+    cursor: pointer;
+    width: 1.1em;
+    height: 1.1em;
+}
+
+.permission-checkbox .form-check-label {
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    user-select: none;
+    margin-left: 0.5em;
+}
+
+.permission-checkbox .form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.permission-checkbox .form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
 }
 
 .form-control-sm {
@@ -153,7 +192,13 @@ style.textContent = `
 .card-footer {
     background-color: #f8f9fa;
     border-top: 1px solid #e9ecef;
+    padding: 1rem;
+}
+
+.fw-semibold {
+    font-weight: 600;
 }`;
+document.head.appendChild(style);
 </script>
 
 

@@ -284,7 +284,7 @@ class DOForm extends Component
         $this->addItem($item->id);
     }
 
-    public function addItem($itemId)
+    public function addItem($itemId, $rowIndex = null)
     {
         if (!$this->isView) {
             // Convert any free-form text to text-only items BEFORE adding new item
@@ -339,7 +339,7 @@ class DOForm extends Component
                     toastr()->warning('Adding this item will bring you close to the one-page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows).');
                 }
                 
-                $this->stackedItems[] = [
+                $newItem = [
                     'item' => [
                         'id' => $item->id,
                         'item_code' => $item->item_code,
@@ -363,6 +363,13 @@ class DOForm extends Component
                     'custom_item_name' => $item->item_name,
                     'price_manually_modified' => true
                 ];
+                
+                // Set original_row_index if rowIndex is provided to preserve absolute row position
+                if ($rowIndex !== null) {
+                    $newItem['original_row_index'] = $rowIndex;
+                }
+                
+                $this->stackedItems[] = $newItem;
             }
 
             $this->itemSearchTerm = '';
@@ -381,8 +388,8 @@ class DOForm extends Component
             // to ensure text is preserved even if addItem() logic changes in the future
             $this->convertFreeFormTextToItems();
             
-            // Use existing addItem logic but ensure it fits
-            $this->addItem($itemId);
+            // Use existing addItem logic but pass the rowIndex to preserve absolute row position
+            $this->addItem($itemId, $rowIndex);
         }
     }
 
@@ -644,10 +651,21 @@ class DOForm extends Component
             toastr()->error('⚠️ Description exceeds page limit! Description has ' . $descLines . ' line(s) = ' . $descLines . ' rows. Total would be: ' . $estimatedRows . ' rows (max: ' . $maxRows . '). Please remove items or shorten descriptions.');
             $this->dispatch('show-limit-error', ['message' => 'Description: ' . $descLines . ' rows. Total: ' . $estimatedRows . '/' . $maxRows . ' rows.']);
         } else {
+            // Convert empty description to null
+            if ($currentDesc !== null && trim($currentDesc) === '') {
+                $currentDesc = null;
+                $this->stackedItems[$index]['more_description'] = null;
+            }
+            
             // Save as valid description - keep the new description
             $this->lastValidDescriptions[$index] = $currentDesc;
             $remainingRows = $maxRows - $estimatedRows;
-            toastr()->success('Description saved: ' . $descLines . ' line(s) = ' . $descLines . ' rows. Total: ' . $estimatedRows . '/' . $maxRows . ' rows (remaining: ' . $remainingRows . ' rows).');
+            
+            if ($currentDesc === null || trim($currentDesc) === '') {
+                toastr()->success('Description removed. Total: ' . $estimatedRows . '/' . $maxRows . ' rows (remaining: ' . $remainingRows . ' rows).');
+            } else {
+                toastr()->success('Description saved: ' . $descLines . ' line(s) = ' . $descLines . ' rows. Total: ' . $estimatedRows . '/' . $maxRows . ' rows (remaining: ' . $remainingRows . ' rows).');
+            }
         }
     }
     
@@ -902,6 +920,16 @@ class DOForm extends Component
         // Convert free-form text to items first
         $this->convertFreeFormTextToItems();
         
+        // Normalize all descriptions: convert empty strings to null
+        foreach ($this->stackedItems as $idx => $item) {
+            if (isset($item['more_description'])) {
+                $desc = $item['more_description'];
+                if (is_string($desc) && trim($desc) === '') {
+                    $this->stackedItems[$idx]['more_description'] = null;
+                }
+            }
+        }
+        
         // Only validate stackedItems if there are items
         $validationRules = [
             'do_num' => ['required', new UniqueInCurrentDatabase('delivery_orders', 'do_num', $this->deliveryOrder?->id)],
@@ -1155,11 +1183,12 @@ class DOForm extends Component
             $regularItemIndex = 0;
             
             foreach ($this->stackedItems as $idx => $item) {
-                if (isset($item['is_text_only']) && $item['is_text_only'] && isset($item['original_row_index'])) {
-                    // Text-only item: use original row index
+                // Check if item has original_row_index (both text-only and regular items can have it)
+                if (isset($item['original_row_index']) && $item['original_row_index'] !== null) {
+                    // Item has stored row position: use it
                     $rowToItemMap[$item['original_row_index']] = $idx;
                 } else {
-                    // Regular item: find first available row that doesn't have a text-only item
+                    // Item doesn't have row position: find first available row
                     while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
                         $regularItemIndex++;
                     }
@@ -1180,6 +1209,12 @@ class DOForm extends Component
             foreach ($this->stackedItems as $idx => $item) {
                 $itemId = $item['item']['id'] ?? null;
                 $rowIndex = $itemToRowMap[$idx] ?? null; // Get row_index for this item
+                
+                // Normalize description: convert empty strings to null
+                $moreDescription = $item['more_description'] ?? null;
+                if ($moreDescription !== null && is_string($moreDescription) && trim($moreDescription) === '') {
+                    $moreDescription = null;
+                }
                 
                 // For text-only items, item_id can be null
                 if (isset($item['is_text_only']) && $item['is_text_only']) {
@@ -1202,7 +1237,7 @@ class DOForm extends Component
                         'qty' => $item['item_qty'],
                         'unit_price' => $item['item_unit_price'],
                         'pricing_tier' => $item['pricing_tier'] ?? null,
-                        'more_description' => $item['more_description'] ?? null,
+                        'more_description' => $moreDescription,
                         'amount' => $item['item_qty'] * $item['item_unit_price'],
                         'row_index' => $rowIndex, // Store row position
                     ]);

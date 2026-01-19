@@ -293,21 +293,31 @@
                                                                 showDescription: {{ !empty($stackedItems[$itemIndex]['more_description']) ? 'true' : 'false' }},
                                                     showMemo: false,
                                                                 hoverTimeout: null,
-                                                                editingName: false
+                                                                editingName: false,
+                                                                displayName: '{{ $stackedItems[$itemIndex]['custom_item_name'] ?? $item['item']['item_name'] }}'
                                                 }" 
                                                 x-init="
                                                     $watch('showDescription', value => {
                                                                     if (value) {
                                                                         $wire.call('validateDescriptionRowsOnShow', {{ $itemIndex }});
                                                         }
-                                                    })
+                                                    });
+                                                    // Update displayName when editingName changes to false
+                                                    $watch('editingName', value => {
+                                                        if (!value) {
+                                                            // When editing ends, update displayName from Livewire
+                                                            $nextTick(() => {
+                                                                const livewireValue = $wire.get('stackedItems.{{ $itemIndex }}.custom_item_name');
+                                                                displayName = livewireValue || '{{ $item['item']['item_name'] }}';
+                                                            });
+                                                        }
+                                                    });
                                                 ">
                                                             <div class="d-flex gap-2 align-items-start" style="position: relative;">
                                                                 <div style="flex: 1;">
                                                                     <template x-if="!editingName">
                                                                         <div>
-                                                                            <span wire:key="item-name-{{ $itemIndex }}-{{ $stackedItems[$itemIndex]['custom_item_name'] ?? 'default' }}">
-                                                                                {{ $stackedItems[$itemIndex]['custom_item_name'] ?? $item['item']['item_name'] }}
+                                                                            <span x-text="displayName">
                                                                             </span>
                                                         @if(!empty($item['item']['memo']))
                                                             <div x-show="showMemo" 
@@ -326,14 +336,14 @@
                                                                             <input type="text" 
                                                                                 x-ref="nameInput"
                                                                                 class="form-control form-control-sm" 
-                                                                                wire:model="stackedItems.{{ $itemIndex }}.custom_item_name"
+                                                                                wire:model.defer="stackedItems.{{ $itemIndex }}.custom_item_name"
                                                                                 placeholder="{{ $item['item']['item_name'] }}"
-                                                                                @keydown.enter.prevent="editingName = false"
+                                                                                @keydown.enter.prevent="const newValue = $refs.nameInput.value || '{{ $item['item']['item_name'] }}'; $wire.set('stackedItems.{{ $itemIndex }}.custom_item_name', newValue); displayName = newValue; editingName = false"
                                                                                 @keydown.escape="editingName = false"
                                                                                 style="font-size: 0.85em;">
                                                                             <button type="button" 
                                                                                 class="btn btn-sm btn-success p-1 px-2"
-                                                                                @click="editingName = false"
+                                                                                @click="const newValue = $refs.nameInput.value || '{{ $item['item']['item_name'] }}'; $wire.set('stackedItems.{{ $itemIndex }}.custom_item_name', newValue); displayName = newValue; editingName = false"
                                                                                 style="font-size: 0.7rem; line-height: 1;">
                                                                                 ✓
                                                                             </button>
@@ -393,7 +403,7 @@
                                                 @if(!$isView)
                                                                 <div x-show="showDescription" class="mt-2 mb-3 p-2" style="background-color: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
                                                         <textarea 
-                                                                        wire:model="stackedItems.{{ $itemIndex }}.more_description"
+                                                                        wire:model.defer="stackedItems.{{ $itemIndex }}.more_description"
                                                             class="form-control form-control-sm"
                                                             rows="3"
                                                                         placeholder="Enter additional description (each line = 1 row)"
