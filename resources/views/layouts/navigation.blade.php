@@ -37,27 +37,32 @@
                     </x-slot>
 
                     <x-slot name="content">
-                        <form method="POST" action="{{ route('switch-db') }}">
-                            @csrf
-                            <input type="hidden" name="connection" value="ups">
-                            <x-dropdown-link href="#" onclick="event.preventDefault(); if(confirm('Switch database to UPS? You will be redirected to Dashboard.')) { this.closest('form').submit(); }">
-                                UPS
-                            </x-dropdown-link>
-                        </form>
-                        <form method="POST" action="{{ route('switch-db') }}">
-                            @csrf
-                            <input type="hidden" name="connection" value="urs">
-                            <x-dropdown-link href="#" onclick="event.preventDefault(); if(confirm('Switch database to URS? You will be redirected to Dashboard.')) { this.closest('form').submit(); }">
-                                URS
-                            </x-dropdown-link>
-                        </form>
-                        <form method="POST" action="{{ route('switch-db') }}">
-                            @csrf
-                            <input type="hidden" name="connection" value="ucs">
-                            <x-dropdown-link href="#" onclick="event.preventDefault(); if(confirm('Switch database to UCS? You will be redirected to Dashboard.')) { this.closest('form').submit(); }">
-                                UCS
-                            </x-dropdown-link>
-                        </form>
+                        @php
+                            $accessibleCompanies = \App\Helpers\CompanyAccess::getAccessibleCompanies(Auth::user());
+                        @endphp
+                        @if(count($accessibleCompanies) > 0)
+                            @php
+                                $currentCompany = strtolower(session('active_db', 'ups'));
+                            @endphp
+                            @foreach($accessibleCompanies as $company)
+                                <form method="POST" action="{{ route('switch-db') }}">
+                                    @csrf
+                                    <input type="hidden" name="connection" value="{{ $company }}">
+                                    <x-dropdown-link href="#" 
+                                        class="{{ strtolower($company) === $currentCompany ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : '' }}"
+                                        onclick="event.preventDefault(); @if(strtolower($company) !== $currentCompany) if(confirm('Switch database to {{ strtoupper($company) }}? You will be redirected to Dashboard.')) { this.closest('form').submit(); } @endif">
+                                        {{ strtoupper($company) }}
+                                        @if(strtolower($company) === $currentCompany)
+                                            <span class="ml-2 text-xs">(Current)</span>
+                                        @endif
+                                    </x-dropdown-link>
+                                </form>
+                            @endforeach
+                        @else
+                            <div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                No companies available
+                            </div>
+                        @endif
                     </x-slot>
                 </x-dropdown>
                 </div>

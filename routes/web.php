@@ -57,9 +57,17 @@ Route::middleware(['auth', 'preventBackHistory', 'switchdb'])->group(function ()
     // Switch DB (session-based)
     Route::post('/switch-db', function (\Illuminate\Http\Request $request) {
         $request->validate([
-            'connection' => 'required|in:ups,urs,ucs',
+            'connection' => 'required|in:ups,urs,ucs,ups2,urs2,ucs2',
         ]);
-        session(['active_db' => $request->input('connection')]);
+
+        $connection = $request->input('connection');
+
+        // Check if user has access to this company
+        if (!\App\Helpers\CompanyAccess::canAccessCompany($connection, auth()->user())) {
+            abort(403, 'You do not have access to this company.');
+        }
+
+        session(['active_db' => $connection]);
         // Persist session immediately to ensure subsequent concurrent requests see the new DB
         $request->session()->save();
 
