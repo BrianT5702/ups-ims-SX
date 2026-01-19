@@ -31,6 +31,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         // Ensure DB switching happens before other middleware to avoid stale connections
         $middleware->prepend(SwitchDatabase::class);
+        
+        // Trust proxies for Render.com and other load balancers
+        // This ensures HTTPS is detected correctly for signed URL generation in Livewire uploads
+        $middleware->trustProxies(at: '*', headers: [
+            \Illuminate\Http\Request::HEADER_FORWARDED,
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR,
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST,
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT,
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
