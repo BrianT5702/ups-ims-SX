@@ -31,14 +31,10 @@ class SwitchDatabase
                 app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
             }
 
-            // Rehydrate the authenticated user from the new connection by email
-            if (auth()->check()) {
-                $email = auth()->user()->email;
-                $fresh = \App\Models\User::on($connection)->where('email', $email)->first();
-                if ($fresh) {
-                    auth()->setUser($fresh);
-                }
-            }
+            // Note: Users are always stored in UPS database
+            // We don't rehydrate from target database to avoid confusion
+            // The authenticated user from UPS database is used for all company databases
+            // Roles are checked from UPS, permissions are checked from current database
             
         }
 

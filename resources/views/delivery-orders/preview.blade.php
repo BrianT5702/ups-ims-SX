@@ -16,8 +16,10 @@
         }
 
         :root {
-            /* Single source of truth for Qty column width to keep vertical line aligned */
-            --qty-col-width: 100px;
+            /* Qty column width */
+            --qty-col-width: 70px;
+            /* Vertical separator line position (keep at original 100px position) */
+            --vline-position: 95px;
             /* Offset to account for column padding differences */
             --col-align-offset: -5px;
         }
@@ -61,7 +63,7 @@
 .print-page::after {
     content: '';
     position: absolute;
-    left: calc(var(--qty-col-width) + var(--col-align-offset));
+    left: calc(var(--vline-position) + var(--col-align-offset));
     top: var(--vline-start, 0);
     bottom: var(--vline-end, 0);
     width: 1px;
@@ -237,6 +239,26 @@
             vertical-align: top;
             word-wrap: break-word;
             word-break: break-word;
+        }
+
+        /* Ensure last row (row 23) has a visible top border in Description column only, starting from vertical separator */
+        .items-table tbody tr:last-child td:first-child {
+            border-top: none;
+            border-bottom: none;
+        }
+        .items-table tbody tr:last-child td:last-child {
+            border-top: none;
+            border-bottom: none;
+            position: relative;
+        }
+        .items-table tbody tr:last-child td:last-child::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            height: 1px;
+            background: #000;
         }
 
         /* Fixed column widths (favoring more space for Item Name) */
@@ -516,7 +538,7 @@
     }
 
     #remark-wrapper {
-        margin-left: calc(var(--qty-col-width) + var(--col-align-offset)) !important;
+        margin-left: calc(var(--vline-position) + var(--col-align-offset)) !important;
         page-break-inside: avoid;
         break-inside: avoid;
         position: relative;
@@ -670,6 +692,26 @@
                 font-size: 0.7em !important;
                 line-height: 1.3 !important;
             }
+
+            /* Ensure last row (row 23) has a visible top border in Description column only in print, starting from vertical separator */
+            .items-table tbody tr:last-child td:first-child {
+                border-top: none !important;
+                border-bottom: none !important;
+            }
+            .items-table tbody tr:last-child td:last-child {
+                border-top: none !important;
+                border-bottom: none !important;
+                position: relative !important;
+            }
+            .items-table tbody tr:last-child td:last-child::before {
+                content: '' !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                right: 0 !important;
+                height: 1px !important;
+                background: #000 !important;
+            }
             
             /* Ensure print-page-body and print-page-footer use normal flow */
             .pages-container .print-page-body,
@@ -799,7 +841,7 @@
                             <p><strong>Reference No:</strong> {{ $deliveryOrder->ref_num ?? '-' }}</p>
                             <p><strong>Customer PO No:</strong> {{ $deliveryOrder->cust_po }}</p>
                             <p><strong>Terms:</strong> {{ $deliveryOrder->customerSnapshot->term ?? $deliveryOrder->customer->term ?? 'N/A' }}</p>
-                            <p><strong>Salesman:</strong> {{ $deliveryOrder->salesman->name ?? 'N/A' }}</p>
+                            <p><strong>Salesman:</strong> {{ $deliveryOrder->salesman->username ?? 'N/A' }}</p>
                         </div>
                     </div>
 
@@ -862,7 +904,11 @@
                                     $item = $rowToItemMap[$rowIndex] ?? null;
                                 @endphp
                                 <tr>
-                                    @if($item)
+                                    @if($rowIndex === 23)
+                                        {{-- Last row (row 23): Show notes --}}
+                                        <td>&nbsp;</td>
+                                        <td style="font-weight: bold; text-transform: uppercase;">NOTES: GOODS SOLD ARE NOT RETURNABLE.</td>
+                                    @elseif($item)
                                         <td>
                                             @if($item->item_id === null)
                                                 {{-- Text-only item: show qty only if not 0 --}}
@@ -910,7 +956,7 @@
                 @if(!empty($deliveryOrder->remark))
                     <div id="remark-source">
                         <div style="margin: 0;">
-                            <div id="remark-wrapper" style="margin-left: calc(var(--qty-col-width) + var(--col-align-offset)); padding-left: 8px; padding-top: 10px;">
+                            <div id="remark-wrapper" style="margin-left: calc(var(--vline-position) + var(--col-align-offset)); padding-left: 8px; padding-top: 10px;">
                                 <div style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     <div style="font-size: 0.85em; font-family: Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
                                         <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
