@@ -182,7 +182,10 @@
             font-size: calc(0.8em + 1px); /* +1px increase */
             white-space: nowrap; /* Prevent wrapping to match browser print behavior */
         }
-        .company-info-right strong { text-transform: uppercase; }
+        .company-info-right strong { 
+            text-transform: uppercase; 
+            font-weight: bold;
+        }
 
         .customer-info {
             display: flex;
@@ -841,7 +844,7 @@
                             <p><strong>Reference No:</strong> {{ $deliveryOrder->ref_num ?? '-' }}</p>
                             <p><strong>Customer PO No:</strong> {{ $deliveryOrder->cust_po }}</p>
                             <p><strong>Terms:</strong> {{ $deliveryOrder->customerSnapshot->term ?? $deliveryOrder->customer->term ?? 'N/A' }}</p>
-                            <p><strong>Salesman:</strong> {{ strtoupper($deliveryOrder->salesman->username ?? 'N/A') }}</p>
+                            <p><strong>Salesman:</strong>{{ strtoupper($deliveryOrder->salesman->username ?? 'N/A') }}</p>
                         </div>
                     </div>
 
