@@ -97,7 +97,7 @@
                                             <td><a wire:navigate href="{{ route('quotations.view', $quotation->id)}}">{{ $quotation->customerSnapshot->currency ?? $quotation->customer->currency ?? 'RM' }} {{ number_format($quotation->total_amount ?? 0, 2) }}</a></td>
                                             <td><a wire:navigate href="{{ route('quotations.view', $quotation->id)}}">{{ $quotation->salesman->name ?? '-' }}</a></td>
                                             <td><a wire:navigate href="{{ route('quotations.view', $quotation->id)}}">{{ $quotation->status ?? 'Save to Draft' }}</a></td>
-                                            <td><a wire:navigate href="{{ route('quotations.view', $quotation->id)}}">{{ Auth::user()->name }}</a></td>
+                                            <td><a wire:navigate href="{{ route('quotations.view', $quotation->id)}}">{{ $quotation->user->name ?? '-' }}</a></td>
                                             <td class="text-center">
                                                 <span class="print-status {{ $quotation->printed === 'Y' ? 'printed-yes' : 'printed-no' }}">
                                                     {{ $quotation->printed }}

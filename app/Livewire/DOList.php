@@ -66,7 +66,14 @@ class DOList extends Component
 
     public function render()
     {
-        $query = DeliveryOrder::with('customer')
+        $user = Auth::user();
+        $isAdmin = $user && $user->hasRole('Admin');
+        
+        $query = DeliveryOrder::with(['customer', 'user'])
+            ->when(!$isAdmin, function($q) use ($user) {
+                // Non-admins only see their own records
+                return $q->where('user_id', $user->id);
+            })
             ->when($this->filterCustomerId, function($q) {
                 return $q->where('cust_id', $this->filterCustomerId);
             })
@@ -92,7 +99,14 @@ class DOList extends Component
         ? \App\Models\Customer::findOrFail($this->filterCustomerId) 
         : null;
 
-        $delivery_order_count = DeliveryOrder::where('cust_id', $this->filterCustomerId)->count();
+        $countQuery = DeliveryOrder::query();
+        if (!$isAdmin) {
+            $countQuery->where('user_id', $user->id);
+        }
+        if ($this->filterCustomerId) {
+            $countQuery->where('cust_id', $this->filterCustomerId);
+        }
+        $delivery_order_count = $countQuery->count();
     
         return view('livewire.d-o-list', [
             'delivery_orders' => $delivery_orders,

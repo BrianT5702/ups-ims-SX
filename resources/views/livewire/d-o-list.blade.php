@@ -105,7 +105,7 @@
                                             <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->customerSnapshot->currency ?? $delivery_order->customer->currency ?? 'RM' }} {{ number_format($delivery_order->total_amount ?? 0, 2) }}</a></td>
                                             <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->salesman ? strtoupper($delivery_order->salesman->username) : '-' }}</a></td>
                                             <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->status ?? 'Completed' }}</a></td>
-                                            <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ Auth::user()->name }}</a></td>
+                                            <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->user->name ?? '-' }}</a></td>
                                             <td class="text-center">
                                                 <span class="print-status {{ $delivery_order->printed === 'Y' ? 'printed-yes' : 'printed-no' }}">
                                                     {{ $delivery_order->printed }}

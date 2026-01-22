@@ -45,14 +45,21 @@
                                 $currentCompany = strtolower(session('active_db', 'ups'));
                             @endphp
                             @foreach($accessibleCompanies as $company)
-                                <form method="POST" action="{{ route('switch-db') }}">
+                                @php
+                                    $isCurrentCompany = strtolower($company) === $currentCompany;
+                                    $companyUpper = strtoupper($company);
+                                    $onclickValue = $isCurrentCompany 
+                                        ? "event.preventDefault(); event.stopPropagation();"
+                                        : "event.preventDefault(); event.stopPropagation(); if(confirm('Switch database to {$companyUpper}? You will be redirected to Dashboard.')) { this.closest('form').submit(); }";
+                                @endphp
+                                <form method="POST" action="{{ route('switch-db') }}" @click.stop>
                                     @csrf
                                     <input type="hidden" name="connection" value="{{ $company }}">
                                     <x-dropdown-link href="#" 
-                                        class="{{ strtolower($company) === $currentCompany ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : '' }}"
-                                        onclick="event.preventDefault(); @if(strtolower($company) !== $currentCompany) if(confirm('Switch database to {{ strtoupper($company) }}? You will be redirected to Dashboard.')) { this.closest('form').submit(); } @endif">
-                                        {{ strtoupper($company) }}
-                                        @if(strtolower($company) === $currentCompany)
+                                        class="{{ $isCurrentCompany ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : '' }}"
+                                        onclick="{{ $onclickValue }}">
+                                        {{ $companyUpper }}
+                                        @if($isCurrentCompany)
                                             <span class="ml-2 text-xs">(Current)</span>
                                         @endif
                                     </x-dropdown-link>

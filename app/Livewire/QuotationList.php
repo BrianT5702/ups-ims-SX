@@ -7,6 +7,7 @@ use Livewire\WithPagination;
 use Livewire\Attributes\Title;
 use App\Models\Quotation;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 #[Title('UR | Quotation List')]
 class QuotationList extends Component
@@ -49,7 +50,14 @@ class QuotationList extends Component
 
     public function render()
     {
-        $query = Quotation::with('customer')
+        $user = Auth::user();
+        $isAdmin = $user && $user->hasRole('Admin');
+        
+        $query = Quotation::with(['customer', 'user'])
+            ->when(!$isAdmin, function($q) use ($user) {
+                // Non-admins only see their own records
+                return $q->where('user_id', $user->id);
+            })
             ->when($this->filterCustomerId, fn($q) => $q->where('cust_id', $this->filterCustomerId))
             ->when($this->quotationSearchTerm, function($q){
                 return $q->where(function($sub){
@@ -69,7 +77,15 @@ class QuotationList extends Component
         $quotations = $query->orderBy('created_at', 'desc')->paginate(10);
 
         $filteredCustomer = $this->filterCustomerId ? \App\Models\Customer::find($this->filterCustomerId) : null;
-        $quotation_count = Quotation::when($this->filterCustomerId, fn($q)=>$q->where('cust_id',$this->filterCustomerId))->count();
+        
+        $countQuery = Quotation::query();
+        if (!$isAdmin) {
+            $countQuery->where('user_id', $user->id);
+        }
+        if ($this->filterCustomerId) {
+            $countQuery->where('cust_id', $this->filterCustomerId);
+        }
+        $quotation_count = $countQuery->count();
 
         return view('livewire.quotation-list', [
             'quotations' => $quotations,

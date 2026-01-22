@@ -73,7 +73,14 @@ class POList extends Component
 
     public function render()
     {
-        $query = PurchaseOrder::with('supplier')
+        $user = Auth::user();
+        $isAdmin = $user && $user->hasRole('Admin');
+        
+        $query = PurchaseOrder::with(['supplier', 'user'])
+            ->when(!$isAdmin, function($q) use ($user) {
+                // Non-admins only see their own records
+                return $q->where('user_id', $user->id);
+            })
             ->when($this->filterSupplierId, function($q) {
                 return $q->where('sup_id', $this->filterSupplierId);
             })
@@ -104,9 +111,15 @@ class POList extends Component
 
         $statusOptions = PurchaseOrder::distinct('status')->pluck('status');
 
-        $purchase_order_count = PurchaseOrder::where('sup_id', $this->filterSupplierId)
-            ->where('po_num', '!=', 'PO0000000000')
-            ->count();
+        $countQuery = PurchaseOrder::query()
+            ->where('po_num', '!=', 'PO0000000000');
+        if (!$isAdmin) {
+            $countQuery->where('user_id', $user->id);
+        }
+        if ($this->filterSupplierId) {
+            $countQuery->where('sup_id', $this->filterSupplierId);
+        }
+        $purchase_order_count = $countQuery->count();
     
         return view('livewire.p-o-list', [
             'purchase_orders' => $purchase_orders,

@@ -122,7 +122,7 @@
                                             <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->po_num }}</a></td>
                                             <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->supplierSnapshot->sup_name ?? $purchase_order->supplier->sup_name }}</a></td>
                                             <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->status }}</a></td>
-                                            <td><a wire:navigate href="#">{{ Auth::user()->name }}</a></td>
+                                            <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->user->name ?? '-' }}</a></td>
                                             <td class="text-center">
                                                 <span class="print-status {{ $purchase_order->printed === 'Y' ? 'printed-yes' : 'printed-no' }}">
                                                     {{ $purchase_order->printed }}
