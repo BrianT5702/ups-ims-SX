@@ -32,8 +32,9 @@ class UserForm extends Component
 
     public function mount(User $user)
     {
-        $this->roles = Role::all();
-        $this->permissions = Permission::all();
+        // Users are stored in UPS database, so fetch roles from UPS
+        $this->roles = Role::on('ups')->get();
+        $this->permissions = Permission::on('ups')->get();
         $this->isView = request()->routeIs('users.view');
         
         if ($user->id) {
@@ -116,7 +117,7 @@ class UserForm extends Component
                 // Assign only user-specific permissions beyond role defaults
                 $rolePermissions = [];
                 if (!empty($this->role)) {
-                    $role = Role::where('name', $this->role)->first();
+                    $role = Role::on('ups')->where('name', $this->role)->first();
                     if ($role) {
                         $rolePermissions = $role->permissions->pluck('name')->toArray();
                     }

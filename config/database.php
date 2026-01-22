@@ -163,6 +163,97 @@ return [
 			})() : [],
 		],
 
+		// Department 2 company connections (UPS2, URS2, UCS2)
+		'ups2' => [
+			'driver' => 'mysql',
+			'url' => env('DB_URL'),
+			'host' => env('UPS2_DB_HOST', '127.0.0.1'),
+			'port' => env('UPS2_DB_PORT', '3306'),
+			'database' => env('UPS2_DB_DATABASE', 'ups2'),
+			'username' => env('UPS2_DB_USERNAME', 'root'),
+			'password' => env('UPS2_DB_PASSWORD', ''),
+			'unix_socket' => env('UPS2_DB_SOCKET', ''),
+			'charset' => env('DB_CHARSET', 'utf8mb4'),
+			'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+			'prefix' => '',
+			'prefix_indexes' => true,
+			'strict' => true,
+			'engine' => null,
+			'options' => extension_loaded('pdo_mysql') ? (function () {
+				$opts = [
+					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+				];
+				$envCa = env('MYSQL_ATTR_SSL_CA');
+				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
+				if ($envCa && @is_readable($envCa)) {
+					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
+				} elseif (@is_readable($systemCa)) {
+					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
+				}
+				return $opts;
+			})() : [],
+		],
+
+		'urs2' => [
+			'driver' => 'mysql',
+			'url' => env('DB_URL'),
+			'host' => env('URS2_DB_HOST', '127.0.0.1'),
+			'port' => env('URS2_DB_PORT', '3306'),
+			'database' => env('URS2_DB_DATABASE', 'urs2'),
+			'username' => env('URS2_DB_USERNAME', 'root'),
+			'password' => env('URS2_DB_PASSWORD', ''),
+			'unix_socket' => env('URS2_DB_SOCKET', ''),
+			'charset' => env('DB_CHARSET', 'utf8mb4'),
+			'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+			'prefix' => '',
+			'prefix_indexes' => true,
+			'strict' => true,
+			'engine' => null,
+			'options' => extension_loaded('pdo_mysql') ? (function () {
+				$opts = [
+					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+				];
+				$envCa = env('MYSQL_ATTR_SSL_CA');
+				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
+				if ($envCa && @is_readable($envCa)) {
+					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
+				} elseif (@is_readable($systemCa)) {
+					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
+				}
+				return $opts;
+			})() : [],
+		],
+
+		'ucs2' => [
+			'driver' => 'mysql',
+			'url' => env('DB_URL'),
+			'host' => env('UCS2_DB_HOST', '127.0.0.1'),
+			'port' => env('UCS2_DB_PORT', '3306'),
+			'database' => env('UCS2_DB_DATABASE', 'ucs2'),
+			'username' => env('UCS2_DB_USERNAME', 'root'),
+			'password' => env('UCS2_DB_PASSWORD', ''),
+			'unix_socket' => env('UCS2_DB_SOCKET', ''),
+			'charset' => env('DB_CHARSET', 'utf8mb4'),
+			'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+			'prefix' => '',
+			'prefix_indexes' => true,
+			'strict' => true,
+			'engine' => null,
+			'options' => extension_loaded('pdo_mysql') ? (function () {
+				$opts = [
+					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+				];
+				$envCa = env('MYSQL_ATTR_SSL_CA');
+				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
+				if ($envCa && @is_readable($envCa)) {
+					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
+				} elseif (@is_readable($systemCa)) {
+					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
+				}
+				return $opts;
+			})() : [],
+		],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

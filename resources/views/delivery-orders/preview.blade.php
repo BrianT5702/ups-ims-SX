@@ -841,7 +841,7 @@
                             <p><strong>Reference No:</strong> {{ $deliveryOrder->ref_num ?? '-' }}</p>
                             <p><strong>Customer PO No:</strong> {{ $deliveryOrder->cust_po }}</p>
                             <p><strong>Terms:</strong> {{ $deliveryOrder->customerSnapshot->term ?? $deliveryOrder->customer->term ?? 'N/A' }}</p>
-                            <p><strong>Salesman:</strong> {{ $deliveryOrder->salesman->username ?? 'N/A' }}</p>
+                            <p><strong>Salesman:</strong> {{ strtoupper($deliveryOrder->salesman->username ?? 'N/A') }}</p>
                         </div>
                     </div>
 

@@ -429,6 +429,8 @@ class DatabaseSeeder extends Seeder
             'Admin' => $adminPermissions,
             'User' => [], // No default permissions; assign per user as needed
             'Salesperson' => [],
+            'Department1' => [], // Department1 role for original companies (ups, urs, ucs)
+            'Department2' => [], // Department2 role for new companies (ups2, urs2, ucs2)
         ];
 
         // Create roles and assign permissions
@@ -515,6 +517,18 @@ class DatabaseSeeder extends Seeder
                 'company_no' => '772011-D',
             ],
             'ucs' => [
+                'company_name' => 'UNITED COLD-SYSTEM (M) SDN. BHD.',
+                'company_no' => '748674-K',
+            ],
+            'ups2' => [
+                'company_name' => 'UNITED PANEL-SYSTEM (M) SDN. BHD.',
+                'company_no' => '772009-A',
+            ],
+            'urs2' => [
+                'company_name' => 'UNITED REFRIGERATION-SYSTEM (M) SDN. BHD.',
+                'company_no' => '772011-D',
+            ],
+            'ucs2' => [
                 'company_name' => 'UNITED COLD-SYSTEM (M) SDN. BHD.',
                 'company_no' => '748674-K',
             ],
