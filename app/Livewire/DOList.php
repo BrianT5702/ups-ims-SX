@@ -69,7 +69,7 @@ class DOList extends Component
         $user = Auth::user();
         $isAdmin = $user && $user->hasRole('Admin');
         
-        $query = DeliveryOrder::with(['customer', 'user'])
+        $query = DeliveryOrder::with(['customer', 'user', 'updatedBy'])
             ->when(!$isAdmin, function($q) use ($user) {
                 // Non-admins only see their own records
                 return $q->where('user_id', $user->id);

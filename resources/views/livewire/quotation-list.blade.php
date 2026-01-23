@@ -59,7 +59,8 @@
                                 .table.quotation-list th:nth-child(5), .table.quotation-list td:nth-child(5) { width: 120px; white-space: nowrap; } /* Salesman */
                                 .table.quotation-list th:nth-child(6), .table.quotation-list td:nth-child(6) { width: 100px; white-space: nowrap; } /* Status */
                                 .table.quotation-list th:nth-child(7), .table.quotation-list td:nth-child(7) { width: 120px; white-space: nowrap; } /* Created by */
-                                .table.quotation-list th:nth-child(8), .table.quotation-list td:nth-child(8) { width: 80px; text-align: center; } /* Printed */
+                                .table.quotation-list th:nth-child(8), .table.quotation-list td:nth-child(8) { width: 120px; white-space: nowrap; } /* Last edited by */
+                                .table.quotation-list th:nth-child(9), .table.quotation-list td:nth-child(9) { width: 80px; text-align: center; } /* Printed */
                                 
                                 .table.quotation-list th, .table.quotation-list td { overflow: hidden; text-overflow: ellipsis; }
 
@@ -84,6 +85,7 @@
                                         <th>Salesman</th>
                                         <th>Status</th>
                                         <th>Created by</th>
+                                        <th>Last edited by</th>
                                         <th>Printed</th>
                                     </tr>
                                 </thead>
@@ -98,6 +100,7 @@
                                             <td><a wire:navigate href="{{ route('quotations.view', $quotation->id)}}">{{ $quotation->salesman->name ?? '-' }}</a></td>
                                             <td><a wire:navigate href="{{ route('quotations.view', $quotation->id)}}">{{ $quotation->status ?? 'Save to Draft' }}</a></td>
                                             <td><a wire:navigate href="{{ route('quotations.view', $quotation->id)}}">{{ $quotation->user->name ?? '-' }}</a></td>
+                                            <td><a wire:navigate href="{{ route('quotations.view', $quotation->id)}}">{{ $quotation->updatedBy->name ?? ($quotation->user->name ?? '-') }}</a></td>
                                             <td class="text-center">
                                                 <span class="print-status {{ $quotation->printed === 'Y' ? 'printed-yes' : 'printed-no' }}">
                                                     {{ $quotation->printed }}
@@ -107,7 +110,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="8" class="text-center">No quotations found.</td>
+                                            <td colspan="9" class="text-center">No quotations found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

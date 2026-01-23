@@ -82,7 +82,8 @@
                                 .table.po-list th:nth-child(3), .table.po-list td:nth-child(3) { width: 35%; } /* Supplier Name - largest */
                                 .table.po-list th:nth-child(4), .table.po-list td:nth-child(4) { width: 100px; } /* Status */
                                 .table.po-list th:nth-child(5), .table.po-list td:nth-child(5) { width: 120px; } /* Created by */
-                                .table.po-list th:nth-child(6), .table.po-list td:nth-child(6) { width: 80px; text-align: center; } /* Printed */
+                                .table.po-list th:nth-child(6), .table.po-list td:nth-child(6) { width: 120px; } /* Last edited by */
+                                .table.po-list th:nth-child(7), .table.po-list td:nth-child(7) { width: 80px; text-align: center; } /* Printed */
                                 /* Removed Action column */
 
                                 /* Action buttons layout */
@@ -112,6 +113,7 @@
                                         <th>Supplier Name</th>
                                         <th>Status</th>
                                         <th>Created by</th>
+                                        <th>Last edited by</th>
                                         <th>Printed</th>
                                     </tr>
                                 </thead>
@@ -123,6 +125,7 @@
                                             <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->supplierSnapshot->sup_name ?? $purchase_order->supplier->sup_name }}</a></td>
                                             <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->status }}</a></td>
                                             <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->user->name ?? '-' }}</a></td>
+                                            <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->updatedBy->name ?? ($purchase_order->user->name ?? '-') }}</a></td>
                                             <td class="text-center">
                                                 <span class="print-status {{ $purchase_order->printed === 'Y' ? 'printed-yes' : 'printed-no' }}">
                                                     {{ $purchase_order->printed }}
@@ -132,7 +135,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7" class="text-center">No purchase orders found.</td>
+                                            <td colspan="8" class="text-center">No purchase orders found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

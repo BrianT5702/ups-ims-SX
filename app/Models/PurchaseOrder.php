@@ -14,6 +14,7 @@ class PurchaseOrder extends BaseModel
         'po_num',
         'sup_id',
         'user_id',
+        'updated_by',
         'date',
         'remark',
         'status',
@@ -38,6 +39,11 @@ class PurchaseOrder extends BaseModel
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function items()

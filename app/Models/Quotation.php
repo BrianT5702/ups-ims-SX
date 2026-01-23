@@ -14,6 +14,7 @@ class Quotation extends BaseModel
         'cust_id',
         'salesman_id',
         'user_id',
+        'updated_by',
         'date',
         'quotation_num',
         'total_amount',
@@ -50,5 +51,10 @@ class Quotation extends BaseModel
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

@@ -348,6 +348,7 @@ class POForm extends Component
             $this->purchaseOrder->tax_rate = $this->tax_rate ?? null;
             $this->purchaseOrder->tax_amount = $this->tax_amount ?? null;
             $this->purchaseOrder->grand_total = $this->grand_total ?? null;
+            $this->purchaseOrder->updated_by = auth()->id();
             $this->purchaseOrder->save();
 
             // Replace items
@@ -434,6 +435,7 @@ class POForm extends Component
                     $this->purchaseOrder->status = 'Pending Approval';
                     $this->status = 'Pending Approval';
                 }
+                $this->purchaseOrder->updated_by = auth()->id();
                 $this->purchaseOrder->save();
 
                 // Delete existing items
@@ -556,6 +558,7 @@ class POForm extends Component
                     $this->purchaseOrder->status = 'Save to Draft';
                     $this->status = 'Save to Draft';
                 }
+                $this->purchaseOrder->updated_by = auth()->id();
                 $this->purchaseOrder->save();
 
                 // Sync items
@@ -825,6 +828,7 @@ class POForm extends Component
     
             if ($allItemsReceived) {
                 $this->purchaseOrder->status = 'Completed';
+                $this->purchaseOrder->updated_by = auth()->id();
                 $this->purchaseOrder->save();
                 $this->status = 'Completed';
             }
@@ -920,6 +924,7 @@ class POForm extends Component
                     $this->status = $newStatus;
                 }
                 
+                $purchaseOrder->updated_by = auth()->id();
                 $purchaseOrder->save();
 
                 // Update items
@@ -963,6 +968,7 @@ class POForm extends Component
             if ($value === 'Save to Draft') {
                 $this->purchaseOrder->status = $value;
                 $this->status = $value;
+                $this->purchaseOrder->updated_by = auth()->id();
                 $this->purchaseOrder->save();
                 toastr()->success("Status updated to Save to Draft successfully");
                 return;
@@ -986,6 +992,7 @@ class POForm extends Component
                     $this->status = $value;
                 }
                 
+                $this->purchaseOrder->updated_by = auth()->id();
                 $this->purchaseOrder->save();
                 
                 $statusMessage = $value === 'Approved' ? 'In Progress' : $value;

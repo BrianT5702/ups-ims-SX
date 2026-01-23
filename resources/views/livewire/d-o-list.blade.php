@@ -59,7 +59,8 @@
                                 .table.do-list th:nth-child(5), .table.do-list td:nth-child(5) { width: 120px; white-space: nowrap; } /* Salesman */
                                 .table.do-list th:nth-child(6), .table.do-list td:nth-child(6) { width: 100px; white-space: nowrap; } /* Status */
                                 .table.do-list th:nth-child(7), .table.do-list td:nth-child(7) { width: 120px; white-space: nowrap; } /* Created by */
-                                .table.do-list th:nth-child(8), .table.do-list td:nth-child(8) { width: 80px; text-align: center; } /* Printed */
+                                .table.do-list th:nth-child(8), .table.do-list td:nth-child(8) { width: 120px; white-space: nowrap; } /* Last edited by */
+                                .table.do-list th:nth-child(9), .table.do-list td:nth-child(9) { width: 80px; text-align: center; } /* Printed */
                                 /* Removed Action column */
                                 
                                 /* Action buttons layout */
@@ -92,6 +93,7 @@
                                         <th>Salesman</th>
                                         <th>Status</th>
                                         <th>Created by</th>
+                                        <th>Last edited by</th>
                                         <th>Printed</th>
                                     </tr>
                                 </thead>
@@ -106,6 +108,7 @@
                                             <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->salesman ? strtoupper($delivery_order->salesman->username) : '-' }}</a></td>
                                             <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->status ?? 'Completed' }}</a></td>
                                             <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->user->name ?? '-' }}</a></td>
+                                            <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->updatedBy->name ?? ($delivery_order->user->name ?? '-') }}</a></td>
                                             <td class="text-center">
                                                 <span class="print-status {{ $delivery_order->printed === 'Y' ? 'printed-yes' : 'printed-no' }}">
                                                     {{ $delivery_order->printed }}
@@ -115,7 +118,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="8" class="text-center">No delivery orders found.</td>
+                                            <td colspan="9" class="text-center">No delivery orders found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

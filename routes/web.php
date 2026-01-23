@@ -234,6 +234,7 @@ Route::middleware(['auth', 'preventBackHistory', 'switchdb'])->group(function ()
     // Print status routes
     Route::post('/purchase-orders/{id}/mark-printed', [PrintController::class, 'markPOPrinted'])->name('purchase-orders.mark-printed');
     Route::post('/delivery-orders/{id}/mark-printed', [PrintController::class, 'markDOPrinted'])->name('delivery-orders.mark-printed');
+    Route::post('/delivery-orders/{id}/post', [PrintController::class, 'postDO'])->name('delivery-orders.post');
     Route::post('/quotations/{id}/mark-printed', [PrintController::class, 'markQuotationPrinted'])->name('quotations.mark-printed');
 
     //Report section

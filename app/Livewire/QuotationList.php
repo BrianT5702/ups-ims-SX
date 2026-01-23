@@ -53,7 +53,7 @@ class QuotationList extends Component
         $user = Auth::user();
         $isAdmin = $user && $user->hasRole('Admin');
         
-        $query = Quotation::with(['customer', 'user'])
+        $query = Quotation::with(['customer', 'user', 'updatedBy'])
             ->when(!$isAdmin, function($q) use ($user) {
                 // Non-admins only see their own records
                 return $q->where('user_id', $user->id);

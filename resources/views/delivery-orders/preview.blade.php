@@ -228,7 +228,7 @@
             border-top: 1px solid #000;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 0.7em;
+            font-size: 0.8em;
             line-height: 1.3;
             vertical-align: middle;
         }
@@ -692,7 +692,7 @@
 
             .items-table th {
                 padding: 6px 8px 4px 8px !important;
-                font-size: 0.7em !important;
+                font-size: 0.8em !important;
                 line-height: 1.3 !important;
             }
 
@@ -916,12 +916,12 @@
                                             @if($item->item_id === null)
                                                 {{-- Text-only item: show qty only if not 0 --}}
                                                 @if($item->qty > 0)
-                                                    {{ $item->qty }} {{ 'UNIT' }}
+                                                    {{ $item->qty }} {{ 'UNITS' }}
                                                 @else
                                                     &nbsp;
                                                 @endif
                                             @else
-                                                {{ $item->qty }} {{ $item->item->um ?? 'UNIT' }}
+                                                {{ $item->qty }} {{ $item->item->um ?? 'UNITS' }}
                                             @endif
                                         </td>
                                         <td>
@@ -1029,21 +1029,34 @@
 
         function triggerPrint() {
             try { paginateDeliveryOrder(true); } catch (e) {}
-            // Mark as printed before opening print dialog
-            fetch('{{ route('delivery-orders.mark-printed', $deliveryOrder->id) }}', {
+            
+            // First, post the DO (change status to Completed and update stock)
+            fetch('{{ route('delivery-orders.post', $deliveryOrder->id) }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 }
+            }).then(function(response) {
+                return response.json();
+            }).then(function(data) {
+                // Then mark as printed
+                return fetch('{{ route('delivery-orders.mark-printed', $deliveryOrder->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
             }).then(function() {
                 setTimeout(function(){ 
                     try { paginateDeliveryOrder(true); } catch (e) {}
                     setTimeout(function(){ window.print(); }, 150);
                 }, 50);
             }).catch(function(error) {
-                console.error('Failed to mark as printed:', error);
+                console.error('Failed to post or mark as printed:', error);
                 setTimeout(function(){ 
                     try { paginateDeliveryOrder(true); } catch (e) {}
                     setTimeout(function(){ window.print(); }, 150);

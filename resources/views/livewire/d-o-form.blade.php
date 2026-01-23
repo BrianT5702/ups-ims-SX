@@ -17,7 +17,7 @@
                                         id="searchCustomer" 
                                         class="form-control rounded" 
                                         placeholder="Search Customer" 
-                                        {{ $isView ? 'disabled' : '' }} 
+                                        {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
                                         autocomplete="off"
                                         x-on:keydown.arrow-down.prevent="(() => { const list = $refs.custList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
                                         x-on:keydown.arrow-up.prevent="(() => { const list = $refs.custList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
@@ -62,12 +62,12 @@
                                 <label for="date">Date <span class="text-danger">*</span></label>
                                 <input type="date" wire:model="date" id="date" class="form-control rounded" 
                                     placeholder="dd/mm/yyyy"
-                                    {{ $isView ? 'disabled' : '' }}>
+                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}>
                                 @error('date') <p class="text-danger">{{ $message }}</p> @enderror
                             </div>
                             <div class="col-md-4">
                                     <label for="do_num">DO Number <span class="text-danger">*</span></label>
-                                    <input type="text" wire:model="do_num" id="do_num" class="form-control rounded" {{ $isView ? 'disabled' : '' }} placeholder="Enter DO Number">
+                                    <input type="text" wire:model="do_num" id="do_num" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter DO Number">
                                     @error('do_num') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
                         </div>
@@ -75,19 +75,19 @@
                             <div class="row mb-3">
                                 <div class="col-md-3">
                                     <label for="ref_num">Reference Number</label>
-                                    <input type="text" wire:model="ref_num" id="ref_num" class="form-control rounded" {{ $isView ? 'disabled' : '' }} placeholder="Enter Reference Number">
+                                    <input type="text" wire:model="ref_num" id="ref_num" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter Reference Number">
                                     @error('ref_num') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
 
                                 <div class="col-md-3">
                                     <label for="cust_po">Customer PO Number <span class="text-danger">*</span></label>
-                                    <input type="text" wire:model="cust_po" id="cust_po" class="form-control rounded" {{ $isView ? 'disabled' : '' }} placeholder="Enter Cust PO Number" autocomplete="off">
+                                    <input type="text" wire:model="cust_po" id="cust_po" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter Cust PO Number" autocomplete="off">
                                     @error('cust_po') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
 
                                 <div class="col-md-3">
                                     <label for="salesman">Salesperson <span class="text-danger">*</span></label>
-                                    <select id="salesman" class="form-select rounded" wire:model.live="salesman_id" {{ ($isView || empty($cust_id)) ? 'disabled' : '' }}>
+                                    <select id="salesman" class="form-select rounded" wire:model.live="salesman_id" {{ ($isView || $this->isPosted || empty($cust_id)) ? 'disabled' : '' }}>
                                         <option value="">{{ empty($cust_id) ? 'Select a customer first' : 'Select Salesperson' }}</option>
                                         @foreach($salesmen as $sm)
                                             <option value="{{ $sm->id }}">{{ $sm->name }}</option>
@@ -238,10 +238,10 @@
                                                                     wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
                                                                     class="form-control form-control-sm" 
                                                                     min="0" 
-                                                                    {{ ($isView || ($deliveryOrder && ($deliveryOrder->status ?? '') === 'Completed')) ? 'disabled' : '' }}
+                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     style="width: 100%;">
                                                                 <small class="text-muted" style="font-size: 0.75em;">
-                                                                    {{ $item['item']['um'] ?? 'UNIT' }}
+                                                                    {{ $item['item']['um'] ?? 'UNITS' }}
                                                                 </small>
                                                             </div>
                                                         @else
@@ -251,10 +251,10 @@
                                                                     class="form-control form-control-sm @error('stackedItems.'.$itemIndex.'.item_qty') is-invalid @enderror" 
                                                                     min="1" 
                                                                     wire:change="updatePriceLine({{ $itemIndex }})" 
-                                                                    {{ ($isView || ($deliveryOrder && ($deliveryOrder->status ?? '') === 'Completed')) ? 'disabled' : '' }}
+                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     style="width: 100%;">
                                                                 <small class="text-muted" style="font-size: 0.75em;">
-                                                                    {{ $item['item']['um'] ?? 'UNIT' }}
+                                                                    {{ $item['item']['um'] ?? 'UNITS' }}
                                                                 </small>
                                                                 @error('stackedItems.'.$itemIndex.'.item_qty')
                                                                     <div class="text-danger small">!</div>
@@ -265,13 +265,13 @@
                                                         {{-- Empty row: allow qty input for text entries --}}
                                                         <div class="d-flex flex-column gap-1">
                                                             <input type="number" 
-                                                                wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.qty" 
+                                                                wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.qty" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
                                                                 class="form-control form-control-sm" 
                                                                 min="0" 
                                                                 placeholder="0"
                                                                 style="width: 100%;">
                                                             <small class="text-muted" style="font-size: 0.75em;">
-                                                                UNIT
+                                                                UNITS
                                                             </small>
                                                         </div>
                                                     @elseif(!$isView)
@@ -290,10 +290,10 @@
                                                                 <div style="flex: 1;">
                                                                     <span>{{ $item['custom_item_name'] ?? '' }}</span>
                                                                 </div>
-                                                                @if(!$isView)
+                                                                @if(!$isView && !$this->isPosted)
                                                                     <button type="button" 
                                                                         class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0"
-                                                                        wire:click="removeItem({{ $itemIndex }})"
+                                                                        wire:click="removeItem({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                         title="Delete"
                                                                         style="font-size: 0.7rem;">
                                                                         ×
@@ -348,7 +348,7 @@
                                                                             <input type="text" 
                                                                                 x-ref="nameInput"
                                                                                 class="form-control form-control-sm" 
-                                                                                wire:model.defer="stackedItems.{{ $itemIndex }}.custom_item_name"
+                                                                                wire:model.defer="stackedItems.{{ $itemIndex }}.custom_item_name" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                                 placeholder="{{ $item['item']['item_name'] }}"
                                                                                 @keydown.enter.prevent="const newValue = $refs.nameInput.value || '{{ $item['item']['item_name'] }}'; $wire.set('stackedItems.{{ $itemIndex }}.custom_item_name', newValue); displayName = newValue; editingName = false"
                                                                                 @keydown.escape="editingName = false"
@@ -369,7 +369,7 @@
                                                                         </div>
                                                                     </template>
                                                     </div>
-                                                    @if(!$isView)
+                                                    @if(!$isView && !$this->isPosted)
                                                         <button type="button" 
                                                                         x-show="!editingName"
                                                             class="btn btn-sm p-0 px-1 flex-shrink-0" 
@@ -387,7 +387,7 @@
                                                                     </button>
                                                                     <button type="button" 
                                                                         class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0"
-                                                                        wire:click="removeItem({{ $itemIndex }})"
+                                                                        wire:click="removeItem({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                         title="Delete"
                                                             style="font-size: 0.7rem;">
                                                                         ×
@@ -415,7 +415,7 @@
                                                 @if(!$isView)
                                                                 <div x-show="showDescription" class="mt-2 mb-3 p-2" style="background-color: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
                                                         <textarea 
-                                                                        wire:model.defer="stackedItems.{{ $itemIndex }}.more_description"
+                                                                        wire:model.defer="stackedItems.{{ $itemIndex }}.more_description" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                             class="form-control form-control-sm"
                                                             rows="3"
                                                                         placeholder="Enter additional description (each line = 1 row)"
@@ -425,7 +425,7 @@
                                                                             Each line counts as 1 row. Max 23 rows total.
                                                                         </small>
                                                                         <button type="button"
-                                                                            wire:click="saveDescriptionAndValidate({{ $itemIndex }})"
+                                                                            wire:click="saveDescriptionAndValidate({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                             class="btn btn-sm btn-primary"
                                                                             style="font-size: 0.75em; padding: 4px 12px;">
                                                                             Save
@@ -441,7 +441,7 @@
                                                                         @endphp
                                                                         <select wire:model.live="stackedItems.{{ $itemIndex }}.pricing_tier" 
                                                                                 wire:change="selectPricingTier({{ $itemIndex }}, $event.target.value)"
-                                                                                class="form-select form-select-sm" 
+                                                                                class="form-select form-select-sm" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
                                                                                 style="width: 180px; font-size: 0.85em; flex-shrink: 0;">
                                                                             <option value="">Custom</option>
                                                                             <option value="Cash Price">Cash: {{ number_format($item['item']['cash_price'] ?? 0, 2) }}</option>
@@ -457,7 +457,7 @@
                                                                                 inputmode="decimal"
                                                                                 wire:model.lazy="stackedItems.{{ $itemIndex }}.item_unit_price"
                                                                                 wire:change="updateUnitPrice({{ $itemIndex }})"
-                                                                class="form-control form-control-sm" 
+                                                                class="form-control form-control-sm" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
                                                                                 placeholder="0.00"
                                                                                 style="width: 110px; font-size: 0.85em; text-align: right; flex-shrink: 0;">
                                                                         @else
@@ -483,7 +483,7 @@
                                                                 style="position: relative; width: 100%;">
                                                                 <input type="text" 
                                                                     x-show="!showSearch"
-                                                                    wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text"
+                                                                    wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     class="form-control form-control-sm flex-grow-1" 
                                                                     placeholder="Type anything here (remarks, notes, etc.)"
                                                                     style="font-size: 0.85em;">
@@ -494,23 +494,24 @@
                                                                         class="form-control form-control-sm" 
                                                                         placeholder="Search item code or name..."
                                                                         autocomplete="off"
+                                                                        {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                         @keydown.escape="showSearch = false; searchTerm = ''; showResults = false"
                                                                         @keydown.arrow-down.prevent="highlightIndex = Math.min(highlightIndex + 1, $wire.itemSearchResults.length - 1)"
                                                                         @keydown.arrow-up.prevent="highlightIndex = Math.max(highlightIndex - 1, -1)"
-                                                                        @keydown.enter.prevent="if(highlightIndex >= 0 && $wire.itemSearchResults[highlightIndex]) { $wire.call('addItemToRow', $wire.itemSearchResults[highlightIndex].id, {{ $rowIndex }}); searchTerm = ''; showResults = false; showSearch = false; }"
-                                                                        @input="$wire.set('itemSearchTerm', searchTerm); $wire.call('searchItems'); if(searchTerm.length > 0) showResults = true"
-                                                                        @focus="if($wire.itemSearchResults.length > 0) showResults = true"
+                                                                        @keydown.enter.prevent="if(highlightIndex >= 0 && $wire.itemSearchResults[highlightIndex] && !$wire.isPosted) { $wire.call('addItemToRow', $wire.itemSearchResults[highlightIndex].id, {{ $rowIndex }}); searchTerm = ''; showResults = false; showSearch = false; }"
+                                                                        @input="if(!$wire.isPosted) { $wire.set('itemSearchTerm', searchTerm); $wire.call('searchItems'); if(searchTerm.length > 0) showResults = true; }"
+                                                                        @focus="if($wire.itemSearchResults.length > 0 && !$wire.isPosted) showResults = true"
                                                                         @blur="setTimeout(() => showResults = false, 200)"
                                                                         style="font-size: 0.85em; width: 100%;">
-                                                                    @if(count($itemSearchResults) > 0)
-                                                                        <ul x-show="showResults && searchTerm.length > 0" 
+                                                                    @if(count($itemSearchResults) > 0 && !$this->isPosted)
+                                                                        <ul x-show="showResults && searchTerm.length > 0 && !$wire.isPosted" 
                                                                             class="list-group position-absolute w-100" 
                                                                             style="z-index: 1000; max-height: 200px; overflow-y: auto; margin-top: 2px;"
                                                                             x-cloak>
                                                                             @foreach($itemSearchResults as $idx => $result)
                                                                                 <li class="list-group-item list-group-item-action" 
                                                                                     :class="{ 'active': highlightIndex === {{ $idx }} }"
-                                                                                    wire:click="addItemToRow({{ $result->id }}, {{ $rowIndex }})"
+                                                                                    wire:click="addItemToRow({{ $result->id }}, {{ $rowIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                                     @click="showSearch = false; searchTerm = ''"
                                                                                     style="cursor: pointer; font-size: 0.85em;">
                                                                                     <span>{{ $result->item_code }} - {{ $result->item_name }}</span>
@@ -526,7 +527,8 @@
                                                                 </div>
                                                                 <button type="button" 
                                                                     x-show="!showSearch"
-                                                                    @click="showSearch = true; $nextTick(() => { $refs.searchInput?.focus(); })"
+                                                                    @click="if(!$wire.isPosted) { showSearch = true; $nextTick(() => { $refs.searchInput?.focus(); }); }"
+                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     class="btn btn-sm btn-outline-primary"
                                                                     style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;">
                                                                     + Add Item
@@ -594,7 +596,7 @@
                                     @if(!$deliveryOrder || $deliveryOrder->status !== 'Completed')
                                         <button type="submit" class="btn btn-success me-2" @if(!$hasContent) disabled @endif>Post</button>
                                     @endif
-                                    <button type="button" class="btn btn-secondary me-2" wire:click="saveDraft" @if(!$hasContent) disabled @endif>
+                                    <button type="button" class="btn btn-secondary me-2" wire:click="saveDraft" @if(!$hasContent && !($deliveryOrder && $deliveryOrder->status === 'Completed')) disabled @endif>
                                         @if($deliveryOrder && $deliveryOrder->status === 'Completed')
                                             Restore All
                                         @else

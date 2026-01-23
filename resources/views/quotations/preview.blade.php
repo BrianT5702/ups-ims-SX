@@ -48,7 +48,7 @@
         .customer-info { display: flex; justify-content: space-between; margin-bottom: 14px; }
         .customer-info-frame { border: 1px solid #000; padding: 6px; width: 100%; font-size: 0.8em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
         .items-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; font-size: 0.85em; /* Smaller font */ }
-        .items-table th { padding: 6px 8px 4px 8px; /* Reduced padding */ text-align: left; border-bottom: 1px solid #000; border-top: 1px solid #000; font-weight: bold; text-transform: uppercase; font-size: 0.7em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
+        .items-table th { padding: 6px 8px 4px 8px; /* Reduced padding */ text-align: left; border-bottom: 1px solid #000; border-top: 1px solid #000; font-weight: bold; text-transform: uppercase; font-size: 0.8em; /* Header font */ line-height: 1.3; /* Reduced line spacing */ }
         .items-table td { padding: 4px 8px; /* Reduced padding */ text-align: left; vertical-align: top; border-bottom: none; font-size: 0.85em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
         .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 5%; text-align: center; }
         .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 60%; }
@@ -233,7 +233,7 @@
             .items-table th:nth-child(4), .items-table td:nth-child(4) { width: 12% !important; min-width: 12% !important; max-width: 12% !important; white-space: nowrap !important; }
             .items-table th:nth-child(5), .items-table td:nth-child(5) { width: 15% !important; min-width: 15% !important; max-width: 15% !important; white-space: nowrap !important; }
             .items-table th { 
-                font-size: 0.75em !important; 
+                font-size: 0.8em !important; 
                 padding: 10px 10px 6px 10px !important; 
                 white-space: nowrap !important;
                 overflow: visible !important;
@@ -271,7 +271,7 @@
         }
         .items-table { font-size: 0.85em; /* Smaller font */ }
         .items-table th { 
-            font-size: 0.7em; /* Smaller font */
+            font-size: 0.8em; /* Header font */
             line-height: 1.3;
             white-space: nowrap;
             overflow: visible;
@@ -493,7 +493,7 @@
                             <p class="gap"><strong>Date:</strong> {{ \Carbon\Carbon::parse($quotation->date)->format('d/m/Y') }}</p>
                             <p class="gap"><strong>Reference No:</strong> {{ $quotation->ref_num ?? '-' }}</p>
                             <p class="gap"><strong>Terms:</strong> {{ $quotation->customerSnapshot->term ?? $quotation->customer->term ?? 'N/A' }}</p>
-                            <p class="gap"><strong>Salesman:</strong> {{ $quotation->salesman->name ?? 'N/A' }}</p>
+                            <p class="gap"><strong>Salesman:</strong> {{ strtoupper($quotation->salesman->username ?? 'N/A') }}</p>
                         </div>
                     </div>
 

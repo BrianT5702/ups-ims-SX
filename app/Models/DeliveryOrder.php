@@ -14,6 +14,7 @@ class DeliveryOrder extends BaseModel
         'cust_id',
         'salesman_id',
         'user_id',
+        'updated_by',
         'date',
         'cust_po',
         'do_num',
@@ -48,6 +49,11 @@ class DeliveryOrder extends BaseModel
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function deliveryOrder()

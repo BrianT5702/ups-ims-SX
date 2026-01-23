@@ -52,6 +52,15 @@ class DOForm extends Component
     public array $lastValidDescriptions = [];
     public array $freeFormTextRows = []; // Store free-form text for empty rows
 
+    /**
+     * Check if the DO is posted (status is Completed)
+     * When posted, all fields should be disabled unless "Restore All" is clicked
+     */
+    public function getIsPostedProperty()
+    {
+        return $this->deliveryOrder && $this->deliveryOrder->status === 'Completed';
+    }
+
     public function mount(DeliveryOrder $deliveryOrder)
     {
 
@@ -242,7 +251,7 @@ class DOForm extends Component
 
     public function updatedItemSearchTerm()
     {
-        if (!$this->isView) {
+        if (!$this->isView && !$this->isPosted) {
             $this->searchItems();
             // reset highlight on new term
             $this->itemHighlightIndex = (count($this->itemSearchResults) > 0) ? 0 : -1;
@@ -251,6 +260,13 @@ class DOForm extends Component
 
     public function searchItems()
     {
+        // Don't allow searching if DO is posted
+        if ($this->isPosted) {
+            $this->itemSearchResults = [];
+            $this->itemHighlightIndex = -1;
+            return;
+        }
+        
         if (!empty($this->itemSearchTerm)) {
             // Show all items regardless of stock level - allow out of stock items
             $query = Item::where('item_code', 'like', '%' . $this->itemSearchTerm . '%')
@@ -278,6 +294,11 @@ class DOForm extends Component
 
     public function addHighlightedItem()
     {
+        // Don't allow adding items if DO is posted
+        if ($this->isPosted) {
+            return;
+        }
+        
         $count = count($this->itemSearchResults);
         if ($count === 0 || $this->itemHighlightIndex < 0 || $this->itemHighlightIndex >= $count) { return; }
         $item = $this->itemSearchResults[$this->itemHighlightIndex];
@@ -381,6 +402,11 @@ class DOForm extends Component
 
     public function addItemToRow($itemId, $rowIndex)
     {
+        // Don't allow adding items if DO is posted
+        if ($this->isPosted) {
+            return;
+        }
+        
         if (!$this->isView) {
             // Convert any free-form text to text-only items BEFORE adding new item
             // This preserves text entries when items are added, preventing them from being "wiped"
@@ -1135,6 +1161,7 @@ class DOForm extends Component
                 $this->deliveryOrder->total_amount = $this->total_amount;
                 $this->deliveryOrder->customer_snapshot_id = $customerSnapshot->id;
                 $this->deliveryOrder->status = $isDraft ? 'Save to Draft' : 'Completed';
+                $this->deliveryOrder->updated_by = auth()->id();
                 $this->deliveryOrder->save();
 
                 // Delete existing items

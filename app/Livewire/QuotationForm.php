@@ -400,6 +400,7 @@ class QuotationForm extends Component
                 $q->remark = $this->remark ?? null;
                 $q->total_amount = $this->total_amount;
                 $q->status = 'Sent';
+                $q->updated_by = auth()->id();
                 $q->save();
 
                 // Replace items
@@ -503,6 +504,7 @@ class QuotationForm extends Component
                 $q->total_amount = $this->total_amount;
                 $q->customer_snapshot_id = $customerSnapshot->id;
                 $q->status = $this->status;
+                $q->updated_by = auth()->id();
                 $q->save();
 
                 QuotationItem::where('quotation_id', $q->id)->delete();

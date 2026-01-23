@@ -168,7 +168,7 @@
             border-top: 1px solid #000;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 0.7em;
+            font-size: 0.8em;
             line-height: 1.3;
         }
 
@@ -705,7 +705,7 @@
                 white-space: nowrap !important;
             }
             .items-table th {
-                font-size: 0.75em !important;
+                font-size: 0.8em !important;
                 padding: 10px 10px 6px 10px !important;
                 white-space: nowrap !important;
                 overflow: visible !important;
@@ -773,7 +773,7 @@
             font-size: 0.85em;
         }
         .items-table th {
-            font-size: 0.7em;
+            font-size: 0.8em;
             line-height: 1.3;
             white-space: nowrap;
             overflow: visible;
