@@ -21,11 +21,11 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             color-adjust: exact;
-            font-family: Arial, sans-serif; /* Arial font for all elements */
+            font-family: Tahoma, Arial, sans-serif; /* Tahoma - thicker text, similar size to Arial, better letter "I" rendering */
         }
         
         body { 
-            font-family: Arial, sans-serif; /* Use Arial font */
+            font-family: Tahoma, Arial, sans-serif; /* Use Tahoma - thicker text, similar size to Arial, better letter "I" rendering */
             color: #000; 
             background-color: #fff; 
             font-size: 14px; /* Smaller base font size */
@@ -40,16 +40,16 @@
         .content { padding: 24px 20px 20px; flex: 0 0 auto; /* Don't grow */ }
         .company-info { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 6px; }
         .company-info-left { text-align: left; width: 70%; }
-        .company-info-left h2 { font-size: 1.0em; /* Smaller font */ margin-bottom: 6px; line-height: 1.2; }
+        .company-info-left h2 { font-size: calc(1.1em + 1px); /* Match DO font size */ margin-bottom: 6px; line-height: 1.2; }
         .company-info-right { text-align: right; margin-top: 0; width: 28%; min-width: 200px; }
-        .company-info-right h2 { margin-bottom: 4px; white-space: nowrap; font-size: 0.95em; /* Smaller font */ text-transform: uppercase; }
-        .company-info h2 { margin-bottom: 4px; color: #000; font-weight: bold; font-size: 1.0em; /* Smaller font */ white-space: nowrap; text-transform: uppercase; }
-        .company-info p { margin: 0; font-size: 0.75em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
+        .company-info-right h2 { margin-bottom: 4px; white-space: nowrap; font-size: calc(1.0em + 1px); /* Match DO font size */ text-transform: uppercase; }
+        .company-info h2 { margin-bottom: 4px; color: #000; font-weight: bold; font-size: calc(1.1em + 1px); /* Match DO font size */ white-space: nowrap; text-transform: uppercase; }
+        .company-info p { margin: 0; font-size: calc(0.78em + 1px); /* Match DO font size */ line-height: 1.3; /* Reduced line spacing */ }
         .customer-info { display: flex; justify-content: space-between; margin-bottom: 14px; }
-        .customer-info-frame { border: 1px solid #000; padding: 6px; width: 100%; font-size: 0.8em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
+        .customer-info-frame { border: 1px solid #000; padding: 6px; width: 100%; font-size: 1.1em; /* Match DO font size */ line-height: 1.3; /* Reduced line spacing */ }
         .items-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; font-size: 0.85em; /* Smaller font */ }
         .items-table th { padding: 6px 8px 4px 8px; /* Reduced padding */ text-align: left; border-bottom: 1px solid #000; border-top: 1px solid #000; font-weight: bold; text-transform: uppercase; font-size: 0.8em; /* Header font */ line-height: 1.3; /* Reduced line spacing */ }
-        .items-table td { padding: 4px 8px; /* Reduced padding */ text-align: left; vertical-align: top; border-bottom: none; font-size: 0.85em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
+        .items-table td { padding: 4px 8px; /* Reduced padding */ text-align: left; vertical-align: top; border-bottom: none; font-size: 1.1em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
         .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 5%; text-align: center; }
         .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 60%; }
         .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 8%; text-align: right; white-space: nowrap; }
@@ -112,7 +112,7 @@
             }
             
             body { 
-                font-family: Arial, sans-serif !important; /* Arial font */
+                font-family: Tahoma, Arial, sans-serif !important; /* Tahoma for better print quality */
                 background-color: #fff; 
                 counter-reset: page;
                 zoom: 1 !important;
@@ -121,7 +121,7 @@
                 line-height: 1.3 !important; /* Reduced line spacing */
             }
             
-            .company-info h2, .company-info-right h2 { white-space: nowrap !important; font-size: 1.0em !important; /* Smaller font */ color: #000 !important; }
+            .company-info h2, .company-info-right h2 { white-space: nowrap !important; font-size: 1.2em !important; /* Match DO print font size */ color: #000 !important; }
             .print-button, .back-button { display: none !important; }
             html, body {
                 height: auto;
@@ -277,15 +277,15 @@
             overflow: visible;
             text-overflow: unset;
         }
-        .items-table td { font-size: 0.85em; /* Smaller font */ line-height: 1.3; }
+        .items-table td { font-size: 1.1em; /* Match DO font size */ line-height: 1.3; }
 
         /* Top-right details: make black and +1px font size */
         .company-info-right { color: #000; }
-        .company-info-right h2 { color: #000; font-size: 0.95em; /* Smaller font */ }
-        .company-info-right p { color: #000; font-size: 0.75em; /* Smaller font */ }
+        .company-info-right h2 { color: #000; font-size: calc(1.0em + 1px); /* Match DO font size */ }
+        .company-info-right p { color: #000; font-size: calc(0.78em + 1px); /* Match DO font size */ }
         .company-info-right strong { text-transform: uppercase; }
         @media print {
-            .company-info-right h2 { color: #000 !important; font-size: 1.0em !important; /* Smaller font */ }
+            .company-info-right h2 { color: #000 !important; font-size: 1.2em !important; /* Match DO print font size */ }
             .company-info-right p { color: #000 !important; }
         }
 
@@ -381,7 +381,7 @@
             bottom: 0.5cm;
             right: 0.75cm;
             font-size: 0.7em;
-            font-family: Arial, sans-serif;
+            font-family: Tahoma, Arial, sans-serif;
             color: #000;
         }
 
@@ -569,7 +569,7 @@
 
                 @if(!empty($quotation->remark))
                     <div id="remark-source" style="margin: 0 0 0 5%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; position: relative; z-index: 5; background: white;">
-                        <div style="font-size: 0.85em; font-family: Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
+                        <div style="font-size: 0.95em; font-family: Tahoma, Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
                             <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
                             <div style="flex: 1;">{!! nl2br(e($quotation->remark)) !!}</div>
                         </div>

@@ -25,7 +25,7 @@
         }
 
         body {
-            font-family: Arial, sans-serif; /* Use Arial font */
+            font-family: Tahoma, Arial, sans-serif; /* Use Tahoma - thicker text, similar size to Arial, better letter "I" rendering */
             color: #000;
             background-color: #fff;
             font-size: 14px; /* Match print font-size (14px instead of 16px) */
@@ -69,7 +69,7 @@
         }
         
         .company-info-left h2 {
-            font-size: 1.0em; /* Match print font size (1.0em) instead of calc(1.1em + 1px) */
+            font-size: calc(1.1em + 1px); /* Match DO font size */
             margin-bottom: 8px;
             line-height: 1.2;
         }
@@ -84,13 +84,13 @@
         .company-info-right h2 {
             margin-bottom: 6px;
             white-space: nowrap;
-            font-size: 1.0em; /* Match print font size */
+            font-size: calc(1.0em + 1px); /* Match DO font size */
             text-transform: uppercase;
         }
 
         .company-info-right p {
             margin: 2px 0;
-            font-size: 0.8em; /* Match print - remove the +1px increase */
+            font-size: calc(0.78em + 1px); /* Match DO font size */
             line-height: 1.3; /* Explicitly set to match print */
         }
 
@@ -98,14 +98,14 @@
             margin-bottom: 6px;
             color: #000; /* Changed from #333 to black */
             font-weight: bold;
-            font-size: 1.0em; /* Match print font size instead of calc(1.1em + 1px) */
+            font-size: calc(1.1em + 1px); /* Match DO font size */
             white-space: nowrap;
             text-transform: uppercase;
         }
 
         .company-info p {
             margin: 1px 0;
-            font-size: 0.8em; /* Match print - remove the +1px increase */
+            font-size: calc(0.78em + 1px); /* Match DO font size */
             line-height: 1.3; /* Explicitly set to match print */
         }
 
@@ -143,7 +143,7 @@
             border: 1px solid #000;
             padding: 6px;
             width: 100%;
-            font-size: 0.8em;
+            font-size: 1.1em;
             line-height: 1.3; /* Already matches print */
         }
 
@@ -177,7 +177,7 @@
             text-align: left;
             vertical-align: top;
             border-bottom: none;
-            font-size: 0.85em;
+            font-size: 1.1em;
             line-height: 1.3;
         }
 
@@ -458,7 +458,7 @@
             bottom: 0.5cm;
             right: 0.75cm;
             font-size: 0.7em;
-            font-family: Arial, sans-serif;
+            font-family: Tahoma, Arial, sans-serif;
             color: #000;
         }
 
@@ -535,11 +535,11 @@
                 font-size: 14px !important;
             }
             body {
-                font-family: Arial, sans-serif !important;
+                font-family: Tahoma, Arial, sans-serif !important;
             }
             
             body {
-                font-family: Arial, sans-serif !important;
+                font-family: Tahoma, Arial, sans-serif !important;
                 background-color: #fff;
                 counter-reset: page;
                 zoom: 1 !important;
@@ -550,7 +550,7 @@
             
             .company-info h2, .company-info-right h2 {
                 white-space: nowrap !important;
-                font-size: 1.0em !important;
+                font-size: 1.2em !important;
                 color: #000 !important;
                 line-height: 1.2 !important; /* Match screen line-height */
             }
@@ -780,7 +780,7 @@
             text-overflow: unset;
         }
         .items-table td {
-            font-size: 0.85em;
+            font-size: 1.1em;
             line-height: 1.3;
         }
 
@@ -898,7 +898,7 @@
 
             @if(!empty($purchaseOrder->remark))
                 <div id="remark-source" style="margin: 0 0 0 5%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; position: relative; z-index: 5; background: white;">
-                    <div style="font-size: 0.85em; font-family: Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
+                    <div style="font-size: 0.95em; font-family: Tahoma, Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
                         <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
                         <div style="flex: 1;">{!! nl2br(e($purchaseOrder->remark)) !!}</div>
                     </div>

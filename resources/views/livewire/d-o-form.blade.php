@@ -241,7 +241,11 @@
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     style="width: 100%;">
                                                                 <small class="text-muted" style="font-size: 0.75em;">
-                                                                    {{ $item['item']['um'] ?? 'UNITS' }}
+                                                                    @php
+                                                                        $unit = $item['item']['um'] ?? 'UNITS';
+                                                                        $unit = ($unit === 'UNIT') ? 'UNITS' : $unit;
+                                                                    @endphp
+                                                                    {{ $unit }}
                                                                 </small>
                                                             </div>
                                                         @else
@@ -254,7 +258,11 @@
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     style="width: 100%;">
                                                                 <small class="text-muted" style="font-size: 0.75em;">
-                                                                    {{ $item['item']['um'] ?? 'UNITS' }}
+                                                                    @php
+                                                                        $unit = $item['item']['um'] ?? 'UNITS';
+                                                                        $unit = ($unit === 'UNIT') ? 'UNITS' : $unit;
+                                                                    @endphp
+                                                                    {{ $unit }}
                                                                 </small>
                                                                 @error('stackedItems.'.$itemIndex.'.item_qty')
                                                                     <div class="text-danger small">!</div>

@@ -34,7 +34,7 @@
         }
 
         body {
-            font-family: Arial, sans-serif; /* Use Arial font */
+            font-family: Tahoma, Arial, sans-serif; /* Use Tahoma - thicker text, similar size to Arial, better letter "I" rendering */
             color: #000;
             background-color: #fff;
             min-height: 100vh;
@@ -234,11 +234,11 @@
         }
 
         .items-table td {
-            padding: 4px 8px;
+            padding:3.7px 8px;
             text-align: left;
             border-bottom: none;
-            font-size: 0.85em;
-            line-height: 1.3;
+            font-size: 0.95em;
+            line-height: 1.2;
             vertical-align: top;
             word-wrap: break-word;
             word-break: break-word;
@@ -636,7 +636,7 @@
             }
             
             body {
-                font-family: Arial, sans-serif !important;
+                font-family: Tahoma, Arial, sans-serif !important;
                 background-color: #fff;
                 counter-reset: page;
                 print-color-adjust: exact;
@@ -685,9 +685,9 @@
 
             /* Ensure table cells match preview exactly - critical for 24 rows */
             .items-table td {
-                padding: 3.95px 8px !important;
-                font-size: 0.85em !important;
-                line-height: 1.3 !important;
+                padding: 3.7px 8px !important;
+                font-size: 0.95em !important;
+                line-height: 1.2 !important;
             }
 
             .items-table th {
@@ -921,7 +921,11 @@
                                                     &nbsp;
                                                 @endif
                                             @else
-                                                {{ $item->qty }} {{ $item->item->um ?? 'UNITS' }}
+                                                @php
+                                                    $unit = $item->item->um ?? 'UNITS';
+                                                    $unit = ($unit === 'UNIT') ? 'UNITS' : $unit;
+                                                @endphp
+                                                {{ $item->qty }} {{ $unit }}
                                             @endif
                                         </td>
                                         <td>
@@ -961,7 +965,7 @@
                         <div style="margin: 0;">
                             <div id="remark-wrapper" style="margin-left: calc(var(--vline-position) + var(--col-align-offset)); padding-left: 8px; padding-top: 10px;">
                                 <div style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                    <div style="font-size: 0.85em; font-family: Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
+                                    <div style="font-size: 0.95em; font-family: Tahoma, Arial, sans-serif; line-height: 1.3; color: #000; display: flex;">
                                         <span style="font-weight: bold; min-width: 60px; text-transform: uppercase;">Remark:&nbsp;&nbsp;&nbsp;</span>
                                         <div style="flex: 1;">{!! nl2br(e($deliveryOrder->remark)) !!}</div>
                                     </div>

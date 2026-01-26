@@ -319,6 +319,10 @@ class ItemImport implements ToModel, WithStartRow
             return $default;
         }
         $value = is_string($value) ? trim($value) : (is_numeric($value) ? (string)$value : '');
+        // Ensure UTF-8 encoding for proper character handling (fixes degree symbols, etc.)
+        if ($value !== '' && is_string($value)) {
+            $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+        }
         return $value === '' ? $default : $value;
     }
 

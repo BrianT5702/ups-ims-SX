@@ -15,7 +15,7 @@ if not exist "%MYSQL_PATH%" (
 
 echo MySQL found!
 echo.
-echo Creating databases: ups, urs, ucs
+echo Creating original databases: ups, urs, ucs
 echo.
 
 "%MYSQL_PATH%" -u root -e "CREATE DATABASE IF NOT EXISTS ups CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -40,8 +40,33 @@ if %ERRORLEVEL% EQU 0 (
 )
 
 echo.
+echo Creating Department 2 databases: ups2, urs2, ucs2
+echo.
+
+"%MYSQL_PATH%" -u root -e "CREATE DATABASE IF NOT EXISTS ups2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+if %ERRORLEVEL% EQU 0 (
+    echo [OK] Database 'ups2' created
+) else (
+    echo [ERROR] Failed to create 'ups2'
+)
+
+"%MYSQL_PATH%" -u root -e "CREATE DATABASE IF NOT EXISTS urs2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+if %ERRORLEVEL% EQU 0 (
+    echo [OK] Database 'urs2' created
+) else (
+    echo [ERROR] Failed to create 'urs2'
+)
+
+"%MYSQL_PATH%" -u root -e "CREATE DATABASE IF NOT EXISTS ucs2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+if %ERRORLEVEL% EQU 0 (
+    echo [OK] Database 'ucs2' created
+) else (
+    echo [ERROR] Failed to create 'ucs2'
+)
+
+echo.
 echo Verifying databases...
-"%MYSQL_PATH%" -u root -e "SHOW DATABASES LIKE 'ups'; SHOW DATABASES LIKE 'urs'; SHOW DATABASES LIKE 'ucs';"
+"%MYSQL_PATH%" -u root -e "SHOW DATABASES LIKE 'ups%'; SHOW DATABASES LIKE 'urs%'; SHOW DATABASES LIKE 'ucs%';"
 
 echo.
 echo ========================================
@@ -49,9 +74,9 @@ echo Done! Databases should be created.
 echo ========================================
 echo.
 echo Next steps:
-echo 1. Run migrations: php artisan migrate --database=ups
-echo 2. Run seeders: php artisan db:seed --database=ups
-echo    (Repeat for urs and ucs)
+echo 1. Run migrations: php artisan migrate --database=ups2
+echo 2. Run seeders: php artisan db:seed --database=ups2
+echo    (Repeat for urs2 and ucs2)
 echo.
 pause
 

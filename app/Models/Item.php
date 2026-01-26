@@ -100,4 +100,34 @@ class Item extends BaseModel
     {
         return $this->hasMany(PurchaseOrderItem::class);
     }
+
+    /**
+     * Fix encoding issues - replace "?" with "°" when it appears after numbers (common degree symbol issue)
+     */
+    private function fixDegreeSymbol($text)
+    {
+        if (empty($text)) {
+            return $text;
+        }
+        // Replace patterns like "90?" with "90°" (number followed by question mark)
+        return preg_replace('/(\d+)\?/', '$1°', $text);
+    }
+
+    /**
+     * Accessor to fix degree symbols in item_name
+     */
+    public function getItemNameAttribute($value)
+    {
+        $rawValue = $this->attributes['item_name'] ?? $value;
+        return $this->fixDegreeSymbol($rawValue);
+    }
+
+    /**
+     * Accessor to fix degree symbols in details
+     */
+    public function getDetailsAttribute($value)
+    {
+        $rawValue = $this->attributes['details'] ?? $value;
+        return $this->fixDegreeSymbol($rawValue);
+    }
 }
