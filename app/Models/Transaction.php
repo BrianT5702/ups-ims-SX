@@ -42,11 +42,11 @@ class Transaction extends BaseModel
 
     public function purchaseOrder()
     {
-        return $this->belongsTo(PurchaseOrder::class, 'source_doc_num');
+        return $this->belongsTo(PurchaseOrder::class, 'source_doc_num', 'po_num');
     }
 
     public function deliveryOrder()
     {
-        return $this->belongsTo(DeliveryOrder::class, 'source_doc_num');
+        return $this->belongsTo(DeliveryOrder::class, 'source_doc_num', 'do_num');
     }
 }

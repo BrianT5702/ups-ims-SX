@@ -67,7 +67,7 @@ class ItemForm extends Component
     #[Validate('required', message: 'Item name is required')]
     public $item_name = '';
 
-    #[Validate('required|integer|min:0', message: 'Quantity must be a non-negative integer')]
+    #[Validate('required|integer', message: 'Quantity must be an integer')]
     public $qty = 0;
 
     #[Validate('required|numeric|min:0', message: 'Customer price must be a non-negative number')]
@@ -173,6 +173,7 @@ class ItemForm extends Component
             $this->item = $item;
             $this->item_code = $item->item_code;
             $this->item_name = $item->item_name;
+            $this->qty = $item->qty; // Load actual item quantity (allows negative values)
 
             $this->cust_price = $item->cust_price;
             $this->cost = $item->cost;

@@ -73,7 +73,7 @@
                                 <div class="form-group mb-2">
                                     <label for="qty" class="form-label">Quantity <span class="text-danger">*</span></label>
                                     @if($item)
-                                        <input type="number" value="{{ array_sum(array_column($batchTrackings, 'quantity')) }}" class="form-control form-control-sm rounded" disabled>
+                                        <input type="number" value="{{ $qty }}" class="form-control form-control-sm rounded" disabled>
                                     @else
                                         <input type="number" wire:model.live="initialQuantity" min="0" class="form-control form-control-sm rounded">
                                     @endif

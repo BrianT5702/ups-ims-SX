@@ -72,7 +72,7 @@ class TransactionLog extends Component
 
     public function render()
     {
-        $query = Transaction::with('user', 'item')
+        $query = Transaction::with('user', 'item', 'deliveryOrder.customerSnapshot', 'deliveryOrder.customer', 'purchaseOrder.supplierSnapshot', 'purchaseOrder.supplier')
             ->when($this->filterItemId, function ($q) {
                 return $q->where('item_id', $this->filterItemId);
             })
