@@ -100,9 +100,10 @@
                                     white-space: nowrap;
                                     overflow: visible;
                                     text-overflow: clip;
-                                    padding: 4px 8px; /* Reduced padding for smaller row spacing */
+                                    padding: 3px 6px; /* Slightly smaller padding for tighter rows */
                                     vertical-align: middle;
                                     border: 1px solid #dee2e6; /* Clearer border lines */
+                                    font-size: 0.9rem; /* Smaller font size for DO list */
                                 }
                                 
                                 /* Table borders - clearer lines */
@@ -146,15 +147,15 @@
                                 /* Column widths - fixed minimum widths to prevent overlap */
                                 .table.do-list th:nth-child(1), 
                                 .table.do-list td:nth-child(1) { 
-                                    min-width: 100px;
-                                    width: 100px;
-                                } /* Date */
-                                
-                                .table.do-list th:nth-child(2), 
-                                .table.do-list td:nth-child(2) { 
                                     min-width: 130px;
                                     width: 130px;
                                 } /* DO Number */
+                                
+                                .table.do-list th:nth-child(2), 
+                                .table.do-list td:nth-child(2) { 
+                                    min-width: 90px;
+                                    width: 90px;
+                                } /* Date */
                                 
                                 .table.do-list th:nth-child(3), 
                                 .table.do-list td:nth-child(3) { 
@@ -182,22 +183,22 @@
                                 
                                 .table.do-list th:nth-child(7), 
                                 .table.do-list td:nth-child(7) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Created by */
+                                    min-width: 90px;
+                                    width: 90px;
+                                    text-align: center;
+                                } /* Print */
                                 
                                 .table.do-list th:nth-child(8), 
                                 .table.do-list td:nth-child(8) { 
                                     min-width: 120px;
                                     width: 120px;
-                                } /* Last edited by */
+                                } /* Created by */
                                 
                                 .table.do-list th:nth-child(9), 
                                 .table.do-list td:nth-child(9) { 
-                                    min-width: 80px;
-                                    width: 80px;
-                                    text-align: center;
-                                } /* Printed */
+                                    min-width: 120px;
+                                    width: 120px;
+                                } /* Last edited by */
                                 
                                 /* Ensure links don't cause wrapping */
                                 .table.do-list td a {
@@ -216,15 +217,18 @@
                                     align-items: center;
                                 }
 
-                                /* Print status colors */
-                                .print-status {
-                                    font-weight: 500;
+                                /* Status and print styles */
+                                .do-status {
+                                    font-weight: 600;
                                 }
-                                .print-status.printed-yes {
-                                    color: #0d6efd; /* Bootstrap primary blue */
+                                .do-status.posted {
+                                    color: #198754; /* Bootstrap success green */
                                 }
-                                .print-status.printed-no {
+                                .do-status.unposted {
                                     color: #dc3545; /* Bootstrap danger red */
+                                }
+                                .do-print-flag {
+                                    font-weight: 500;
                                 }
                                 
                                 /* Fixed pagination container - separate from scrollable table */
@@ -244,34 +248,42 @@
                                 <table class="table table-hover do-list">
                                     <thead>
                                         <tr>
-                                            <th>Date</th>
                                             <th>DO Number</th>
+                                            <th>Date</th>
                                             <th>Customer Name</th>
                                             <th>Amount</th>
                                             <th>Salesman</th>
                                             <th>Status</th>
+                                            <th>Print</th>
                                             <th>Created by</th>
                                             <th>Last edited by</th>
-                                            <th>Printed</th>
                                         </tr>
                                     </thead>
 
                                     <tbody>
                                         @forelse($delivery_orders as $delivery_order)
                                             <tr>
-                                                <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}"> {{ $delivery_order->created_at->format('d/m/Y') }}</a></td>
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}"> {{ $delivery_order->do_num }}</a></td>
+                                                <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}"> {{ $delivery_order->created_at->format('d/m/Y') }}</a></td>
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->customerSnapshot->cust_name ?? $delivery_order->customer->cust_name }}</a></td>
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->customerSnapshot->currency ?? $delivery_order->customer->currency ?? 'RM' }} {{ number_format($delivery_order->total_amount ?? 0, 2) }}</a></td>
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->salesman ? strtoupper($delivery_order->salesman->username) : '-' }}</a></td>
-                                                <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->status ?? 'Completed' }}</a></td>
-                                                <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->user->name ?? '-' }}</a></td>
-                                                <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->updatedBy->name ?? ($delivery_order->user->name ?? '-') }}</a></td>
-                                                <td class="text-center">
-                                                    <span class="print-status {{ $delivery_order->printed === 'Y' ? 'printed-yes' : 'printed-no' }}">
-                                                        {{ $delivery_order->printed }}
+                                                <td>
+                                                    @php
+                                                        // Treat Completed as Post, everything else as Unpost
+                                                        $isPosted = ($delivery_order->status ?? 'Completed') === 'Completed';
+                                                    @endphp
+                                                    <span class="do-status {{ $isPosted ? 'posted' : 'unposted' }}">
+                                                        {{ $isPosted ? 'Post' : 'Unpost' }}
                                                     </span>
                                                 </td>
+                                                <td class="text-center">
+                                                    <span class="do-print-flag">
+                                                        {{ $delivery_order->printed === 'Y' ? 'Y' : 'N' }}
+                                                    </span>
+                                                </td>
+                                                <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->user->name ?? '-' }}</a></td>
+                                                <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->updatedBy->name ?? ($delivery_order->user->name ?? '-') }}</a></td>
                                                 
                                             </tr>
                                         @empty
@@ -284,8 +296,20 @@
                             </div>
                             
                             <!-- Fixed pagination area - separate from scrollable table -->
-                            <div class="do-list-pagination">
-                                {{ $delivery_orders->links() }}
+                            <div class="do-list-pagination d-flex justify-content-between align-items-center flex-wrap">
+                                <div class="small text-muted">
+                                    @php
+                                        $from = $delivery_orders->firstItem() ?? 0;
+                                        $to = $delivery_orders->lastItem() ?? 0;
+                                        $total = $delivery_orders->total();
+                                    @endphp
+                                    Showing {{ $from }} to {{ $to }} of {{ $total }} results
+                                </div>
+                                <div>
+                                    @if ($delivery_orders->hasPages())
+                                        {{ $delivery_orders->links() }}
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>

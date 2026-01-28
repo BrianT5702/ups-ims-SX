@@ -93,7 +93,7 @@ class DOList extends Component
             });
     
         $delivery_orders = $query->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate(15);
 
         $filteredCustomer = $this->filterCustomerId
         ? \App\Models\Customer::findOrFail($this->filterCustomerId) 

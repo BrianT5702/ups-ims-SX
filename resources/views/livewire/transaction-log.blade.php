@@ -1,6 +1,6 @@
 <div>
     <div class="container my-3">
-        <div class="row">
+    <div class="row">
             <div class="col-md-11 m-auto">
             <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -265,24 +265,24 @@
                         <!-- Scrollable table area -->
                         <div class="table-responsive mt-3 transaction-log-scrollable">
                             <table class="table table-hover transaction-log-table">
-                                <thead>
-                                    <tr align="center">
-                                        <th>#</th>
+                            <thead>
+                                <tr align="center">
+                                    <th>#</th>
                                         <th>Date</th>
-                                        <th>Source Type</th>
-                                        <th>Source Doc No</th>
-                                        <th>Item Code</th>
-                                        <th>Item Name</th>
+                                    <th>Source Type</th>
+                                    <th>Source Doc No</th>
+                                    <th>Item Code</th>
+                                    <th>Item Name</th>
                                         <th>Customer Name</th>
                                         <th>In</th>
                                         <th>Out</th>
                                         <th>Balance</th>
-                                        <th>Batch Number</th>
-                                        <th>User</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse($transactions as $transaction)
+                                    <th>Batch Number</th>
+                                    <th>User</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($transactions as $transaction)
                                         @php
                                             // Get customer/supplier name based on source type
                                             $customerName = '-';
@@ -323,33 +323,42 @@
                                             } elseif ($transaction->transaction_type === 'Stock Out') {
                                                 $outQty = abs($transaction->transaction_qty);
                                             }
+
+                                            // Batch number display:
+                                            // - For PO / stock-in batches, show the actual batch number
+                                            // - For the special initial import batch 'BATCH-00000000-000', hide it (show '-')
+                                            //   because it's just a placeholder used during Excel import
+                                            $batchNumber = $transaction->batch->batch_num ?? '-';
+                                            if ($batchNumber === 'BATCH-00000000-000') {
+                                                $batchNumber = '-';
+                                            }
                                         @endphp
                                         <tr align="center" style="cursor: pointer;">
-                                            <td>{{ $loop->iteration }}</td>
+                                        <td>{{ $loop->iteration }}</td>
                                             <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
-                                            <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_type }}</td>
-                                            <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
-                                            <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
-                                            <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
+                                        <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_type }}</td>
+                                        <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
+                                        <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
+                                        <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
                                             <td>{{ $customerName }}</td>
                                             <td>{{ $inQty }}</td>
                                             <td>{{ $outQty }}</td>
-                                            <td>{{ $transaction->qty_after }}</td>
-                                            <td>{{ $transaction->batch->batch_num ?? '-' }}</td>
-                                            <td>{{ $transaction->user->name }}</td>
-                                        </tr>
-                                    @empty
-                                        <tr>
+                                        <td>{{ $transaction->qty_after }}</td>
+                                            <td>{{ $batchNumber }}</td>
+                                        <td>{{ $transaction->user->name }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
                                             <td colspan="12" class="text-center">No transactions found.</td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                         </div>
                         
                         <!-- Fixed pagination area - separate from scrollable table -->
                         <div class="transaction-log-pagination">
-                            {{ $transactions->links() }}
+                        {{ $transactions->links() }}
                         </div>
                     </div>
                 </div>
