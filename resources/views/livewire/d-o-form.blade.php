@@ -506,13 +506,13 @@
                                                                         @keydown.escape="showSearch = false; searchTerm = ''; showResults = false"
                                                                         @keydown.arrow-down.prevent="highlightIndex = Math.min(highlightIndex + 1, $wire.itemSearchResults.length - 1)"
                                                                         @keydown.arrow-up.prevent="highlightIndex = Math.max(highlightIndex - 1, -1)"
-                                                                        @keydown.enter.prevent="if(highlightIndex >= 0 && $wire.itemSearchResults[highlightIndex] && !$wire.isPosted) { $wire.call('addItemToRow', $wire.itemSearchResults[highlightIndex].id, {{ $rowIndex }}); searchTerm = ''; showResults = false; showSearch = false; }"
-                                                                        @input="if(!$wire.isPosted) { $wire.set('itemSearchTerm', searchTerm); $wire.call('searchItems'); if(searchTerm.length > 0) showResults = true; }"
-                                                                        @focus="if($wire.itemSearchResults.length > 0 && !$wire.isPosted) showResults = true"
+                                                                        @keydown.enter.prevent="if(highlightIndex >= 0 && $wire.itemSearchResults[highlightIndex]) { $wire.call('addItemToRow', $wire.itemSearchResults[highlightIndex].id, {{ $rowIndex }}); searchTerm = ''; showResults = false; showSearch = false; }"
+                                                                        @input="$wire.set('itemSearchTerm', searchTerm); $wire.call('searchItems'); if(searchTerm.length > 0) showResults = true"
+                                                                        @focus="if($wire.itemSearchResults.length > 0) showResults = true"
                                                                         @blur="setTimeout(() => showResults = false, 200)"
                                                                         style="font-size: 0.85em; width: 100%;">
                                                                     @if(count($itemSearchResults) > 0 && !$this->isPosted)
-                                                                        <ul x-show="showResults && searchTerm.length > 0 && !$wire.isPosted" 
+                                                                        <ul x-show="showResults && searchTerm.length > 0" 
                                                                             class="list-group position-absolute w-100" 
                                                                             style="z-index: 1000; max-height: 200px; overflow-y: auto; margin-top: 2px;"
                                                                             x-cloak>
@@ -535,7 +535,7 @@
                                                                 </div>
                                                                 <button type="button" 
                                                                     x-show="!showSearch"
-                                                                    @click="if(!$wire.isPosted) { showSearch = true; $nextTick(() => { $refs.searchInput?.focus(); }); }"
+                                                                    @click="showSearch = true; $nextTick(() => { $refs.searchInput?.focus(); })"
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     class="btn btn-sm btn-outline-primary"
                                                                     style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;">
