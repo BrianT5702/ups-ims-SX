@@ -103,7 +103,7 @@ class POList extends Component
             ->where('po_num', '!=', 'PO0000000000');
     
         $purchase_orders = $query->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate(15);
 
         $filteredSupplier = $this->filterSupplierId
         ? \App\Models\Supplier::findOrFail($this->filterSupplierId) 

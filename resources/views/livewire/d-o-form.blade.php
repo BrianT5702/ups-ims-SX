@@ -106,7 +106,7 @@
 
                             <div class="do-items-table mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="mb-0">Delivery Order Items (Max 23 rows)</h6>
+                                    <h6 class="mb-0">Delivery Order Items (Max 25 rows)</h6>
                                     @php
                                         // Calculate current row count
                                         $currentRowCount = 0;
@@ -137,10 +137,10 @@
                                                 }
                                             }
                                         }
-                                        $remainingRows = 23 - $currentRowCount;
+                                        $remainingRows = 25 - $currentRowCount;
                                     @endphp
                                     <small class="text-muted">
-                                        Used: <strong>{{ $currentRowCount }}</strong> / 23 rows | 
+                                        Used: <strong>{{ $currentRowCount }}</strong> / 25 rows | 
                                         Remaining: <strong>{{ $remainingRows }}</strong> rows
                                     </small>
                                 </div>
@@ -156,7 +156,7 @@
                                     </thead>
                                     <tbody>
                                         @php
-                                            // Always show exactly 23 rows (items stay in absolute positions)
+                                            // Always show exactly 25 rows (items stay in absolute positions)
                                             // Calculate total used rows for validation purposes
                                             $totalUsedRows = 0;
                                             foreach ($stackedItems as $item) {
@@ -195,33 +195,33 @@
                                             foreach ($stackedItems as $idx => $item) {
                                                 // Both text-only and regular items can have original_row_index
                                                 if (isset($item['original_row_index']) && $item['original_row_index'] !== null) {
-                                                    // Item has stored row position: use it (but skip row 23 - it's hidden)
+                                                    // Item has stored row position: use it (but skip row 25 - it's for NOTES)
                                                     $originalRow = $item['original_row_index'];
-                                                    if ($originalRow < 23) {
+                                                    if ($originalRow < 25) {
                                                         $rowToItemMap[$originalRow] = $idx;
                                                     } else {
-                                                        // Item is at row 23 or beyond - reassign to available row 0-22
-                                                        while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 23) {
+                                                        // Item is at row 25 or beyond - reassign to available row 0-24
+                                                        while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 25) {
                                                             $regularItemIndex++;
                                                         }
-                                                        if ($regularItemIndex < 23) {
+                                                        if ($regularItemIndex < 25) {
                                                             $rowToItemMap[$regularItemIndex] = $idx;
                                                             $regularItemIndex++;
                                                         }
                                                     }
                                                 } else {
                                                     // Item doesn't have row position: find first available row
-                                                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 23) {
+                                                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 25) {
                                                         $regularItemIndex++;
                                                     }
-                                                    if ($regularItemIndex < 23) {
+                                                    if ($regularItemIndex < 25) {
                                                         $rowToItemMap[$regularItemIndex] = $idx;
                                                         $regularItemIndex++;
                                                     }
                                                 }
                                             }
                                         @endphp
-                                        @for($rowIndex = 0; $rowIndex < 23; $rowIndex++)
+                                        @for($rowIndex = 0; $rowIndex < 25; $rowIndex++)
                                             @php
                                                 // Map row index to item index (preserve absolute row positions)
                                                 $itemIndex = $rowToItemMap[$rowIndex] ?? null;
@@ -430,7 +430,7 @@
                                                                         style="font-size: 0.85em; resize: vertical;"></textarea>
                                                                     <div class="d-flex justify-content-between align-items-center mt-2">
                                                                         <small class="text-muted" style="font-size: 0.75em;">
-                                                                            Each line counts as 1 row. Max 23 rows total.
+                                                                            Each line counts as 1 row. Max 25 rows total.
                                                                         </small>
                                                                         <button type="button"
                                                                             wire:click="saveDescriptionAndValidate({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
@@ -553,7 +553,7 @@
                                             </td>
                                             </tr>
                                         @endfor
-                                        {{-- Hidden row 23 border - only shown in preview/print, hidden in form --}}
+                                        {{-- Hidden row 25 border - only shown in preview/print, hidden in form --}}
                                         <tr class="item-row" style="display: none;">
                                             <td style="width: 70px; vertical-align: top; padding: 4px 8px;">
                                                 &nbsp;

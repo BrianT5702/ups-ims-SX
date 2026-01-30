@@ -4,49 +4,193 @@
     <meta charset="utf-8">
     <title>Stock Listing</title>
     <style>
-        body { font-family: Arial; font-size: 8px; margin: 8px; }
-        .header { margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 3px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #000; padding: 3px 4px; font-size: 10px; }
-        th { background-color: #f0f0f0; font-weight: bold; text-align: center; }
-        .gh { background-color: #e0e0e0; font-weight: bold; }
-        .n { text-align: right; }
-        .q { text-align: center; }
+        @page {
+            margin: 0.75cm;
+            size: A4 portrait;
+        }
+        
+        body { 
+            font-family: Arial, sans-serif; 
+            font-size: 10px;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            margin-bottom: 7px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 4px;
+        }
+        
+        .company-name {
+            font-weight: bold;
+            font-size: 10px;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+        
+        .report-title {
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            margin: 4px 0;
+        }
+        
+        .date-range {
+            text-align: center;
+            font-size: 10px;
+            margin-bottom: 5px;
+        }
+        
+        table { 
+            width: 100%; 
+            max-width: 100%;
+            border-collapse: collapse; 
+            margin-top: 8px;
+            margin-bottom: 0;
+            font-size: 12px;
+            page-break-inside: auto;
+            table-layout: fixed;
+        }
+        
+        thead {
+            display: table-header-group;
+        }
+        
+        tbody {
+            display: table-row-group;
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        
+        tbody tr {
+            height: auto;
+            margin: 0;
+            padding: 0;
+            page-break-inside: avoid;
+        }
+        
+        tbody tr:last-child {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        
+        tbody tr:last-child td {
+            border-bottom: 1px solid #000;
+        }
+        
+        th, td { 
+            border: 1px solid #000; 
+            padding: 3px 4px; 
+            text-align: left;
+            word-wrap: break-word;
+            overflow: hidden;
+            max-width: 0;
+        }
+        
+        td {
+            font-size: 8px;
+        }
+        
+        th { 
+            background-color: #f0f0f0; 
+            font-weight: bold;
+            text-align: center;
+            font-size: 9px;
+        }
+        
+        .gh { 
+            background-color: #e0e0e0; 
+            font-weight: bold; 
+        }
+        
+        .n { 
+            text-align: right; 
+        }
+        
+        .q { 
+            text-align: center; 
+        }
+        
+        /* Column width classes */
+        .col-code {
+            width: 20%;
+        }
+        
+        .col-desc {
+            width: 36%;
+        }
+        
+        .col-qty {
+            width: 4%;
+        }
+        
+        .col-cost {
+            width: 7.5%;
+        }
+        
+        .col-cash {
+            width: 7.5%;
+        }
+        
+        .col-term {
+            width: 7.5%;
+        }
+        
+        .col-cust {
+            width: 7.5%;
+        }
+        
+        .col-amount {
+            width: 10%;
+        }
     </style>
 </head>
 <body>
-    <div style="margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 3px;">
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
-            <tr>
-                <td style="text-align: left; font-weight: bold; font-size: 13px; padding: 2px; border: none;">{{ $companyProfile->company_name ?? 'UNITED REFRIGERATION SYSTEM (M) SDN BHD' }}</td>
-                <td style="text-align: right; font-size: 11px; padding: 2px; border: none;">DATE : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y') }}<br>TIME : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('H:i:s') }}</td>
-            </tr>
-        </table>
-        <div style="text-align: center; font-weight: bold; font-size: 16px; margin-top: 4px;">STOCK LISTING</div>
+    @php
+        $itemsCollection = is_array($items) ? collect($items) : $items;
+        
+        // Calculate grand total if needed
+        $grandTotal = 0;
+        if (isset($showTotals) && $showTotals) {
+            foreach ($itemsCollection as $item) {
+                $qty = $item->qty ?? 0;
+                $cost = $item->cost ?? 0;
+                $grandTotal += ($qty * $cost);
+            }
+        }
+    @endphp
+    
+    <div class="header">
+        <div class="company-name">{{ $companyProfile->company_name ?? 'UNITED REFRIGERATION SYSTEM (M) SDN BHD' }}</div>
+        <div class="report-title">STOCK LISTING</div>
+        <div class="date-range">
+            DATE : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y') }} | TIME : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('H:i:s') }}
+        </div>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>Stock Code</th>
-                <th>Stock Description</th>
+                <th class="col-code">Stock Code</th>
+                <th class="col-desc">Stock Description</th>
                 @if(isset($columns['qty']))
-                <th>Quantity</th>
+                <th class="col-qty">Qty</th>
                 @endif
                 @if(isset($columns['cost']))
-                <th>Cost Price</th>
+                <th class="col-cost">Cost</th>
                 @endif
                 @if(isset($columns['cash_price']))
-                <th>Cash Price</th>
+                <th class="col-cash">Cash</th>
                 @endif
                 @if(isset($columns['term_price']))
-                <th>Term Price</th>
+                <th class="col-term">Term</th>
                 @endif
                 @if(isset($columns['cust_price']))
-                <th>Customer</th>
+                <th class="col-cust">Cust</th>
                 @endif
                 @if(isset($showTotals) && $showTotals)
-                <th>Amount</th>
+                <th class="col-amount">Amount</th>
                 @endif
             </tr>
         </thead>
@@ -60,11 +204,11 @@
                     if (isset($showTotals) && $showTotals) {
                         $colCount++; // Add Amount column
                     }
-                    $itemsArray = is_array($items) ? array_values($items) : $items->values()->all();
+                    $itemsArray = is_array($items) ? array_values($items) : $itemsCollection->values()->all();
                     $currentGroupKey = '';
                     $groupSubtotal = 0;
                 @endphp
-                @foreach($items as $index => $item)
+                @foreach($itemsCollection as $index => $item)
                     @php
                         $groupName = trim($item->group_name ?? '');
                         $brandName = trim($item->family_name ?? '');
@@ -138,25 +282,25 @@
                     @endphp
                     
                     <tr>
-                        <td>{{ $item->item_code }}</td>
-                        <td>{{ $item->item_name }}</td>
+                        <td class="col-code">{{ $item->item_code }}</td>
+                        <td class="col-desc">{{ $item->item_name }}</td>
                         @if(isset($columns['qty']))
-                        <td class="q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
+                        <td class="col-qty q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
                         @endif
                         @if(isset($columns['cost']))
-                        <td class="n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>
+                        <td class="col-cost n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>
                         @endif
                         @if(isset($columns['cash_price']))
-                        <td class="n">{{ $item->cash_price ? number_format($item->cash_price, 2) : '' }}</td>
+                        <td class="col-cash n">{{ $item->cash_price ? number_format($item->cash_price, 2) : '' }}</td>
                         @endif
                         @if(isset($columns['term_price']))
-                        <td class="n">{{ $item->term_price ? number_format($item->term_price, 2) : '' }}</td>
+                        <td class="col-term n">{{ $item->term_price ? number_format($item->term_price, 2) : '' }}</td>
                         @endif
                         @if(isset($columns['cust_price']))
-                        <td class="n">{{ $item->cust_price ? number_format($item->cust_price, 2) : '' }}</td>
+                        <td class="col-cust n">{{ $item->cust_price ? number_format($item->cust_price, 2) : '' }}</td>
                         @endif
                         @if(isset($showTotals) && $showTotals)
-                        <td class="n">{{ number_format($amount, 2) }}</td>
+                        <td class="col-amount n">{{ number_format($amount, 2) }}</td>
                         @endif
                     </tr>
                     
@@ -179,35 +323,35 @@
                     @endif
                 @endforeach
             @else
-                @foreach($items as $item)
+                @foreach($itemsCollection as $item)
                 @php
-                    $subtotal = 0;
+                    $amount = 0;
                     if (isset($showTotals) && $showTotals) {
                         $qty = $item->qty ?? 0;
                         $cost = $item->cost ?? 0;
-                        $subtotal = $qty * $cost;
+                        $amount = $qty * $cost;
                     }
                 @endphp
                 <tr>
-                    <td>{{ $item->item_code }}</td>
-                    <td>{{ $item->item_name }}</td>
+                    <td class="col-code">{{ $item->item_code }}</td>
+                    <td class="col-desc">{{ $item->item_name }}</td>
                     @if(isset($columns['qty']))
-                    <td class="q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
+                    <td class="col-qty q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
                     @endif
                     @if(isset($columns['cost']))
-                    <td class="n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>
+                    <td class="col-cost n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>
                     @endif
                     @if(isset($columns['cash_price']))
-                    <td class="n">{{ $item->cash_price ? number_format($item->cash_price, 2) : '' }}</td>
+                    <td class="col-cash n">{{ $item->cash_price ? number_format($item->cash_price, 2) : '' }}</td>
                     @endif
                     @if(isset($columns['term_price']))
-                    <td class="n">{{ $item->term_price ? number_format($item->term_price, 2) : '' }}</td>
+                    <td class="col-term n">{{ $item->term_price ? number_format($item->term_price, 2) : '' }}</td>
                     @endif
                     @if(isset($columns['cust_price']))
-                    <td class="n">{{ $item->cust_price ? number_format($item->cust_price, 2) : '' }}</td>
+                    <td class="col-cust n">{{ $item->cust_price ? number_format($item->cust_price, 2) : '' }}</td>
                     @endif
                     @if(isset($showTotals) && $showTotals)
-                    <td class="n">{{ number_format($amount, 2) }}</td>
+                    <td class="col-amount n">{{ number_format($amount, 2) }}</td>
                     @endif
                 </tr>
                 @endforeach
@@ -229,5 +373,16 @@
             @endif
         </tbody>
     </table>
+    
+    <script type="text/php">
+        if (isset($pdf)) {
+            $font = $fontMetrics->getFont("Arial");
+            $size = 8;
+            $pageText = "Page {PAGE_NUM} of {PAGE_COUNT}";
+            $y = $pdf->get_height() - 20;
+            $x = $pdf->get_width() - 80;
+            $pdf->page_text($x, $y, $pageText, $font, $size);
+        }
+    </script>
 </body>
 </html>

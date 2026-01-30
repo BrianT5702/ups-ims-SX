@@ -64,28 +64,154 @@
                             </div>
                         </div>
 
-                        <!-- Table for Purchase Orders -->
-                        <div class="table-responsive mt-3">
+                        <div class="po-list-wrapper" style="position: relative;">
                             <style>
-                                /* Fixed column widths with Supplier Name being the largest */
-                                .table.po-list { 
-                                    table-layout: fixed;
+                                /* Wrapper to separate scrollable table from fixed pagination */
+                                .po-list-wrapper {
+                                    display: flex;
+                                    flex-direction: column;
                                     width: 100%;
                                 }
+                                
+                                /* Scrollable table container - separate from pagination */
+                                .po-list-scrollable {
+                                    overflow-x: auto;
+                                    overflow-y: visible;
+                                    width: 100%;
+                                    margin-bottom: 0;
+                                    -webkit-overflow-scrolling: touch;
+                                    scrollbar-width: thin;
+                                    scrollbar-color: #cbd5e0 #f7fafc;
+                                }
+                                .po-list-scrollable::-webkit-scrollbar {
+                                    height: 10px;
+                                }
+                                .po-list-scrollable::-webkit-scrollbar-track {
+                                    background: #f7fafc;
+                                    border-radius: 5px;
+                                }
+                                .po-list-scrollable::-webkit-scrollbar-thumb {
+                                    background: #cbd5e0;
+                                    border-radius: 5px;
+                                }
+                                .po-list-scrollable::-webkit-scrollbar-thumb:hover {
+                                    background: #a0aec0;
+                                }
+                                
+                                /* Table styling - auto layout to prevent overlapping */
+                                .table.po-list { 
+                                    table-layout: auto; 
+                                    width: max-content;
+                                    min-width: 100%;
+                                    border-collapse: collapse; /* Changed to collapse for clearer borders */
+                                    border-spacing: 0;
+                                    margin-bottom: 0;
+                                    border: 1px solid #212529; /* Outer border - darker for clarity */
+                                }
+                                
+                                /* All cells - prevent wrapping and overlapping */
+                                .table.po-list th,
                                 .table.po-list td {
                                     white-space: nowrap;
-                                    overflow: hidden;
-                                    text-overflow: ellipsis;
+                                    overflow: visible;
+                                    text-overflow: clip;
+                                    padding: 3px 6px; /* Slightly smaller padding for tighter rows */
+                                    vertical-align: middle;
+                                    border: 1px solid #dee2e6; /* Clearer border lines */
+                                    font-size: 0.9rem; /* Smaller font size for PO list */
                                 }
-                                .table.po-list th:nth-child(1), .table.po-list td:nth-child(1) { width: 100px; } /* Date */
-                                .table.po-list th:nth-child(2), .table.po-list td:nth-child(2) { width: 120px; } /* PO Number */
-                                .table.po-list th:nth-child(3), .table.po-list td:nth-child(3) { width: 35%; } /* Supplier Name - largest */
-                                .table.po-list th:nth-child(4), .table.po-list td:nth-child(4) { width: 100px; } /* Status */
-                                .table.po-list th:nth-child(5), .table.po-list td:nth-child(5) { width: 120px; } /* Created by */
-                                .table.po-list th:nth-child(6), .table.po-list td:nth-child(6) { width: 120px; } /* Last edited by */
-                                .table.po-list th:nth-child(7), .table.po-list td:nth-child(7) { width: 80px; text-align: center; } /* Printed */
-                                /* Removed Action column */
-
+                                
+                                /* Table borders - clearer lines */
+                                .table.po-list thead th {
+                                    border-bottom: 2px solid #212529; /* Thicker header border */
+                                    border-top: 1px solid #212529;
+                                    border-left: 1px solid #dee2e6;
+                                    border-right: 1px solid #dee2e6;
+                                    background-color: #f8f9fa;
+                                    font-weight: 600;
+                                }
+                                
+                                .table.po-list thead th:first-child {
+                                    border-left: 1px solid #212529;
+                                }
+                                
+                                .table.po-list thead th:last-child {
+                                    border-right: 1px solid #212529;
+                                }
+                                
+                                .table.po-list tbody tr {
+                                    border-bottom: 1px solid #dee2e6;
+                                }
+                                
+                                .table.po-list tbody tr:hover {
+                                    background-color: #f8f9fa;
+                                }
+                                
+                                .table.po-list tbody td:first-child {
+                                    border-left: 1px solid #212529;
+                                }
+                                
+                                .table.po-list tbody td:last-child {
+                                    border-right: 1px solid #212529;
+                                }
+                                
+                                .table.po-list tbody tr:last-child td {
+                                    border-bottom: 1px solid #212529;
+                                }
+                                
+                                /* Column widths - fixed minimum widths to prevent overlap */
+                                .table.po-list th:nth-child(1), 
+                                .table.po-list td:nth-child(1) { 
+                                    min-width: 130px;
+                                    width: 130px;
+                                } /* PO Number */
+                                
+                                .table.po-list th:nth-child(2), 
+                                .table.po-list td:nth-child(2) { 
+                                    min-width: 90px;
+                                    width: 90px;
+                                } /* Date */
+                                
+                                .table.po-list th:nth-child(3), 
+                                .table.po-list td:nth-child(3) { 
+                                    min-width: 250px;
+                                    width: auto; /* Allow expansion for long supplier names */
+                                } /* Supplier Name - full text, no truncation */
+                                
+                                .table.po-list th:nth-child(4), 
+                                .table.po-list td:nth-child(4) { 
+                                    min-width: 120px;
+                                    width: 120px;
+                                } /* Status */
+                                
+                                .table.po-list th:nth-child(5), 
+                                .table.po-list td:nth-child(5) { 
+                                    min-width: 120px;
+                                    width: 120px;
+                                } /* Created by */
+                                
+                                .table.po-list th:nth-child(6), 
+                                .table.po-list td:nth-child(6) { 
+                                    min-width: 120px;
+                                    width: 120px;
+                                } /* Last edited by */
+                                
+                                .table.po-list th:nth-child(7), 
+                                .table.po-list td:nth-child(7) { 
+                                    min-width: 90px;
+                                    width: 90px;
+                                    text-align: center;
+                                } /* Print */
+                                
+                                /* Ensure links don't cause wrapping */
+                                .table.po-list td a {
+                                    white-space: nowrap;
+                                    display: inline-block;
+                                    max-width: 100%;
+                                    overflow: visible;
+                                    text-overflow: clip;
+                                }
+                                
                                 /* Action buttons layout */
                                 .action-buttons {
                                     display: flex;
@@ -93,54 +219,80 @@
                                     gap: 0.25rem;
                                     align-items: center;
                                 }
-                                
-                                /* Print status colors */
-                                .print-status {
+
+                                /* Print status styles */
+                                .po-print-flag {
                                     font-weight: 500;
                                 }
-                                .print-status.printed-yes {
-                                    color: #0d6efd; /* Bootstrap primary blue */
-                                }
-                                .print-status.printed-no {
-                                    color: #dc3545; /* Bootstrap danger red */
+                                
+                                /* Fixed pagination container - separate from scrollable table */
+                                .po-list-pagination {
+                                    position: relative;
+                                    width: 100%;
+                                    margin-top: 0;
+                                    padding-top: 15px;
+                                    border-top: 1px solid #dee2e6;
+                                    background-color: #fff;
+                                    z-index: 10;
                                 }
                             </style>
-                            <table class="table table-hover po-list">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>PO Number</th>
-                                        <th>Supplier Name</th>
-                                        <th>Status</th>
-                                        <th>Created by</th>
-                                        <th>Last edited by</th>
-                                        <th>Printed</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse($purchase_orders as $purchase_order)
+                            
+                            <!-- Scrollable table area -->
+                            <div class="table-responsive mt-3 po-list-scrollable">
+                                <table class="table table-hover po-list">
+                                    <thead>
                                         <tr>
-                                            <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->created_at->format('d/m/Y') }}</a></td>
-                                            <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->po_num }}</a></td>
-                                            <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->supplierSnapshot->sup_name ?? $purchase_order->supplier->sup_name }}</a></td>
-                                            <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->status }}</a></td>
-                                            <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->user->name ?? '-' }}</a></td>
-                                            <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->updatedBy->name ?? ($purchase_order->user->name ?? '-') }}</a></td>
-                                            <td class="text-center">
-                                                <span class="print-status {{ $purchase_order->printed === 'Y' ? 'printed-yes' : 'printed-no' }}">
-                                                    {{ $purchase_order->printed }}
-                                                </span>
-                                            </td>
-                                            
+                                            <th>PO Number</th>
+                                            <th>Date</th>
+                                            <th>Supplier Name</th>
+                                            <th>Status</th>
+                                            <th>Created by</th>
+                                            <th>Last edited by</th>
+                                            <th>Print</th>
                                         </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="8" class="text-center">No purchase orders found.</td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                            {{ $purchase_orders->links() }}
+                                    </thead>
+
+                                    <tbody>
+                                        @forelse($purchase_orders as $purchase_order)
+                                            <tr>
+                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}"> {{ $purchase_order->po_num }}</a></td>
+                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}"> {{ $purchase_order->created_at->format('d/m/Y') }}</a></td>
+                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->supplierSnapshot->sup_name ?? $purchase_order->supplier->sup_name }}</a></td>
+                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->status }}</a></td>
+                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->user->name ?? '-' }}</a></td>
+                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->updatedBy->name ?? ($purchase_order->user->name ?? '-') }}</a></td>
+                                                <td class="text-center">
+                                                    <span class="po-print-flag">
+                                                        {{ $purchase_order->printed === 'Y' ? 'Y' : 'N' }}
+                                                    </span>
+                                                </td>
+                                                
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="7" class="text-center">No purchase orders found.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Fixed pagination area - separate from scrollable table -->
+                            <div class="po-list-pagination d-flex justify-content-between align-items-center flex-wrap">
+                                <div class="small text-muted">
+                                    @php
+                                        $from = $purchase_orders->firstItem() ?? 0;
+                                        $to = $purchase_orders->lastItem() ?? 0;
+                                        $total = $purchase_orders->total();
+                                    @endphp
+                                    Showing {{ $from }} to {{ $to }} of {{ $total }} results
+                                </div>
+                                <div>
+                                    @if ($purchase_orders->hasPages())
+                                        {{ $purchase_orders->links() }}
+                                    @endif
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

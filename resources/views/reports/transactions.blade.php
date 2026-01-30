@@ -18,22 +18,34 @@
         
         .print-page {
             position: relative;
-            min-height: calc(29.7cm - 1.5cm);
             page-break-after: always;
+            min-height: 0;
+            height: auto;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .print-page:not(:first-child) {
+            page-break-before: always;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
         }
         
         .print-page--last {
-            page-break-after: auto;
+            page-break-after: auto !important;
         }
         
-        .print-page::after {
-            content: 'Page ' attr(data-page-number) ' of ' attr(data-total-pages);
+        .page-number {
             position: absolute;
-            bottom: 0.5cm;
+            bottom: 0.1cm;
             right: 0.75cm;
-            font-size: 10px;
+            text-align: right;
+            font-size: 12px;
             font-family: Arial, sans-serif;
             color: #000;
+            margin: 0;
+            padding: 0;
+            line-height: 1;
         }
         
         .header {
@@ -87,13 +99,45 @@
             width: 100%; 
             border-collapse: collapse; 
             margin-top: 8px;
-            font-size: 10px;
+            margin-bottom: 0;
+            font-size: 12px;
+            page-break-inside: auto;
+        }
+        
+        thead {
+            display: table-header-group;
+        }
+        
+        tbody {
+            display: table-row-group;
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        
+        tbody tr {
+            height: auto;
+            margin: 0;
+            padding: 0;
+            page-break-inside: avoid;
+        }
+        
+        tbody tr:last-child {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        
+        tbody tr:last-child td {
+            border-bottom: 1px solid #000;
         }
         
         th, td { 
             border: 1px solid #000; 
             padding: 3px 4px; 
             text-align: left;
+        }
+        
+        td {
+            font-size: 10.5px;
         }
         
         th { 
@@ -108,11 +152,11 @@
         }
         
         .col-code {
-            width: 12%;
+            width: 18%;
         }
         
         .col-desc {
-            width: 35%;
+            width: 42%;
         }
         
         .col-uom {
@@ -121,12 +165,17 @@
         }
         
         .col-qty {
-            width: 8%;
+            width: 5%;
+            text-align: right;
+        }
+        
+        .col-balance {
+            width: 5%;
             text-align: right;
         }
         
         .footer {
-            margin-top: 8px;
+            margin-top: 4px;
             border-top: 1px solid #000;
             padding-top: 4px;
             font-size: 10px;
@@ -162,7 +211,7 @@
 </head>
 <body>
     @php
-        $itemsPerPage = 35; // Approximate items per page
+        $itemsPerPage = 40; // Items per page
         $totalItems = $stockBalances->count();
         $totalPages = ceil($totalItems / $itemsPerPage);
         $currentPage = 1;
@@ -175,8 +224,18 @@
         $totalBALANCE = $stockBalances->sum('balance');
     @endphp
     
-    @foreach($stockBalances->chunk($itemsPerPage) as $pageItems)
-        <div class="print-page @if($currentPage == $totalPages) print-page--last @endif" data-page-number="{{ $currentPage }}" data-total-pages="{{ $totalPages }}">
+    @php
+        $chunks = $stockBalances->chunk($itemsPerPage)->filter(function($chunk) {
+            return !$chunk->isEmpty();
+        });
+        $actualTotalPages = $chunks->count();
+    @endphp
+    
+    @foreach($chunks as $chunkIndex => $pageItems)
+        @php
+            $isLastPage = ($chunkIndex + 1) == $actualTotalPages;
+        @endphp
+        <div class="print-page @if($isLastPage) print-page--last @endif" data-page-number="{{ $currentPage }}" data-total-pages="{{ $actualTotalPages }}">
             <div class="header">
                 <div class="company-name">{{ $companyProfile->company_name ?? 'UNITED REFRIGERATION SYSTEM (M) SDN BHD' }}</div>
                 <div class="report-title">STOCK BALANCE REPORT</div>
@@ -210,7 +269,7 @@
                         <th class="col-qty">B/F</th>
                         <th class="col-qty">IN</th>
                         <th class="col-qty">OUT</th>
-                        <th class="col-qty">BALANCE</th>
+                        <th class="col-balance">BALANCE</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -228,7 +287,7 @@
                         @php $itemNumber++; @endphp
                     @endforeach
                     
-                    @if($currentPage == $totalPages)
+                    @if($isLastPage)
                         <tr>
                             <td colspan="3" style="font-weight: bold; padding: 4px;">Total Stock Record Listed: {{ $totalItems }}</td>
                             <td class="text-right" style="font-weight: bold;">TOTAL:</td>
@@ -241,8 +300,10 @@
                 </tbody>
             </table>
             
-            @if($currentPage == $totalPages)
-                <div class="footer">
+            <div class="page-number">Page {{ $currentPage }} of {{ $actualTotalPages }}</div>
+            
+            @if($isLastPage)
+                <div class="footer" style="margin-top: 4px;">
                     <div class="footer-row">Printed on: {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y, H:i:s') }}</div>
                 </div>
             @endif

@@ -6,10 +6,11 @@
     <style>
         @media print {
             @page {
-                margin-top: 100px;  /* Reserve space for fixed header on EVERY page (85px header + 15px buffer) */
-                margin-bottom: 15mm;
-                margin-left: 15mm;
-                margin-right: 15mm;
+                /* No custom margins – let the browser's print settings control everything */
+                margin-top: 0;
+                margin-left: 0;
+                margin-right: 0;
+                margin-bottom: 0;
                 size: A4;
             }
             
@@ -30,27 +31,9 @@
                 position: relative;
             }
             
-            /* Fixed header - appears on every page when printing */
-            /* The header sits in the @page margin-top area (top: 0) */
+            /* Hide custom header when printing – use browser's own header instead */
             .print-header {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                width: 100%;
-                background: white;
-                z-index: 1000;
-                padding: 8px 15mm;
-                border-bottom: 1px solid #000;
-                box-sizing: border-box;
-                height: 85px;
-                max-height: 85px;
-                min-height: 85px;
-                overflow: hidden;
-                margin: 0;
-                page-break-inside: avoid;
-                page-break-after: avoid;
-                display: block !important; /* Ensure it's visible when printing */
+                display: none !important;
             }
             
             /* Ensure body content starts below the margin area */
@@ -63,10 +46,11 @@
                 display: none !important;
             }
             
-            /* Content wrapper - ensure proper spacing on all pages */
+            /* Content wrapper - no extra spacing, flows from top of content area */
             .content-wrapper {
                 margin: 0 !important;
-                margin-top: 0 !important; /* @page margin-top will push this down */
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
                 padding: 0 !important;
                 position: relative;
                 z-index: 1;
@@ -103,11 +87,18 @@
             .no-print {
                 display: none !important;
             }
+
+            /* Hide custom footer when printing – use browser's own footer instead */
+            .print-footer {
+                display: none !important;
+            }
             
             /* Ensure table doesn't overlap header */
             .content-wrapper table {
                 margin-top: 0 !important;
                 margin-bottom: 0 !important;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
             }
             
             /* Ensure table starts with proper spacing on every page */
@@ -407,6 +398,11 @@
             @endif
         </tbody>
     </table>
+    </div>
+
+    <!-- Print footer (fixed on every page when printing) -->
+    <div class="print-footer">
+        STOCK LISTING
     </div>
 </body>
 </html>

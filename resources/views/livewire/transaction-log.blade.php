@@ -21,7 +21,20 @@
                 
                 <div class="card-body" style="overflow-x: hidden;">
                     <div class="row mb-3">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Group</label>
+                            <select 
+                                wire:model.live="selectedGroupId" 
+                                class="form-control rounded"
+                            >
+                                <option value="">All Groups</option>
+                                @foreach($groups ?? [] as $group)
+                                    <option value="{{ $group->id }}">{{ $group->group_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
                             <label class="form-label">Search</label>
                             <input 
                                 type="text" 
@@ -44,7 +57,7 @@
                             </select>
                         </div>
                         
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">From Date</label>
                             <input 
                                 type="date" 
@@ -53,7 +66,7 @@
                             >
                         </div>
                         
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">To Date</label>
                             <input 
                                 type="date" 
@@ -62,7 +75,7 @@
                             >
                         </div>
                         
-                        <div class="col-md-1 d-flex align-items-end">
+                        <div class="col-md-2 d-flex align-items-end">
                             <button 
                                 wire:click="clearFilters" 
                                 class="btn btn-outline-secondary"
@@ -71,6 +84,14 @@
                             </button>
                         </div>
                     </div>
+                    
+                    @if($isGroupReportMode ?? false && isset($selectedGroup))
+                        <div class="alert alert-info mb-3">
+                            <strong>Group Report Mode:</strong> Showing all items in <strong>{{ $selectedGroup->group_name }}</strong> 
+                            from {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} to {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}. 
+                            Items with no transactions in this period are also shown.
+                        </div>
+                    @endif
 
                     <div class="transaction-log-wrapper" style="position: relative;">
                         <style>
@@ -266,7 +287,7 @@
                         <div class="table-responsive mt-3 transaction-log-scrollable">
                             <table class="table table-hover transaction-log-table">
                             <thead>
-                                <tr align="center">
+                                <tr align="left">
                                     <th>#</th>
                                         <th>Date</th>
                                     <th>Source Type</th>
@@ -282,7 +303,109 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($transactions as $transaction)
+                                @if($isGroupReportMode ?? false)
+                                    {{-- Group Report Mode: Show items with their transactions --}}
+                                    @forelse($transactions as $entry)
+                                        @if($entry['type'] === 'item_no_transactions')
+                                            {{-- Item with no transactions in date range --}}
+                                            @php
+                                                $item = $entry['item'];
+                                                // Get balance at end of date range
+                                                // This is the balance after the last transaction up to and including the end date
+                                                $endDateCarbon = \Carbon\Carbon::parse($endDate ?? now())->endOfDay();
+                                                $lastTransaction = \App\Models\Transaction::where('item_id', $item->id)
+                                                    ->where('created_at', '<=', $endDateCarbon)
+                                                    ->orderBy('created_at', 'desc')
+                                                    ->first();
+                                                // If no transactions exist up to end date, use item's current qty
+                                                $balance = $lastTransaction ? $lastTransaction->qty_after : $item->qty;
+                                                $balance = $lastTransaction ? $lastTransaction->qty_after : $item->qty;
+                                            @endphp
+                                            <tr align="center" style="background-color: #f8f9fa;">
+                                                <td>{{ $entry['iteration'] }}</td>
+                                                <td>-</td>
+                                                <td>-</td>
+                                                <td>-</td>
+                                                <td><a href="{{ route('items.view', ['item' => $item->id]) }}">{{ $item->item_code }}</a></td>
+                                                <td><a href="{{ route('items.view', ['item' => $item->id]) }}">{{ $item->item_name }}</a></td>
+                                                <td>-</td>
+                                                <td>-</td>
+                                                <td>-</td>
+                                                <td>{{ $balance }}</td>
+                                                <td>-</td>
+                                                <td>-</td>
+                                            </tr>
+                                        @else
+                                            {{-- Regular transaction --}}
+                                            @php
+                                                $transaction = $entry['transaction'];
+                                                // Get customer/supplier name based on source type
+                                                $customerName = '-';
+                                                
+                                                // For DO (Delivery Order) - but not DO Reversal types, show customer name
+                                                if (($transaction->source_type === 'DO' || $transaction->source_type === 'Delivery Order') && $transaction->source_doc_num) {
+                                                    $deliveryOrder = \App\Models\DeliveryOrder::where('do_num', $transaction->source_doc_num)
+                                                        ->with('customerSnapshot', 'customer')
+                                                        ->first();
+                                                    
+                                                    if ($deliveryOrder) {
+                                                        $customerName = $deliveryOrder->customerSnapshot->cust_name ?? $deliveryOrder->customer->cust_name ?? '-';
+                                                    }
+                                                }
+                                                // For PO (Purchase Order), show supplier name
+                                                elseif (($transaction->source_type === 'PO' || $transaction->source_type === 'Purchase Order') && $transaction->source_doc_num) {
+                                                    $purchaseOrder = \App\Models\PurchaseOrder::where('po_num', $transaction->source_doc_num)
+                                                        ->with('supplierSnapshot', 'supplier')
+                                                        ->first();
+                                                    
+                                                    if ($purchaseOrder) {
+                                                        $customerName = $purchaseOrder->supplierSnapshot->sup_name ?? $purchaseOrder->supplier->sup_name ?? '-';
+                                                    }
+                                                }
+                                                // For DO Reversal types, show "-"
+                                                elseif (in_array($transaction->source_type, ['DO Reversal', 'DO Status Reversal', 'DO Delta Reversal', 'DO Draft Delta'])) {
+                                                    $customerName = '-';
+                                                }
+                                                
+                                                // Determine In/Out based on transaction_type
+                                                $inQty = '';
+                                                $outQty = '';
+                                                
+                                                if ($transaction->transaction_type === 'Stock In') {
+                                                    $inQty = $transaction->transaction_qty;
+                                                } elseif ($transaction->transaction_type === 'Stock Out') {
+                                                    $outQty = abs($transaction->transaction_qty);
+                                                }
+
+                                                // Batch number display
+                                                $batchNumber = $transaction->batch->batch_num ?? '-';
+                                                if ($batchNumber === 'BATCH-00000000-000') {
+                                                    $batchNumber = '-';
+                                                }
+                                            @endphp
+                                            <tr align="left" style="cursor: pointer;">
+                                                <td>{{ $entry['iteration'] }}</td>
+                                                <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
+                                                <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_type }}</td>
+                                                <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
+                                                <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
+                                                <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
+                                                <td>{{ $customerName }}</td>
+                                                <td>{{ $inQty }}</td>
+                                                <td>{{ $outQty }}</td>
+                                                <td>{{ $transaction->qty_after }}</td>
+                                                <td>{{ $batchNumber }}</td>
+                                                <td>{{ $transaction->user->name }}</td>
+                                            </tr>
+                                        @endif
+                                    @empty
+                                        <tr>
+                                            <td colspan="12" class="text-center">No items found.</td>
+                                        </tr>
+                                    @endforelse
+                                @else
+                                    {{-- Regular Transaction Mode --}}
+                                    @forelse($transactions as $transaction)
                                         @php
                                             // Get customer/supplier name based on source type
                                             $customerName = '-';
@@ -333,7 +456,7 @@
                                                 $batchNumber = '-';
                                             }
                                         @endphp
-                                        <tr align="center" style="cursor: pointer;">
+                                        <tr align="left" style="cursor: pointer;">
                                         <td>{{ $loop->iteration }}</td>
                                             <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
                                         <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_type }}</td>
@@ -352,6 +475,7 @@
                                             <td colspan="12" class="text-center">No transactions found.</td>
                                     </tr>
                                 @endforelse
+                                @endif
                             </tbody>
                         </table>
                         </div>

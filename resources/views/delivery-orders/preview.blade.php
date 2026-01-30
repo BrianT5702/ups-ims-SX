@@ -190,7 +190,7 @@
         .customer-info {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
+            margin-bottom: 0;
         }
 
         .customer-info-frame {
@@ -237,22 +237,34 @@
             padding:3.7px 8px;
             text-align: left;
             border-bottom: none;
-            font-size: 0.95em;
+            font-size: 1.0em;
             line-height: 1.2;
             vertical-align: top;
             word-wrap: break-word;
             word-break: break-word;
         }
+        
 
-        /* Ensure last row (row 23) has a visible top border in Description column only, starting from vertical separator */
+        /* Ensure NOTES row (row 25) is properly positioned - minimal padding to stick to content */
+        .items-table tbody tr:nth-child(26) td {
+            padding: 2px 8px !important;
+            border-top: 1px solid #000;
+            line-height: 1.1 !important;
+            margin: 0 !important;
+        }
+
+        /* Ensure last row (row 25 - NOTES) has a visible top border in Description column only, starting from vertical separator */
         .items-table tbody tr:last-child td:first-child {
             border-top: none;
             border-bottom: none;
+            padding: 2px 8px !important;
         }
         .items-table tbody tr:last-child td:last-child {
             border-top: none;
             border-bottom: none;
             position: relative;
+            padding: 2px 8px !important;
+            line-height: 1.1 !important;
         }
         .items-table tbody tr:last-child td:last-child::before {
             content: '';
@@ -262,6 +274,13 @@
             right: 0;
             height: 1px;
             background: #000;
+        }
+        
+        
+        /* Ensure NOTES row is immediately after content - no gap */
+        .items-table tbody tr:nth-child(26) {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
         }
 
         /* Fixed column widths (favoring more space for Item Name) */
@@ -344,7 +363,7 @@
 
         /* Make signature padding in pages-container match print (no horizontal padding since page has padding) */
         .pages-container .print-page-footer .signature-section {
-            padding: 16px 0 12px !important;
+            padding: 0 0 8px !important;
         }
 
         .pages-container[data-measuring="true"] .print-page {
@@ -436,13 +455,13 @@
         .print-page-body {
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 5px;
             flex: 1 1 auto;
         }
 
         .print-page-footer {
             margin-top: auto;
-            padding-top: 2px;
+            padding-top: 0;
             flex: 0 0 auto;
         }
 
@@ -451,7 +470,7 @@
             justify-content: space-between;
             align-items: flex-end;
             border-top: 1px solid #000;
-            padding: 16px 0 12px;
+            padding: 0 0 8px;
             page-break-inside: avoid;
             break-inside: avoid;
             font-size: 13px;
@@ -461,10 +480,15 @@
         .signature-section p,
         .signature-section strong {
             text-transform: uppercase;
+            margin: 0;
+            padding: 0;
+            line-height: 1.2;
         }
 
         .signature-left {
             width: 48%;
+            margin: 0;
+            padding: 0;
         }
 
         .signature-right {
@@ -474,7 +498,7 @@
 
         .signature-line {
             border-bottom: 1px solid #000;
-            margin-top: 34px;
+            margin-top: 20px;
             margin-bottom: 4px;
         }
 
@@ -683,10 +707,10 @@
                 position: relative !important;
             }
 
-            /* Ensure table cells match preview exactly - critical for 24 rows */
+            /* Ensure table cells match preview exactly - critical for 25 rows */
             .items-table td {
                 padding: 3.7px 8px !important;
-                font-size: 0.95em !important;
+                font-size: 1.0em !important;
                 line-height: 1.2 !important;
             }
 
@@ -696,15 +720,37 @@
                 line-height: 1.3 !important;
             }
 
-            /* Ensure last row (row 23) has a visible top border in Description column only in print, starting from vertical separator */
+            /* Ensure NOTES row (row 25) has minimal padding in print - MUST come after general td rule to override */
+            /* Match preview exactly: padding 2px, line-height 1.1, no extra spacing */
+            .items-table tbody tr:nth-child(26) td {
+                padding: 2px 8px !important;
+                line-height: 1.1 !important;
+                margin: 0 !important;
+                border-top: 1px solid #000 !important;
+            }
+            
+            /* Ensure NOTES row is immediately after content - no gap in print */
+            .items-table tbody tr:nth-child(26) {
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
+                height: auto !important;
+                min-height: auto !important;
+            }
+
+            /* Ensure last row (row 25 - NOTES) has a visible top border in Description column only in print, starting from vertical separator */
             .items-table tbody tr:last-child td:first-child {
                 border-top: none !important;
                 border-bottom: none !important;
+                padding: 2px 8px !important;
             }
             .items-table tbody tr:last-child td:last-child {
                 border-top: none !important;
                 border-bottom: none !important;
                 position: relative !important;
+                padding: 2px 8px !important;
+                line-height: 1.1 !important;
             }
             .items-table tbody tr:last-child td:last-child::before {
                 content: '' !important;
@@ -731,6 +777,7 @@
                 break-inside: avoid !important; 
                 visibility: visible !important;
                 position: relative !important;
+                padding: 0 0 8px !important;
             }
             
             /* Ensure signature template is always hidden - it's only used for cloning */
@@ -743,6 +790,7 @@
                 position: relative !important;
                 display: flex !important;
                 visibility: visible !important;
+                padding: 0 0 8px !important;
             }
             
             /* Ensure signature footer is visible on all pages */
@@ -883,34 +931,36 @@
                                 $rowToItemMap = [];
                                 $itemsWithoutRowIndex = [];
                                 foreach ($deliveryOrder->items as $item) {
-                                    if ($item->row_index !== null && $item->row_index >= 0 && $item->row_index < 24) {
+                                    // Only allow items in rows 0-24 (row 25 is reserved for NOTES)
+                                    if ($item->row_index !== null && $item->row_index >= 0 && $item->row_index < 25) {
                                         $rowToItemMap[$item->row_index] = $item;
                                     } else {
-                                        // Backward compatibility: items without row_index
+                                        // Backward compatibility: items without row_index or items at row 25+
                                         $itemsWithoutRowIndex[] = $item;
                                     }
                                 }
-                                // For items without row_index, assign them sequentially to available rows
+                                // For items without row_index, assign them sequentially to available rows (only 0-24)
                                 $nextAvailableRow = 0;
                                 foreach ($itemsWithoutRowIndex as $item) {
-                                    while (isset($rowToItemMap[$nextAvailableRow]) && $nextAvailableRow < 24) {
+                                    while (isset($rowToItemMap[$nextAvailableRow]) && $nextAvailableRow < 25) {
                                         $nextAvailableRow++;
                                     }
-                                    if ($nextAvailableRow < 24) {
+                                    if ($nextAvailableRow < 25) {
                                         $rowToItemMap[$nextAvailableRow] = $item;
                                         $nextAvailableRow++;
                                     }
                                 }
                             @endphp
-                            @for($rowIndex = 0; $rowIndex < 24; $rowIndex++)
+                            @for($rowIndex = 0; $rowIndex < 26; $rowIndex++)
                                 @php
-                                    $item = $rowToItemMap[$rowIndex] ?? null;
+                                    // Row 25 is ALWAYS reserved for NOTES - never assign items to it
+                                    $item = ($rowIndex === 25) ? null : ($rowToItemMap[$rowIndex] ?? null);
                                 @endphp
                                 <tr>
-                                    @if($rowIndex === 23)
-                                        {{-- Last row (row 23): Show notes --}}
-                                        <td>&nbsp;</td>
-                                        <td style="font-weight: bold; text-transform: uppercase;">NOTES: GOODS SOLD ARE NOT RETURNABLE.</td>
+                                    @if($rowIndex === 25)
+                                        {{-- Last row (row 25): ALWAYS show notes - this is the 26th and final row --}}
+                                        <td style="padding: 2px 8px;">&nbsp;</td>
+                                        <td style="font-weight: bold; text-transform: uppercase; padding: 2px 8px; line-height: 1.1;">NOTES: GOODS SOLD ARE NOT RETURNABLE.</td>
                                     @elseif($item)
                                         <td>
                                             @if($item->item_id === null)
@@ -1164,7 +1214,7 @@
                         // FIX: Give print mode the full calculated height. Do not reduce it.
                         pageHeightCache = calculatedHeight; 
                     } else {
-                        // For screen preview: use even less reduction to allow 24 rows to fit
+                        // For screen preview: use even less reduction to allow 25 rows to fit
                         pageHeightCache = Math.round(calculatedHeight * 0.999);
                     }
                 }
@@ -1265,7 +1315,7 @@
                     var pageHeight = getPageHeight(force || forcePrintMode, isPrintMode);
                     // Use different tolerance for print vs screen to account for DPI differences
                     // Print mode may need more tolerance due to browser print DPI variations
-                    // Increased tolerance for screen to ensure 24 rows can fit - be more lenient
+                    // Increased tolerance for screen to ensure 25 rows can fit - be more lenient
                     // New code - Increased print tolerance to prevents false "page full" errors
                     var tolerance = isPrintMode ? 150 : 100;
                     var usableHeight = pageHeight; // Already reduced in getPageHeight
@@ -1299,7 +1349,7 @@
 
                         // Use same check as quotations - check page height directly
                         // The signature is already part of the page, so offsetHeight includes it
-                        // Allow more tolerance to ensure 24 rows can fit - check against usableHeight + tolerance instead of subtracting
+                        // Allow more tolerance to ensure 25 rows can fit - check against usableHeight + tolerance instead of subtracting
                         if (activePage.page.offsetHeight > (usableHeight + tolerance)) {
                             // DO MUST FIT ON ONE PAGE - remove the row and mark as exceeded
                             activePage.tbody.removeChild(clone);
@@ -1333,7 +1383,7 @@
                         ensurePage();
                         activePage.body.appendChild(remarkClone);
                         // Check if page overflows, accounting for signature footer
-                        // DO MUST FIT ON ONE PAGE - allow more tolerance for 24 rows
+                        // DO MUST FIT ON ONE PAGE - allow more tolerance for 25 rows
                         var currentPageHeight = activePage.page.offsetHeight;
                         if (currentPageHeight > (usableHeight + tolerance)) {
                             // Allow more overflow to keep signature together, but warn if excessive
@@ -1539,6 +1589,56 @@
                 // Recalculate for screen view after printing
                 pageHeightCache = null;
                 setTimeout(function() {
+                    paginateDeliveryOrder(true);
+                }, 10);
+            });
+        })();
+    </script>
+</body>
+</html>
+                            setTimeout(function() {
+                                if (window.updateVerticalLines) {
+                                    window.updateVerticalLines();
+                                }
+                            }, 200);
+                        }
+                    });
+                }
+            }
+
+            window.addEventListener('beforeprint', function () {
+                // Clear cache and force recalculation with print context
+                // Explicitly force print mode to ensure correct height calculations
+                pageHeightCache = null;
+                setTimeout(function() {
+                    paginateDeliveryOrder(true, true); // Force recalculation AND force print mode
+                    // Recalculate vertical lines after print layout is applied
+                    // Need to wait for print styles to be fully applied and layout to settle
+                    setTimeout(function() {
+                        if (window.updateVerticalLines) {
+                            window.updateVerticalLines();
+                        }
+                    }, 100);
+                    setTimeout(function() {
+                        if (window.updateVerticalLines) {
+                            window.updateVerticalLines();
+                        }
+                    }, 200);
+                }, 10);
+            });
+            
+            // Also listen for afterprint to restore screen view
+            window.addEventListener('afterprint', function () {
+                // Recalculate for screen view after printing
+                pageHeightCache = null;
+                setTimeout(function() {
+                    paginateDeliveryOrder(true);
+                }, 10);
+            });
+        })();
+    </script>
+</body>
+</html>
                     paginateDeliveryOrder(true);
                 }, 10);
             });

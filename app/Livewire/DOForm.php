@@ -335,7 +335,7 @@ class DOForm extends Component
 
             if (!$itemExists) {
                 // DO MUST FIT ON ONE PAGE - check current rows first
-                $maxRows = 23; // Fixed 23-row limit (row 23 is hidden in form but shown in preview/print)
+                $maxRows = 25; // Fixed 25-row limit (row 25 is for NOTES)
                 $currentRows = $this->estimateTotalRows(false);
                 
                 // Block adding if already at or over limit
@@ -647,7 +647,7 @@ class DOForm extends Component
             return;
         }
 
-        $maxRows = 23; // Fixed 23-row limit (row 23 is hidden in form but shown in preview/print)
+        $maxRows = 25; // Fixed 25-row limit (row 25 is for NOTES)
         $currentDesc = $this->stackedItems[$index]['more_description'] ?? '';
         $lastValidDesc = $this->lastValidDescriptions[$index] ?? '';
         
@@ -909,8 +909,8 @@ class DOForm extends Component
      */
     private function calculateMaxRows()
     {
-        // Fixed 23-row limit for the new table structure (row 23 is hidden in form but shown in preview/print)
-        return 23;
+        // Fixed 25-row limit for the new table structure (row 25 is for NOTES)
+        return 25;
     }
 
     public function updateUnitPrice($index)
@@ -1212,14 +1212,14 @@ class DOForm extends Component
             foreach ($this->stackedItems as $idx => $item) {
                 // Check if item has original_row_index (both text-only and regular items can have it)
                 if (isset($item['original_row_index']) && $item['original_row_index'] !== null) {
-                    // Item has stored row position: use it (but don't allow row 23 - reassign if needed)
+                    // Item has stored row position: use it (but don't allow row 25 - reassign if needed)
                     $originalRow = $item['original_row_index'];
-                    if ($originalRow >= 23) {
-                        // Reassign items from row 23 to available rows 0-22
-                        while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 23) {
+                    if ($originalRow >= 25) {
+                        // Reassign items from row 25 to available rows 0-24
+                        while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 25) {
                             $regularItemIndex++;
                         }
-                        if ($regularItemIndex < 23) {
+                        if ($regularItemIndex < 25) {
                             $rowToItemMap[$regularItemIndex] = $idx;
                             $regularItemIndex++;
                         }
@@ -1227,11 +1227,11 @@ class DOForm extends Component
                         $rowToItemMap[$originalRow] = $idx;
                     }
                 } else {
-                    // Item doesn't have row position: find first available row (only rows 0-22)
-                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 23) {
+                    // Item doesn't have row position: find first available row (only rows 0-24)
+                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 25) {
                         $regularItemIndex++;
                     }
-                    if ($regularItemIndex < 23) {
+                    if ($regularItemIndex < 25) {
                         $rowToItemMap[$regularItemIndex] = $idx;
                         $regularItemIndex++;
                     }

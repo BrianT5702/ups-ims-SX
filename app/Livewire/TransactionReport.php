@@ -81,6 +81,53 @@ class TransactionReport extends Component
             $this->isGenerating = true;
             $this->errorMessage = '';
     
+            // Check if we need to show all items in group/family/category even without transactions
+            $showAllItems = ($this->selectedGroupId || $this->selectedFamilyId || $this->selectedCategoryId) 
+                          && $this->startDate && $this->endDate;
+            
+            $itemIds = [];
+            $allItems = collect();
+            
+            if ($showAllItems) {
+                // Get all items matching the filters first
+                $itemsQuery = Item::query()
+                    ->leftJoin('categories', 'items.cat_id', '=', 'categories.id')
+                    ->leftJoin('families', 'items.family_id', '=', 'families.id')
+                    ->leftJoin('groups', 'items.group_id', '=', 'groups.id');
+                
+                if ($this->selectedGroupId) {
+                    $itemsQuery->where('items.group_id', '=', $this->selectedGroupId);
+                }
+                
+                if ($this->selectedFamilyId) {
+                    $itemsQuery->where('items.family_id', '=', $this->selectedFamilyId);
+                }
+                
+                if ($this->selectedCategoryId) {
+                    $itemsQuery->where('items.cat_id', '=', $this->selectedCategoryId);
+                }
+                
+                $allItems = $itemsQuery->select([
+                    'items.id as item_id',
+                    'items.item_code',
+                    'items.item_name',
+                    'items.um',
+                    'items.qty',
+                    'items.group_id',
+                    'items.family_id',
+                    'items.cat_id',
+                    'groups.group_name',
+                    'families.family_name',
+                    'categories.cat_name'
+                ])->get();
+                
+                $itemIds = $allItems->pluck('item_id')->toArray();
+                
+                if ($allItems->isEmpty()) {
+                    throw new \Exception('No items found for the selected filters.');
+                }
+            }
+    
             // Get all transactions in the date range
             $transactionQuery = Transaction::query();
             
@@ -137,14 +184,38 @@ class TransactionReport extends Component
                 'categories.cat_name'
             ])->orderBy('transactions.created_at', 'asc')->get();
 
-            if ($transactions->isEmpty()) {
-                throw new \Exception('No data available for the selected date range and filters.');
-            }
-
-            // Group transactions by item and calculate B/F, IN, OUT, BALANCE
+            // Initialize item balances - start with all items if showAllItems is true
             $itemBalances = [];
-            $itemFirstTransaction = []; // Track first transaction per item for B/F
             
+            if ($showAllItems) {
+                // Initialize all items with zero transactions
+                foreach ($allItems as $item) {
+                    // Get balance before the date range starts
+                    $startDateCarbon = Carbon::parse($this->startDate)->startOfDay();
+                    $lastTransactionBefore = Transaction::where('item_id', $item->item_id)
+                        ->where('created_at', '<', $startDateCarbon)
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+                    
+                    $bf = $lastTransactionBefore ? $lastTransactionBefore->qty_after : ($item->qty ?? 0);
+                    
+                    $itemBalances[$item->item_id] = [
+                        'item_id' => $item->item_id,
+                        'item_code' => $item->item_code,
+                        'item_name' => $item->item_name,
+                        'um' => $item->um ?? 'PCS',
+                        'group_name' => $item->group_name ?? '',
+                        'family_name' => $item->family_name ?? '',
+                        'cat_name' => $item->cat_name ?? '',
+                        'bf' => $bf,
+                        'in' => 0,
+                        'out' => 0,
+                        'balance' => $bf
+                    ];
+                }
+            }
+            
+            // Process transactions
             foreach ($transactions as $transaction) {
                 $itemId = $transaction->item_id;
                 
@@ -163,7 +234,6 @@ class TransactionReport extends Component
                         'out' => 0,
                         'balance' => 0
                     ];
-                    $itemFirstTransaction[$itemId] = true;
                 }
                 
                 // Calculate IN and OUT

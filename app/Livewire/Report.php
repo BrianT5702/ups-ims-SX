@@ -176,23 +176,14 @@ class Report extends Component
                 return null;
             }
             
-            // For PDF, check if dataset is too large
+            // For PDF, always attempt to generate a single PDF file.
+            // Any memory/size problems will be caught and surfaced as an error message.
             if ($this->fileType === 'pdf') {
-                // For very large datasets, generate HTML file instead (can be printed to PDF by browser)
-                if ($itemCount > 3000) {
-                    $htmlContent = $this->generateHTMLContent($query, $itemCount);
-                    $this->dispatch('download-html', [
-                        'content' => base64_encode($htmlContent),
-                        'filename' => 'inventory_report_' . date('Y-m-d') . '.html'
-                    ]);
-                } else {
-                    // Generate PDF for smaller datasets
-                    $pdfContent = $this->generatePDFContent($query, $itemCount);
-                    $this->dispatch('download-pdf', [
-                        'content' => base64_encode($pdfContent),
-                        'filename' => 'inventory_report_' . date('Y-m-d') . '.pdf'
-                    ]);
-                }
+                $pdfContent = $this->generatePDFContent($query, $itemCount);
+                $this->dispatch('download-pdf', [
+                    'content' => base64_encode($pdfContent),
+                    'filename' => 'inventory_report_' . date('Y-m-d') . '.pdf'
+                ]);
             } else {
                 // For Excel, we can still load all at once as Excel handles it better
                 $items = $query->get();
@@ -297,7 +288,7 @@ class Report extends Component
             $options = [
                 'isRemoteEnabled' => false,
                 'isHtml5ParserEnabled' => false,
-                'isPhpEnabled' => false,
+                'isPhpEnabled' => true, // Enable PHP for page numbering
                 'defaultFont' => 'Arial',
                 'dpi' => 72,
                 'isJavascriptEnabled' => false,
