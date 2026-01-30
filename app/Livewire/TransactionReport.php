@@ -9,6 +9,8 @@ use App\Models\CompanyProfile;
 use App\Models\Family;
 use App\Models\Category;
 use App\Models\Group;
+use App\Models\Customer;
+use App\Models\Supplier;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\TransactionsExport;
@@ -32,6 +34,11 @@ class TransactionReport extends Component
     public $selectedGroupId = null;
     public $selectedFamilyId = null;
     public $selectedCategoryId = null;
+    public $selectedCompanyId = null; // Format: "customer_123" or "supplier_456"
+    public $companySearchTerm = '';
+    public $companySearchResults = [];
+    public $companySearchCustomers = [];
+    public $companySearchSuppliers = [];
     
     public $availableColumns = [
         'created_at' => 'Transaction Time',
@@ -72,6 +79,69 @@ class TransactionReport extends Component
         $this->selectedGroupId = null;
         $this->selectedFamilyId = null;
         $this->selectedCategoryId = null;
+        $this->companySearchTerm = '';
+        $this->companySearchResults = [];
+        $this->companySearchCustomers = [];
+        $this->companySearchSuppliers = [];
+    }
+
+    public function searchCompanies()
+    {
+        if (!empty($this->companySearchTerm)) {
+            $searchTerm = '%' . $this->companySearchTerm . '%';
+            
+            $customers = Customer::where('cust_name', 'like', $searchTerm)
+                ->orWhere('account', 'like', $searchTerm)
+                ->orderBy('cust_name', 'asc')
+                ->limit(20)
+                ->get()
+                ->map(function ($customer) {
+                    return [
+                        'id' => 'customer_' . $customer->id,
+                        'name' => $customer->cust_name,
+                        'type' => 'Customer'
+                    ];
+                });
+            
+            $suppliers = Supplier::where('sup_name', 'like', $searchTerm)
+                ->orWhere('account', 'like', $searchTerm)
+                ->orderBy('sup_name', 'asc')
+                ->limit(20)
+                ->get()
+                ->map(function ($supplier) {
+                    return [
+                        'id' => 'supplier_' . $supplier->id,
+                        'name' => $supplier->sup_name,
+                        'type' => 'Supplier'
+                    ];
+                });
+            
+            $this->companySearchCustomers = $customers->values()->toArray();
+            $this->companySearchSuppliers = $suppliers->values()->toArray();
+            $this->companySearchResults = $customers->concat($suppliers)->sortBy('name')->values()->toArray();
+        } else {
+            $this->companySearchResults = [];
+            $this->companySearchCustomers = [];
+            $this->companySearchSuppliers = [];
+        }
+    }
+
+    public function selectCompany($companyId)
+    {
+        $this->selectedCompanyId = $companyId;
+        $this->companySearchTerm = '';
+        $this->companySearchResults = [];
+        $this->companySearchCustomers = [];
+        $this->companySearchSuppliers = [];
+    }
+
+    public function clearCompany()
+    {
+        $this->selectedCompanyId = null;
+        $this->companySearchTerm = '';
+        $this->companySearchResults = [];
+        $this->companySearchCustomers = [];
+        $this->companySearchSuppliers = [];
     }
 
     public function generateReport()
@@ -163,6 +233,21 @@ class TransactionReport extends Component
             // Apply Category filter
             if ($this->selectedCategoryId) {
                 $transactionQuery->where('items.cat_id', '=', $this->selectedCategoryId);
+            }
+
+            // Apply Company filter (through DeliveryOrders for customers or PurchaseOrders for suppliers)
+            if ($this->selectedCompanyId) {
+                if (str_starts_with($this->selectedCompanyId, 'customer_')) {
+                    $customerId = str_replace('customer_', '', $this->selectedCompanyId);
+                    $transactionQuery->whereHas('deliveryOrder', function ($subQuery) use ($customerId) {
+                        $subQuery->where('cust_id', $customerId);
+                    });
+                } elseif (str_starts_with($this->selectedCompanyId, 'supplier_')) {
+                    $supplierId = str_replace('supplier_', '', $this->selectedCompanyId);
+                    $transactionQuery->whereHas('purchaseOrder', function ($subQuery) use ($supplierId) {
+                        $subQuery->where('sup_id', $supplierId);
+                    });
+                }
             }
 
             // Get all transactions
@@ -338,10 +423,25 @@ class TransactionReport extends Component
         $families = Family::orderBy('family_name')->get();
         $categories = Category::orderBy('cat_name')->get();
         
+        // Get selected company name for display
+        $selectedCompanyName = null;
+        if ($this->selectedCompanyId) {
+            if (str_starts_with($this->selectedCompanyId, 'customer_')) {
+                $customerId = str_replace('customer_', '', $this->selectedCompanyId);
+                $customer = Customer::find($customerId);
+                $selectedCompanyName = $customer ? $customer->cust_name : null;
+            } elseif (str_starts_with($this->selectedCompanyId, 'supplier_')) {
+                $supplierId = str_replace('supplier_', '', $this->selectedCompanyId);
+                $supplier = Supplier::find($supplierId);
+                $selectedCompanyName = $supplier ? $supplier->sup_name : null;
+            }
+        }
+        
         return view('livewire.transaction-report', [
             'groups' => $groups,
             'families' => $families,
-            'categories' => $categories
+            'categories' => $categories,
+            'selectedCompanyName' => $selectedCompanyName
         ])->layout('layouts.app');
     }
 }

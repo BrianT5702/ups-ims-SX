@@ -259,14 +259,11 @@
                     
                     @if($showGroup || $showBrand || $showType)
                     <tr>
-                        <td class="gh" colspan="{{ $colCount }}" style="border: 1px solid #000; padding: 2px;">
-                            <table style="width: 100%; border-collapse: collapse; border: none; margin: 0; padding: 0;">
-                                <tr style="border: none;">
-                                    <td style="text-align: left; border: none; padding: 0; width: 33%;">GROUP: {{ $groupName }}</td>
-                                    <td style="text-align: center; border: none; padding: 0; width: 34%;">BRAND: {{ $brandName }}</td>
-                                    <td style="text-align: right; border: none; padding: 0; width: 33%;">TYPE: {{ $typeName }}</td>
-                                </tr>
-                            </table>
+                        <td class="gh" colspan="{{ $colCount }}" style="border: 1px solid #000; padding: 4px; font-size: 9px;">
+                            <div style="float: left; width: 33%;">GROUP: {{ $groupName }}</div>
+                            <div style="float: left; width: 34%; text-align: center;">BRAND: {{ $brandName }}</div>
+                            <div style="float: right; width: 33%; text-align: right;">TYPE: {{ $typeName }}</div>
+                            <div style="clear: both;"></div>
                         </td>
                     </tr>
                     @endif

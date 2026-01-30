@@ -95,6 +95,79 @@
             </div>
         </div>
 
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div x-data="{ open: false }" x-on:click.away="open = false" class="relative">
+                <label class="block text-sm font-medium mb-2">Company Name</label>
+                @if($selectedCompanyName)
+                    <div class="flex">
+                        <input 
+                            type="text" 
+                            class="rounded-md shadow-sm border-gray-300 w-full rounded-r-none" 
+                            value="{{ $selectedCompanyName }}"
+                            readonly
+                        >
+                        <button 
+                            type="button"
+                            wire:click="clearCompany"
+                            class="px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-white hover:bg-gray-50"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                @else
+                    <input 
+                        type="text" 
+                        wire:model.debounce.300ms="companySearchTerm"
+                        wire:input.debounce.300ms="searchCompanies"
+                        x-on:focus="open = true"
+                        class="rounded-md shadow-sm border-gray-300 w-full" 
+                        placeholder="Search company..."
+                        autocomplete="off"
+                    >
+                    @if((count($companySearchCustomers) > 0 || count($companySearchSuppliers) > 0) && $companySearchTerm)
+                        <div 
+                            class="absolute w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 z-50"
+                            style="max-height: 300px; overflow-y: auto;"
+                            x-show="open"
+                        >
+                            @if(count($companySearchCustomers) > 0)
+                                <div class="px-4 py-2 bg-gray-100 border-b">
+                                    <span class="text-xs font-semibold text-gray-600 uppercase">Customers</span>
+                                </div>
+                                <ul class="py-1">
+                                    @foreach($companySearchCustomers as $customer)
+                                        <li 
+                                            class="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                            wire:click="selectCompany('{{ $customer['id'] }}')"
+                                        >
+                                            <span>{{ $customer['name'] }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                            @if(count($companySearchSuppliers) > 0)
+                                <div class="px-4 py-2 bg-gray-100 border-b {{ count($companySearchCustomers) > 0 ? 'border-t' : '' }}">
+                                    <span class="text-xs font-semibold text-gray-600 uppercase">Suppliers</span>
+                                </div>
+                                <ul class="py-1">
+                                    @foreach($companySearchSuppliers as $supplier)
+                                        <li 
+                                            class="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                            wire:click="selectCompany('{{ $supplier['id'] }}')"
+                                        >
+                                            <span>{{ $supplier['name'] }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </div>
+                    @endif
+                @endif
+            </div>
+        </div>
+
         <div class="mb-4">
             <label class="block text-sm font-medium mb-2">Report Format</label>
             <select wire:model="fileType" class="rounded-md shadow-sm border-gray-300 w-full">

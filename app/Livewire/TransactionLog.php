@@ -24,6 +24,10 @@ class TransactionLog extends Component
     public $searchTerm = '';
     public $sourceTypeFilter = '';
     public $selectedCompanyId = null; // Format: "customer_123" or "supplier_456"
+    public $companySearchTerm = '';
+    public $companySearchResults = [];
+    public $companySearchCustomers = [];
+    public $companySearchSuppliers = [];
 
     // Reset pagination when filters change
     public function updatingSearchTerm()
@@ -84,8 +88,73 @@ class TransactionLog extends Component
             'startDate', 
             'endDate',
             'selectedGroupId',
-            'selectedCompanyId'
+            'selectedCompanyId',
+            'companySearchTerm',
+            'companySearchResults',
+            'companySearchCustomers',
+            'companySearchSuppliers'
         ]);
+    }
+
+    public function searchCompanies()
+    {
+        if (!empty($this->companySearchTerm)) {
+            $searchTerm = '%' . $this->companySearchTerm . '%';
+            
+            $customers = Customer::where('cust_name', 'like', $searchTerm)
+                ->orWhere('account', 'like', $searchTerm)
+                ->orderBy('cust_name', 'asc')
+                ->limit(20)
+                ->get()
+                ->map(function ($customer) {
+                    return [
+                        'id' => 'customer_' . $customer->id,
+                        'name' => $customer->cust_name,
+                        'type' => 'Customer'
+                    ];
+                });
+            
+            $suppliers = Supplier::where('sup_name', 'like', $searchTerm)
+                ->orWhere('account', 'like', $searchTerm)
+                ->orderBy('sup_name', 'asc')
+                ->limit(20)
+                ->get()
+                ->map(function ($supplier) {
+                    return [
+                        'id' => 'supplier_' . $supplier->id,
+                        'name' => $supplier->sup_name,
+                        'type' => 'Supplier'
+                    ];
+                });
+            
+            $this->companySearchCustomers = $customers->values()->toArray();
+            $this->companySearchSuppliers = $suppliers->values()->toArray();
+            $this->companySearchResults = $customers->concat($suppliers)->sortBy('name')->values()->toArray();
+        } else {
+            $this->companySearchResults = [];
+            $this->companySearchCustomers = [];
+            $this->companySearchSuppliers = [];
+        }
+    }
+
+    public function selectCompany($companyId)
+    {
+        $this->selectedCompanyId = $companyId;
+        $this->companySearchTerm = '';
+        $this->companySearchResults = [];
+        $this->companySearchCustomers = [];
+        $this->companySearchSuppliers = [];
+        $this->resetPage();
+    }
+
+    public function clearCompany()
+    {
+        $this->selectedCompanyId = null;
+        $this->companySearchTerm = '';
+        $this->companySearchResults = [];
+        $this->companySearchCustomers = [];
+        $this->companySearchSuppliers = [];
+        $this->resetPage();
     }
 
     public function render()
@@ -154,24 +223,19 @@ class TransactionLog extends Component
         // Get groups for dropdown
         $groups = Group::orderBy('group_name')->get();
 
-        // Get combined companies list (customers + suppliers)
-        $customers = Customer::orderBy('cust_name')->get()->map(function ($customer) {
-            return [
-                'id' => 'customer_' . $customer->id,
-                'name' => $customer->cust_name,
-                'type' => 'Customer'
-            ];
-        });
-        
-        $suppliers = Supplier::orderBy('sup_name')->get()->map(function ($supplier) {
-            return [
-                'id' => 'supplier_' . $supplier->id,
-                'name' => $supplier->sup_name,
-                'type' => 'Supplier'
-            ];
-        });
-        
-        $companies = $customers->concat($suppliers)->sortBy('name')->values();
+        // Get selected company name for display
+        $selectedCompanyName = null;
+        if ($this->selectedCompanyId) {
+            if (str_starts_with($this->selectedCompanyId, 'customer_')) {
+                $customerId = str_replace('customer_', '', $this->selectedCompanyId);
+                $customer = Customer::find($customerId);
+                $selectedCompanyName = $customer ? $customer->cust_name : null;
+            } elseif (str_starts_with($this->selectedCompanyId, 'supplier_')) {
+                $supplierId = str_replace('supplier_', '', $this->selectedCompanyId);
+                $supplier = Supplier::find($supplierId);
+                $selectedCompanyName = $supplier ? $supplier->sup_name : null;
+            }
+        }
 
         // Return the view for rendering
         return view('livewire.transaction-log', [
@@ -179,7 +243,7 @@ class TransactionLog extends Component
             'filteredItem' => $filteredItem,
             'sourceTypeOptions' => $sourceTypeOptions,
             'groups' => $groups,
-            'companies' => $companies,
+            'selectedCompanyName' => $selectedCompanyName ?? null,
             'isGroupReportMode' => false,
             'startDate' => $this->startDate,
             'endDate' => $this->endDate
@@ -281,31 +345,26 @@ class TransactionLog extends Component
         // Get groups for dropdown
         $groups = Group::orderBy('group_name')->get();
 
-        // Get combined companies list (customers + suppliers)
-        $customers = Customer::orderBy('cust_name')->get()->map(function ($customer) {
-            return [
-                'id' => 'customer_' . $customer->id,
-                'name' => $customer->cust_name,
-                'type' => 'Customer'
-            ];
-        });
-        
-        $suppliers = Supplier::orderBy('sup_name')->get()->map(function ($supplier) {
-            return [
-                'id' => 'supplier_' . $supplier->id,
-                'name' => $supplier->sup_name,
-                'type' => 'Supplier'
-            ];
-        });
-        
-        $companies = $customers->concat($suppliers)->sortBy('name')->values();
+        // Get selected company name for display
+        $selectedCompanyName = null;
+        if ($this->selectedCompanyId) {
+            if (str_starts_with($this->selectedCompanyId, 'customer_')) {
+                $customerId = str_replace('customer_', '', $this->selectedCompanyId);
+                $customer = Customer::find($customerId);
+                $selectedCompanyName = $customer ? $customer->cust_name : null;
+            } elseif (str_starts_with($this->selectedCompanyId, 'supplier_')) {
+                $supplierId = str_replace('supplier_', '', $this->selectedCompanyId);
+                $supplier = Supplier::find($supplierId);
+                $selectedCompanyName = $supplier ? $supplier->sup_name : null;
+            }
+        }
 
         return view('livewire.transaction-log', [
             'transactions' => $paginator,
             'filteredItem' => $filteredItem,
             'sourceTypeOptions' => $sourceTypeOptions,
             'groups' => $groups,
-            'companies' => $companies,
+            'selectedCompanyName' => $selectedCompanyName ?? null,
             'isGroupReportMode' => true,
             'selectedGroup' => Group::find($this->selectedGroupId),
             'startDate' => $this->startDate,

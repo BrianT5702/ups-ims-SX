@@ -34,17 +34,78 @@
                             </select>
                         </div>
                         
-                        <div class="col-md-2">
+                        <div class="col-md-2" x-data="{ open: false }" x-on:click.away="open = false">
                             <label class="form-label">Company Name</label>
-                            <select 
-                                wire:model.live="selectedCompanyId" 
-                                class="form-control rounded"
-                            >
-                                <option value="">All Companies</option>
-                                @foreach($companies ?? [] as $company)
-                                    <option value="{{ $company['id'] }}">{{ $company['name'] }} ({{ $company['type'] }})</option>
-                                @endforeach
-                            </select>
+                            <div class="position-relative">
+                                @if(isset($selectedCompanyName) && $selectedCompanyName)
+                                    <div class="input-group">
+                                        <input 
+                                            type="text" 
+                                            class="form-control rounded" 
+                                            value="{{ $selectedCompanyName }}"
+                                            readonly
+                                        >
+                                        <button 
+                                            type="button"
+                                            wire:click="clearCompany"
+                                            class="btn btn-outline-secondary"
+                                            style="border-top-left-radius: 0; border-bottom-left-radius: 0;"
+                                        >
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                @else
+                                    <input 
+                                        type="text" 
+                                        wire:model.debounce.300ms="companySearchTerm"
+                                        wire:input.debounce.300ms="searchCompanies"
+                                        x-on:focus="open = true"
+                                        class="form-control rounded" 
+                                        placeholder="Search company..."
+                                        autocomplete="off"
+                                    >
+                                    @if((count($companySearchCustomers) > 0 || count($companySearchSuppliers) > 0) && $companySearchTerm)
+                                        <div 
+                                            class="position-absolute w-100 bg-white border rounded shadow-lg mt-1"
+                                            style="max-height: 300px; overflow-y: auto; z-index: 1000;"
+                                            x-show="open"
+                                        >
+                                            @if(count($companySearchCustomers) > 0)
+                                                <div class="px-3 py-2 bg-light border-bottom">
+                                                    <small class="text-muted fw-bold">CUSTOMERS</small>
+                                                </div>
+                                                <ul class="list-group list-group-flush mb-0">
+                                                    @foreach($companySearchCustomers as $customer)
+                                                        <li 
+                                                            class="list-group-item list-group-item-action"
+                                                            wire:click="selectCompany('{{ $customer['id'] }}')"
+                                                            style="cursor: pointer;"
+                                                        >
+                                                            <span>{{ $customer['name'] }}</span>
+                                                        </li>
+                                                    @endforeach
+                                                </ul>
+                                            @endif
+                                            @if(count($companySearchSuppliers) > 0)
+                                                <div class="px-3 py-2 bg-light border-bottom {{ count($companySearchCustomers) > 0 ? 'border-top' : '' }}">
+                                                    <small class="text-muted fw-bold">SUPPLIERS</small>
+                                                </div>
+                                                <ul class="list-group list-group-flush mb-0">
+                                                    @foreach($companySearchSuppliers as $supplier)
+                                                        <li 
+                                                            class="list-group-item list-group-item-action"
+                                                            wire:click="selectCompany('{{ $supplier['id'] }}')"
+                                                            style="cursor: pointer;"
+                                                        >
+                                                            <span>{{ $supplier['name'] }}</span>
+                                                        </li>
+                                                    @endforeach
+                                                </ul>
+                                            @endif
+                                        </div>
+                                    @endif
+                                @endif
+                            </div>
                         </div>
                         
                         <div class="col-md-2">
@@ -237,30 +298,37 @@
                             
                             .table.transaction-log-table th:nth-child(6), 
                             .table.transaction-log-table td:nth-child(6) { 
-                                min-width: 80px;
-                                width: 80px;
-                            } /* In */
+                                min-width: 100px;
+                                width: 100px;
+                                text-align: right;
+                            } /* Price */
                             
                             .table.transaction-log-table th:nth-child(7), 
                             .table.transaction-log-table td:nth-child(7) { 
                                 min-width: 80px;
                                 width: 80px;
-                            } /* Out */
+                            } /* In */
                             
                             .table.transaction-log-table th:nth-child(8), 
                             .table.transaction-log-table td:nth-child(8) { 
+                                min-width: 80px;
+                                width: 80px;
+                            } /* Out */
+                            
+                            .table.transaction-log-table th:nth-child(9), 
+                            .table.transaction-log-table td:nth-child(9) { 
                                 min-width: 100px;
                                 width: 100px;
                             } /* Balance */
                             
-                            .table.transaction-log-table th:nth-child(9), 
-                            .table.transaction-log-table td:nth-child(9) { 
+                            .table.transaction-log-table th:nth-child(10), 
+                            .table.transaction-log-table td:nth-child(10) { 
                                 min-width: 130px;
                                 width: 130px;
                             } /* Batch Number */
                             
-                            .table.transaction-log-table th:nth-child(10), 
-                            .table.transaction-log-table td:nth-child(10) { 
+                            .table.transaction-log-table th:nth-child(11), 
+                            .table.transaction-log-table td:nth-child(11) { 
                                 min-width: 120px;
                                 width: 120px;
                             } /* User */
@@ -295,7 +363,8 @@
                                     <th>Source Doc No</th>
                                     <th>Item Code</th>
                                     <th>Item Name</th>
-                                    <th>Customer Name</th>
+                                    <th>Company Name</th>
+                                    <th style="text-align: center;">Price</th>
                                     <th>In</th>
                                     <th>Out</th>
                                     <th>Balance</th>
@@ -328,6 +397,7 @@
                                                 <td><a href="{{ route('items.view', ['item' => $item->id]) }}">{{ $item->item_code }}</a></td>
                                                 <td><a href="{{ route('items.view', ['item' => $item->id]) }}">{{ $item->item_name }}</a></td>
                                                 <td>-</td>
+                                                <td class="text-right">-</td>
                                                 <td>-</td>
                                                 <td>-</td>
                                                 <td>{{ $balance }}</td>
@@ -366,6 +436,30 @@
                                                     $customerName = '-';
                                                 }
                                                 
+                                                // Get price from DO or PO item
+                                                $unitPrice = '-';
+                                                if (($transaction->source_type === 'DO' || $transaction->source_type === 'Delivery Order') && $transaction->source_doc_num && $transaction->item_id) {
+                                                    $deliveryOrder = \App\Models\DeliveryOrder::where('do_num', $transaction->source_doc_num)->first();
+                                                    if ($deliveryOrder) {
+                                                        $doItem = \App\Models\DeliveryOrderItem::where('do_id', $deliveryOrder->id)
+                                                            ->where('item_id', $transaction->item_id)
+                                                            ->first();
+                                                        if ($doItem && $doItem->unit_price) {
+                                                            $unitPrice = number_format($doItem->unit_price, 2);
+                                                        }
+                                                    }
+                                                } elseif (($transaction->source_type === 'PO' || $transaction->source_type === 'Purchase Order') && $transaction->source_doc_num && $transaction->item_id) {
+                                                    $purchaseOrder = \App\Models\PurchaseOrder::where('po_num', $transaction->source_doc_num)->first();
+                                                    if ($purchaseOrder) {
+                                                        $poItem = \App\Models\PurchaseOrderItem::where('po_id', $purchaseOrder->id)
+                                                            ->where('item_id', $transaction->item_id)
+                                                            ->first();
+                                                        if ($poItem && $poItem->unit_price) {
+                                                            $unitPrice = number_format($poItem->unit_price, 2);
+                                                        }
+                                                    }
+                                                }
+                                                
                                                 // Determine In/Out based on transaction_type
                                                 $inQty = '';
                                                 $outQty = '';
@@ -388,6 +482,7 @@
                                                 <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
                                                 <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
                                                 <td>{{ $customerName }}</td>
+                                                <td class="text-right">{{ $unitPrice }}</td>
                                                 <td>{{ $inQty }}</td>
                                                 <td>{{ $outQty }}</td>
                                                 <td>{{ $transaction->qty_after }}</td>
@@ -397,7 +492,7 @@
                                         @endif
                                     @empty
                                         <tr>
-                                            <td colspan="10" class="text-center">No items found.</td>
+                                            <td colspan="11" class="text-center">No items found.</td>
                                         </tr>
                                     @endforelse
                                 @else
@@ -434,6 +529,30 @@
                                                 $customerName = '-';
                                             }
                                             
+                                            // Get price from DO or PO item
+                                            $unitPrice = '-';
+                                            if (($transaction->source_type === 'DO' || $transaction->source_type === 'Delivery Order') && $transaction->source_doc_num && $transaction->item_id) {
+                                                $deliveryOrder = \App\Models\DeliveryOrder::where('do_num', $transaction->source_doc_num)->first();
+                                                if ($deliveryOrder) {
+                                                    $doItem = \App\Models\DeliveryOrderItem::where('do_id', $deliveryOrder->id)
+                                                        ->where('item_id', $transaction->item_id)
+                                                        ->first();
+                                                    if ($doItem && $doItem->unit_price) {
+                                                        $unitPrice = number_format($doItem->unit_price, 2);
+                                                    }
+                                                }
+                                            } elseif (($transaction->source_type === 'PO' || $transaction->source_type === 'Purchase Order') && $transaction->source_doc_num && $transaction->item_id) {
+                                                $purchaseOrder = \App\Models\PurchaseOrder::where('po_num', $transaction->source_doc_num)->first();
+                                                if ($purchaseOrder) {
+                                                    $poItem = \App\Models\PurchaseOrderItem::where('po_id', $purchaseOrder->id)
+                                                        ->where('item_id', $transaction->item_id)
+                                                        ->first();
+                                                    if ($poItem && $poItem->unit_price) {
+                                                        $unitPrice = number_format($poItem->unit_price, 2);
+                                                    }
+                                                }
+                                            }
+                                            
                                             // Determine In/Out based on transaction_type
                                             $inQty = '';
                                             $outQty = '';
@@ -459,6 +578,7 @@
                                             <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
                                             <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
                                             <td>{{ $customerName }}</td>
+                                            <td class="text-right">{{ $unitPrice }}</td>
                                             <td>{{ $inQty }}</td>
                                             <td>{{ $outQty }}</td>
                                             <td>{{ $transaction->qty_after }}</td>
@@ -467,7 +587,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                            <td colspan="10" class="text-center">No transactions found.</td>
+                                            <td colspan="11" class="text-center">No transactions found.</td>
                                     </tr>
                                 @endforelse
                                 @endif
