@@ -35,6 +35,19 @@
                         </div>
                         
                         <div class="col-md-2">
+                            <label class="form-label">Company Name</label>
+                            <select 
+                                wire:model.live="selectedCompanyId" 
+                                class="form-control rounded"
+                            >
+                                <option value="">All Companies</option>
+                                @foreach($companies ?? [] as $company)
+                                    <option value="{{ $company['id'] }}">{{ $company['name'] }} ({{ $company['type'] }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
                             <label class="form-label">Search</label>
                             <input 
                                 type="text" 
@@ -74,8 +87,10 @@
                                 class="form-control rounded"
                             >
                         </div>
-                        
-                        <div class="col-md-2 d-flex align-items-end">
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12 d-flex justify-content-end">
                             <button 
                                 wire:click="clearFilters" 
                                 class="btn btn-outline-secondary"
@@ -192,72 +207,60 @@
                             /* Column widths - fixed minimum widths */
                             .table.transaction-log-table th:nth-child(1), 
                             .table.transaction-log-table td:nth-child(1) { 
-                                min-width: 50px;
-                                width: 50px;
-                            } /* # */
-                            
-                            .table.transaction-log-table th:nth-child(2), 
-                            .table.transaction-log-table td:nth-child(2) { 
                                 min-width: 100px;
                                 width: 100px;
                             } /* Date */
+                            
+                            .table.transaction-log-table th:nth-child(2), 
+                            .table.transaction-log-table td:nth-child(2) { 
+                                min-width: 130px;
+                                width: 130px;
+                            } /* Source Doc No */
                             
                             .table.transaction-log-table th:nth-child(3), 
                             .table.transaction-log-table td:nth-child(3) { 
                                 min-width: 120px;
                                 width: 120px;
-                            } /* Source Type */
+                            } /* Item Code */
                             
                             .table.transaction-log-table th:nth-child(4), 
                             .table.transaction-log-table td:nth-child(4) { 
-                                min-width: 130px;
-                                width: 130px;
-                            } /* Source Doc No */
-                            
-                            .table.transaction-log-table th:nth-child(5), 
-                            .table.transaction-log-table td:nth-child(5) { 
-                                min-width: 120px;
-                                width: 120px;
-                            } /* Item Code */
-                            
-                            .table.transaction-log-table th:nth-child(6), 
-                            .table.transaction-log-table td:nth-child(6) { 
                                 min-width: 200px;
                                 width: auto;
                             } /* Item Name */
                             
-                            .table.transaction-log-table th:nth-child(7), 
-                            .table.transaction-log-table td:nth-child(7) { 
+                            .table.transaction-log-table th:nth-child(5), 
+                            .table.transaction-log-table td:nth-child(5) { 
                                 min-width: 200px;
                                 width: auto;
                             } /* Customer Name */
                             
-                            .table.transaction-log-table th:nth-child(8), 
-                            .table.transaction-log-table td:nth-child(8) { 
+                            .table.transaction-log-table th:nth-child(6), 
+                            .table.transaction-log-table td:nth-child(6) { 
                                 min-width: 80px;
                                 width: 80px;
                             } /* In */
                             
-                            .table.transaction-log-table th:nth-child(9), 
-                            .table.transaction-log-table td:nth-child(9) { 
+                            .table.transaction-log-table th:nth-child(7), 
+                            .table.transaction-log-table td:nth-child(7) { 
                                 min-width: 80px;
                                 width: 80px;
                             } /* Out */
                             
-                            .table.transaction-log-table th:nth-child(10), 
-                            .table.transaction-log-table td:nth-child(10) { 
+                            .table.transaction-log-table th:nth-child(8), 
+                            .table.transaction-log-table td:nth-child(8) { 
                                 min-width: 100px;
                                 width: 100px;
                             } /* Balance */
                             
-                            .table.transaction-log-table th:nth-child(11), 
-                            .table.transaction-log-table td:nth-child(11) { 
+                            .table.transaction-log-table th:nth-child(9), 
+                            .table.transaction-log-table td:nth-child(9) { 
                                 min-width: 130px;
                                 width: 130px;
                             } /* Batch Number */
                             
-                            .table.transaction-log-table th:nth-child(12), 
-                            .table.transaction-log-table td:nth-child(12) { 
+                            .table.transaction-log-table th:nth-child(10), 
+                            .table.transaction-log-table td:nth-child(10) { 
                                 min-width: 120px;
                                 width: 120px;
                             } /* User */
@@ -288,16 +291,14 @@
                             <table class="table table-hover transaction-log-table">
                             <thead>
                                 <tr align="left">
-                                    <th>#</th>
-                                        <th>Date</th>
-                                    <th>Source Type</th>
+                                    <th>Date</th>
                                     <th>Source Doc No</th>
                                     <th>Item Code</th>
                                     <th>Item Name</th>
-                                        <th>Customer Name</th>
-                                        <th>In</th>
-                                        <th>Out</th>
-                                        <th>Balance</th>
+                                    <th>Customer Name</th>
+                                    <th>In</th>
+                                    <th>Out</th>
+                                    <th>Balance</th>
                                     <th>Batch Number</th>
                                     <th>User</th>
                                 </tr>
@@ -322,8 +323,6 @@
                                                 $balance = $lastTransaction ? $lastTransaction->qty_after : $item->qty;
                                             @endphp
                                             <tr align="center" style="background-color: #f8f9fa;">
-                                                <td>{{ $entry['iteration'] }}</td>
-                                                <td>-</td>
                                                 <td>-</td>
                                                 <td>-</td>
                                                 <td><a href="{{ route('items.view', ['item' => $item->id]) }}">{{ $item->item_code }}</a></td>
@@ -384,9 +383,7 @@
                                                 }
                                             @endphp
                                             <tr align="left" style="cursor: pointer;">
-                                                <td>{{ $entry['iteration'] }}</td>
                                                 <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
-                                                <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_type }}</td>
                                                 <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
                                                 <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
                                                 <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
@@ -400,7 +397,7 @@
                                         @endif
                                     @empty
                                         <tr>
-                                            <td colspan="12" class="text-center">No items found.</td>
+                                            <td colspan="10" class="text-center">No items found.</td>
                                         </tr>
                                     @endforelse
                                 @else
@@ -457,22 +454,20 @@
                                             }
                                         @endphp
                                         <tr align="left" style="cursor: pointer;">
-                                        <td>{{ $loop->iteration }}</td>
                                             <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
-                                        <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_type }}</td>
-                                        <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
-                                        <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
-                                        <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
+                                            <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
+                                            <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
+                                            <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
                                             <td>{{ $customerName }}</td>
                                             <td>{{ $inQty }}</td>
                                             <td>{{ $outQty }}</td>
-                                        <td>{{ $transaction->qty_after }}</td>
+                                            <td>{{ $transaction->qty_after }}</td>
                                             <td>{{ $batchNumber }}</td>
-                                        <td>{{ $transaction->user->name }}</td>
+                                            <td>{{ $transaction->user->name }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                            <td colspan="12" class="text-center">No transactions found.</td>
+                                            <td colspan="10" class="text-center">No transactions found.</td>
                                     </tr>
                                 @endforelse
                                 @endif

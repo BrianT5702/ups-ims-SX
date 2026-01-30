@@ -6,6 +6,8 @@ use Livewire\Component;
 use App\Models\Transaction;
 use App\Models\Item;
 use App\Models\Group;
+use App\Models\Customer;
+use App\Models\Supplier;
 use Livewire\WithPagination;
 use Livewire\Attributes\Title;
 use Carbon\Carbon;
@@ -21,6 +23,7 @@ class TransactionLog extends Component
     public $endDate = null;
     public $searchTerm = '';
     public $sourceTypeFilter = '';
+    public $selectedCompanyId = null; // Format: "customer_123" or "supplier_456"
 
     // Reset pagination when filters change
     public function updatingSearchTerm()
@@ -63,6 +66,11 @@ class TransactionLog extends Component
         $this->resetPage();
     }
 
+    public function updatingSelectedCompanyId()
+    {
+        $this->resetPage();
+    }
+
     public function mount($itemId = null)
     {
         $this->filterItemId = $itemId;
@@ -75,7 +83,8 @@ class TransactionLog extends Component
             'sourceTypeFilter', 
             'startDate', 
             'endDate',
-            'selectedGroupId'
+            'selectedGroupId',
+            'selectedCompanyId'
         ]);
     }
 
@@ -115,6 +124,21 @@ class TransactionLog extends Component
             ->when($this->sourceTypeFilter, function ($q) {
                 return $q->where('source_type', $this->sourceTypeFilter);
             })
+            ->when($this->selectedCompanyId, function ($q) {
+                // Parse company filter: "customer_123" or "supplier_456"
+                if (str_starts_with($this->selectedCompanyId, 'customer_')) {
+                    $customerId = str_replace('customer_', '', $this->selectedCompanyId);
+                    return $q->whereHas('deliveryOrder', function ($subQuery) use ($customerId) {
+                        $subQuery->where('cust_id', $customerId);
+                    });
+                } elseif (str_starts_with($this->selectedCompanyId, 'supplier_')) {
+                    $supplierId = str_replace('supplier_', '', $this->selectedCompanyId);
+                    return $q->whereHas('purchaseOrder', function ($subQuery) use ($supplierId) {
+                        $subQuery->where('sup_id', $supplierId);
+                    });
+                }
+                return $q;
+            })
             ->orderBy('created_at', 'desc');
 
         $transactions = $query->paginate(20);
@@ -130,12 +154,32 @@ class TransactionLog extends Component
         // Get groups for dropdown
         $groups = Group::orderBy('group_name')->get();
 
+        // Get combined companies list (customers + suppliers)
+        $customers = Customer::orderBy('cust_name')->get()->map(function ($customer) {
+            return [
+                'id' => 'customer_' . $customer->id,
+                'name' => $customer->cust_name,
+                'type' => 'Customer'
+            ];
+        });
+        
+        $suppliers = Supplier::orderBy('sup_name')->get()->map(function ($supplier) {
+            return [
+                'id' => 'supplier_' . $supplier->id,
+                'name' => $supplier->sup_name,
+                'type' => 'Supplier'
+            ];
+        });
+        
+        $companies = $customers->concat($suppliers)->sortBy('name')->values();
+
         // Return the view for rendering
         return view('livewire.transaction-log', [
             'transactions' => $transactions,
             'filteredItem' => $filteredItem,
             'sourceTypeOptions' => $sourceTypeOptions,
             'groups' => $groups,
+            'companies' => $companies,
             'isGroupReportMode' => false,
             'startDate' => $this->startDate,
             'endDate' => $this->endDate
@@ -166,6 +210,21 @@ class TransactionLog extends Component
             ->whereBetween('created_at', [$startDate, $endDate])
             ->when($this->sourceTypeFilter, function ($q) {
                 return $q->where('source_type', $this->sourceTypeFilter);
+            })
+            ->when($this->selectedCompanyId, function ($q) {
+                // Parse company filter: "customer_123" or "supplier_456"
+                if (str_starts_with($this->selectedCompanyId, 'customer_')) {
+                    $customerId = str_replace('customer_', '', $this->selectedCompanyId);
+                    return $q->whereHas('deliveryOrder', function ($subQuery) use ($customerId) {
+                        $subQuery->where('cust_id', $customerId);
+                    });
+                } elseif (str_starts_with($this->selectedCompanyId, 'supplier_')) {
+                    $supplierId = str_replace('supplier_', '', $this->selectedCompanyId);
+                    return $q->whereHas('purchaseOrder', function ($subQuery) use ($supplierId) {
+                        $subQuery->where('sup_id', $supplierId);
+                    });
+                }
+                return $q;
             })
             ->orderBy('created_at', 'desc');
 
@@ -222,11 +281,31 @@ class TransactionLog extends Component
         // Get groups for dropdown
         $groups = Group::orderBy('group_name')->get();
 
+        // Get combined companies list (customers + suppliers)
+        $customers = Customer::orderBy('cust_name')->get()->map(function ($customer) {
+            return [
+                'id' => 'customer_' . $customer->id,
+                'name' => $customer->cust_name,
+                'type' => 'Customer'
+            ];
+        });
+        
+        $suppliers = Supplier::orderBy('sup_name')->get()->map(function ($supplier) {
+            return [
+                'id' => 'supplier_' . $supplier->id,
+                'name' => $supplier->sup_name,
+                'type' => 'Supplier'
+            ];
+        });
+        
+        $companies = $customers->concat($suppliers)->sortBy('name')->values();
+
         return view('livewire.transaction-log', [
             'transactions' => $paginator,
             'filteredItem' => $filteredItem,
             'sourceTypeOptions' => $sourceTypeOptions,
             'groups' => $groups,
+            'companies' => $companies,
             'isGroupReportMode' => true,
             'selectedGroup' => Group::find($this->selectedGroupId),
             'startDate' => $this->startDate,
