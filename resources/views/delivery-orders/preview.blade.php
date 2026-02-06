@@ -28,7 +28,7 @@
         @media print {
             :root {
                 --qty-col-width: 80px;
-                --vline-position: 105px;
+                --vline-position: 15px;
             }
         }
         
