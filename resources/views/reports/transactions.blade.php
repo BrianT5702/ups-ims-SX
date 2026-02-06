@@ -23,6 +23,7 @@
             height: auto;
             margin: 0;
             padding: 0;
+            display: block;
         }
         
         .print-page:not(:first-child) {
@@ -130,6 +131,16 @@
             border-bottom: 1px solid #000;
         }
         
+        /* Prevent table from breaking too early */
+        tbody {
+            page-break-inside: avoid;
+        }
+        
+        /* Ensure proper spacing - prevent excessive blank space */
+        .print-page {
+            overflow: visible;
+        }
+        
         th, td { 
             border: 1px solid #000; 
             padding: 3px 4px; 
@@ -211,7 +222,17 @@
 </head>
 <body>
     @php
-        $itemsPerPage = 40; // Items per page
+        // Calculate items per page - use conservative number to avoid blank pages
+        // A4 portrait: ~27cm height
+        // Header (company name, title, date, params): ~4.5cm
+        // Footer (page number, printed date): ~1.5cm
+        // Margins: 0.75cm top + 0.75cm bottom = 1.5cm
+        // Available for table: 27 - 4.5 - 1.5 - 1.5 = 19.5cm
+        // Each row is approximately 0.45-0.5cm
+        // Safe calculation: 19.5 / 0.5 = 39 rows max
+        // Use 35-37 items per page to ensure no blank pages and proper spacing
+        $itemsPerPage = 36; // Conservative number to prevent blank pages
+        
         $totalItems = $stockBalances->count();
         $totalPages = ceil($totalItems / $itemsPerPage);
         $currentPage = 1;

@@ -429,8 +429,7 @@ class DatabaseSeeder extends Seeder
             'Admin' => $adminPermissions,
             'User' => [], // No default permissions; assign per user as needed
             'Salesperson' => [],
-            'Department1' => [], // Department1 role for original companies (ups, urs, ucs)
-            'Department2' => [], // Department2 role for new companies (ups2, urs2, ucs2)
+            'Super Admin' => $allPermissions->pluck('name')->toArray(), // Super Admin gets ALL permissions
         ];
 
         // Create roles and assign permissions
@@ -450,6 +449,46 @@ class DatabaseSeeder extends Seeder
         $userRole = Role::on($connection)->where('name', 'User')->first();
         if ($userRole && !$user->hasRole('User')) {
             $user->assignRole($userRole);
+        }
+
+        // Create Super Admin user (AhBee) - stored in UPS database
+        // First check if AhBee already exists
+        $superAdmin = User::on('ups')->where('username', 'AhBee')->first();
+        
+        if (!$superAdmin) {
+            // If AhBee doesn't exist, check if there's an old "Bee" user to rename
+            $oldBee = User::on('ups')->where('username', 'Bee')->first();
+            if ($oldBee) {
+                // Rename Bee to AhBee
+                $oldBee->update(['username' => 'AhBee']);
+                $superAdmin = $oldBee->fresh();
+            } else {
+                // Create new AhBee user
+                $superAdmin = User::on('ups')->create([
+                    'name' => 'Super Admin',
+                    'email' => 'ahbee@example.com',
+                    'phone_num' => '+60 12-728 0218',
+                    'username' => 'AhBee',
+                    'password' => Hash::make('Emergency'),
+                ]);
+            }
+        } else {
+            // AhBee exists, update password and phone to ensure they're correct
+            $superAdmin->update([
+                'password' => Hash::make('Emergency'),
+                'phone_num' => '+60 12-728 0218',
+            ]);
+        }
+
+        // Assign Super Admin and Admin roles to AhBee
+        $superAdminRole = Role::on('ups')->where('name', 'Super Admin')->first();
+        if ($superAdminRole && !$superAdmin->hasRole('Super Admin')) {
+            $superAdmin->assignRole($superAdminRole);
+        }
+        // Also assign Admin role for compatibility (query from UPS since users are in UPS)
+        $adminRoleForSuperAdmin = Role::on('ups')->where('name', 'Admin')->first();
+        if ($adminRoleForSuperAdmin && !$superAdmin->hasRole('Admin')) {
+            $superAdmin->assignRole($adminRoleForSuperAdmin);
         }
 
         // Create salesperson users
@@ -517,18 +556,6 @@ class DatabaseSeeder extends Seeder
                 'company_no' => '772011-D',
             ],
             'ucs' => [
-                'company_name' => 'UNITED COLD-SYSTEM (M) SDN. BHD.',
-                'company_no' => '748674-K',
-            ],
-            'ups2' => [
-                'company_name' => 'UNITED PANEL-SYSTEM (M) SDN. BHD.',
-                'company_no' => '772009-A',
-            ],
-            'urs2' => [
-                'company_name' => 'UNITED REFRIGERATION-SYSTEM (M) SDN. BHD.',
-                'company_no' => '772011-D',
-            ],
-            'ucs2' => [
                 'company_name' => 'UNITED COLD-SYSTEM (M) SDN. BHD.',
                 'company_no' => '748674-K',
             ],

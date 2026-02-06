@@ -560,5 +560,3 @@ class QuotationForm extends Component
         return view('livewire.quotation-form')->layout('layouts.app');
     }
 }
-
-

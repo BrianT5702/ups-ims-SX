@@ -1,6 +1,9 @@
 
+@php
+    $defaultSidebarOpen = auth()->check() && auth()->user()->username === 'AhBee' ? false : true;
+@endphp
 <div x-data="{
-        isSidebarOpen: JSON.parse(localStorage.getItem('isSidebarOpen')) ?? true,
+        isSidebarOpen: JSON.parse(localStorage.getItem('isSidebarOpen')) ?? {{ $defaultSidebarOpen ? 'true' : 'false' }},
         infoSectionOpen: JSON.parse(localStorage.getItem('infoSectionOpen')) ?? false,
         inventorySectionOpen: JSON.parse(localStorage.getItem('inventorySectionOpen')) ?? false,
         chemicalSectionOpen: JSON.parse(localStorage.getItem('chemicalSectionOpen')) ?? false,
