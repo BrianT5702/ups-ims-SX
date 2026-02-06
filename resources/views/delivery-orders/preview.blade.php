@@ -17,11 +17,19 @@
 
         :root {
             /* Qty column width */
-            --qty-col-width: 70px;
-            /* Vertical separator line position (keep at original 100px position) */
-            --vline-position: 95px;
+            --qty-col-width: 80px;
+            /* Vertical separator line position (adjusted for wider QTY column) */
+            --vline-position: 105px;
             /* Offset to account for column padding differences */
             --col-align-offset: -5px;
+        }
+        
+        /* Wider QTY column for print */
+        @media print {
+            :root {
+                --qty-col-width: 80px;
+                --vline-position: 105px;
+            }
         }
         
         * {
