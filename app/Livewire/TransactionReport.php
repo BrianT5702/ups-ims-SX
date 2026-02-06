@@ -35,6 +35,7 @@ class TransactionReport extends Component
     public $selectedFamilyId = null;
     public $selectedCategoryId = null;
     public $selectedCompanyId = null; // Format: "customer_123" or "supplier_456"
+    public $selectedCompanyName = null; // Human-readable name for header/filters
     public $companySearchTerm = '';
     public $companySearchResults = [];
     public $companySearchCustomers = [];
@@ -151,51 +152,41 @@ class TransactionReport extends Component
             $this->isGenerating = true;
             $this->errorMessage = '';
     
-            // Check if we need to show all items in group/family/category even without transactions
-            $showAllItems = ($this->selectedGroupId || $this->selectedFamilyId || $this->selectedCategoryId) 
-                          && $this->startDate && $this->endDate;
+            // Always get all items that match the item-level filters (group / family / category),
+            // so that items with no IN/OUT in the selected period can still appear in the report.
+            $itemsQuery = Item::query()
+                ->leftJoin('categories', 'items.cat_id', '=', 'categories.id')
+                ->leftJoin('families', 'items.family_id', '=', 'families.id')
+                ->leftJoin('groups', 'items.group_id', '=', 'groups.id');
             
-            $itemIds = [];
-            $allItems = collect();
+            if ($this->selectedGroupId) {
+                $itemsQuery->where('items.group_id', '=', $this->selectedGroupId);
+            }
             
-            if ($showAllItems) {
-                // Get all items matching the filters first
-                $itemsQuery = Item::query()
-                    ->leftJoin('categories', 'items.cat_id', '=', 'categories.id')
-                    ->leftJoin('families', 'items.family_id', '=', 'families.id')
-                    ->leftJoin('groups', 'items.group_id', '=', 'groups.id');
-                
-                if ($this->selectedGroupId) {
-                    $itemsQuery->where('items.group_id', '=', $this->selectedGroupId);
-                }
-                
-                if ($this->selectedFamilyId) {
-                    $itemsQuery->where('items.family_id', '=', $this->selectedFamilyId);
-                }
-                
-                if ($this->selectedCategoryId) {
-                    $itemsQuery->where('items.cat_id', '=', $this->selectedCategoryId);
-                }
-                
-                $allItems = $itemsQuery->select([
-                    'items.id as item_id',
-                    'items.item_code',
-                    'items.item_name',
-                    'items.um',
-                    'items.qty',
-                    'items.group_id',
-                    'items.family_id',
-                    'items.cat_id',
-                    'groups.group_name',
-                    'families.family_name',
-                    'categories.cat_name'
-                ])->get();
-                
-                $itemIds = $allItems->pluck('item_id')->toArray();
-                
-                if ($allItems->isEmpty()) {
-                    throw new \Exception('No items found for the selected filters.');
-                }
+            if ($this->selectedFamilyId) {
+                $itemsQuery->where('items.family_id', '=', $this->selectedFamilyId);
+            }
+            
+            if ($this->selectedCategoryId) {
+                $itemsQuery->where('items.cat_id', '=', $this->selectedCategoryId);
+            }
+            
+            $allItems = $itemsQuery->select([
+                'items.id as item_id',
+                'items.item_code',
+                'items.item_name',
+                'items.um',
+                'items.qty',
+                'items.group_id',
+                'items.family_id',
+                'items.cat_id',
+                'groups.group_name',
+                'families.family_name',
+                'categories.cat_name'
+            ])->get();
+            
+            if ($allItems->isEmpty()) {
+                throw new \Exception('No items found for the selected filters.');
             }
     
             // Get all transactions in the date range
@@ -269,35 +260,40 @@ class TransactionReport extends Component
                 'categories.cat_name'
             ])->orderBy('transactions.created_at', 'asc')->get();
 
-            // Initialize item balances - start with all items if showAllItems is true
+            // Initialize item balances - start with all items that match the filters
             $itemBalances = [];
             
-            if ($showAllItems) {
-                // Initialize all items with zero transactions
-                foreach ($allItems as $item) {
-                    // Get balance before the date range starts
-                    $startDateCarbon = Carbon::parse($this->startDate)->startOfDay();
+            // Initialize all items with zero transactions, using the balance
+            // before the selected date range as B/F.
+            foreach ($allItems as $item) {
+                $startDateCarbon = $this->startDate
+                    ? Carbon::parse($this->startDate)->startOfDay()
+                    : null;
+
+                $lastTransactionBefore = null;
+                if ($startDateCarbon) {
                     $lastTransactionBefore = Transaction::where('item_id', $item->item_id)
                         ->where('created_at', '<', $startDateCarbon)
                         ->orderBy('created_at', 'desc')
                         ->first();
-                    
-                    $bf = $lastTransactionBefore ? $lastTransactionBefore->qty_after : ($item->qty ?? 0);
-                    
-                    $itemBalances[$item->item_id] = [
-                        'item_id' => $item->item_id,
-                        'item_code' => $item->item_code,
-                        'item_name' => $item->item_name,
-                        'um' => $item->um ?? 'PCS',
-                        'group_name' => $item->group_name ?? '',
-                        'family_name' => $item->family_name ?? '',
-                        'cat_name' => $item->cat_name ?? '',
-                        'bf' => $bf,
-                        'in' => 0,
-                        'out' => 0,
-                        'balance' => $bf
-                    ];
                 }
+                
+                $bf = $lastTransactionBefore ? $lastTransactionBefore->qty_after : ($item->qty ?? 0);
+                
+                $itemBalances[$item->item_id] = [
+                    'item_id' => $item->item_id,
+                    'item_code' => $item->item_code,
+                    'item_name' => $item->item_name,
+                    'um' => $item->um ?? 'PCS',
+                    'group_name' => $item->group_name ?? '',
+                    'family_name' => $item->family_name ?? '',
+                    'cat_name' => $item->cat_name ?? '',
+                    'bf' => $bf,
+                    'in' => 0,
+                    'out' => 0,
+                    'balance' => $bf,
+                    'has_transactions' => false,
+                ];
             }
             
             // Process transactions
@@ -317,7 +313,8 @@ class TransactionReport extends Component
                         'bf' => $transaction->qty_before ?? 0, // Balance Forward (first transaction's qty_before)
                         'in' => 0,
                         'out' => 0,
-                        'balance' => 0
+                        'balance' => 0,
+                        'has_transactions' => false,
                     ];
                 }
                 
@@ -327,6 +324,9 @@ class TransactionReport extends Component
                 } elseif ($transaction->transaction_type === 'Stock Out') {
                     $itemBalances[$itemId]['out'] += abs($transaction->transaction_qty ?? 0);
                 }
+
+                // Mark that this item has at least one transaction in the period
+                $itemBalances[$itemId]['has_transactions'] = true;
             }
             
             // Calculate final balance for each item
@@ -337,14 +337,30 @@ class TransactionReport extends Component
             // Convert to collection and sort
             $stockBalances = collect($itemBalances)->values();
             
-            // Apply stock filter
+            // Apply stock filter and visibility rules
             if ($this->stockFilter === 'gt0') {
-                $stockBalances = $stockBalances->filter(function($item) {
+                $stockBalances = $stockBalances->filter(function ($item) {
                     return $item['balance'] > 0;
                 });
             } elseif ($this->stockFilter === 'eq0') {
-                $stockBalances = $stockBalances->filter(function($item) {
+                $stockBalances = $stockBalances->filter(function ($item) {
                     return $item['balance'] == 0;
+                });
+            } else {
+                // For "ALL" stock filter:
+                //  - Show all items whose final balance is not zero
+                //  - Also show items with balance == 0 IF they had any transactions in the period
+                $stockBalances = $stockBalances->filter(function ($item) {
+                    return $item['balance'] != 0 || !empty($item['has_transactions']);
+                });
+            }
+
+            // If a company filter is applied, restrict to items that actually had
+            // at least one transaction for that company in the selected period.
+            // (Because only those items are truly "related" to the selected company.)
+            if ($this->selectedCompanyId) {
+                $stockBalances = $stockBalances->filter(function ($item) {
+                    return !empty($item['has_transactions']);
                 });
             }
             
@@ -386,6 +402,23 @@ class TransactionReport extends Component
             $categoryName = $this->selectedCategoryId ? Category::find($this->selectedCategoryId)->cat_name ?? 'ALL' : 'ALL';
             $stockFilterName = $this->stockFilter === 'gt0' ? '> 0' : ($this->stockFilter === 'eq0' ? '= 0' : 'ALL');
             
+            // Get company name for header.
+            // Prefer the already-resolved display name if available so it always
+            // matches what the user sees in the filter UI.
+            $companyName = $this->selectedCompanyName ?: 'ALL';
+            if ($companyName === 'ALL' && $this->selectedCompanyId) {
+                // Fallback: resolve from DB in case selectedCompanyName was not set yet.
+                if (str_starts_with($this->selectedCompanyId, 'customer_')) {
+                    $customerId = str_replace('customer_', '', $this->selectedCompanyId);
+                    $customer = Customer::find($customerId);
+                    $companyName = $customer ? $customer->cust_name : 'ALL';
+                } elseif (str_starts_with($this->selectedCompanyId, 'supplier_')) {
+                    $supplierId = str_replace('supplier_', '', $this->selectedCompanyId);
+                    $supplier = Supplier::find($supplierId);
+                    $companyName = $supplier ? $supplier->sup_name : 'ALL';
+                }
+            }
+            
             $pdf = PDF::loadView('reports.transactions', [
                 'stockBalances' => $stockBalances,
                 'startDate' => $this->startDate,
@@ -394,6 +427,7 @@ class TransactionReport extends Component
                 'groupName' => $groupName,
                 'familyName' => $familyName,
                 'categoryName' => $categoryName,
+                'companyName' => $companyName,
                 'stockFilter' => $stockFilterName
             ])->setPaper('a4', 'portrait');
 
@@ -436,6 +470,9 @@ class TransactionReport extends Component
                 $selectedCompanyName = $supplier ? $supplier->sup_name : null;
             }
         }
+
+        // Keep the public property in sync so downloadPDF can reuse it.
+        $this->selectedCompanyName = $selectedCompanyName;
         
         return view('livewire.transaction-report', [
             'groups' => $groups,

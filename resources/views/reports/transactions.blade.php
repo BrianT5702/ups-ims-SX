@@ -268,6 +268,8 @@
                         <div class="report-params-cell">{{ $stockFilter }}</div>
                         <div class="report-params-cell label">CATEGORY:</div>
                         <div class="report-params-cell">{{ $categoryName }}</div>
+                        <div class="report-params-cell label">COMPANY:</div>
+                        <div class="report-params-cell">{{ $companyName ?? 'ALL' }}</div>
                     </div>
                     <div class="report-params-row">
                         <div class="report-params-cell label">FAMILY:</div>
@@ -275,7 +277,11 @@
                         <div class="report-params-cell label">GROUP:</div>
                         <div class="report-params-cell">{{ $groupName }}</div>
                         <div class="report-params-cell label">Date:</div>
-                        <div class="report-params-cell">{{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y') }}</div>
+                        <div class="report-params-cell">
+                            {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
+                            -
+                            {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+                        </div>
                     </div>
                 </div>
             </div>
