@@ -144,10 +144,6 @@ wait "$APACHE_PID"\n\
 ' > /usr/local/bin/start.sh && \
 chmod +x /usr/local/bin/start.sh
 
-# Run Laravel setup commands
-RUN php artisan config:cache && \
-    php artisan view:cache
-
 # Expose port 80
 EXPOSE 80
 
