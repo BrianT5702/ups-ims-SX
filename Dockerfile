@@ -89,10 +89,6 @@ mkdir -p storage/framework/{sessions,views,cache}\n\
 mkdir -p storage/logs\n\
 touch storage/logs/laravel.log\n\
 \n\
-echo "Starting Apache in background..."\n\
-apache2-foreground &\n\
-APACHE_PID=$!\n\
-\n\
 wait_for_connection() {\n\
   local CONNECTION="$1"\n\
   local MAX_TRIES=12\n\
@@ -112,35 +108,34 @@ wait_for_connection() {\n\
   fi\n\
 }\n\
 \n\
-(\n\
-  echo "Clearing caches before DB ops..."\n\
-  php artisan config:clear || true\n\
-  php artisan cache:clear || true\n\
-  php artisan view:clear || true\n\
-  php artisan route:clear || true\n\
+echo "Clearing caches before DB ops..."\n\
+php artisan config:clear || true\n\
+php artisan cache:clear || true\n\
+php artisan view:clear || true\n\
+php artisan route:clear || true\n\
 \n\
-  wait_for_connection ups\n\
+wait_for_connection ups\n\
 \n\
-  echo "Running migrations for UPS/URS/UCS..."\n\
-  php artisan migrate --force --database=ups || true\n\
-  php artisan migrate --force --database=urs || true\n\
-  php artisan migrate --force --database=ucs || true\n\
+echo "Running migrations for UPS/URS/UCS..."\n\
+php artisan migrate --force --database=ups || true\n\
+php artisan migrate --force --database=urs || true\n\
+php artisan migrate --force --database=ucs || true\n\
 \n\
-  echo "Running seeders for UPS/URS/UCS..."\n\
-  php artisan db:seed --force --database=ups || true\n\
-  php artisan db:seed --force --database=urs || true\n\
-  php artisan db:seed --force --database=ucs || true\n\
+echo "Running seeders for UPS/URS/UCS..."\n\
+php artisan db:seed --force --database=ups || true\n\
+php artisan db:seed --force --database=urs || true\n\
+php artisan db:seed --force --database=ucs || true\n\
 \n\
-  echo "Rebuilding caches..."\n\
-  php artisan config:cache || true\n\
-  php artisan view:cache || true\n\
+echo "Rebuilding caches..."\n\
+php artisan config:cache || true\n\
+php artisan view:cache || true\n\
 \n\
-  echo "Setting proper permissions..."\n\
-  chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache\n\
-  chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache\n\
-) &\n\
+echo "Setting proper permissions..."\n\
+chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache\n\
+chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache\n\
 \n\
-wait "$APACHE_PID"\n\
+echo "Laravel setup complete. Starting Apache..."\n\
+exec apache2-foreground\n\
 ' > /usr/local/bin/start.sh && \
 chmod +x /usr/local/bin/start.sh
 
