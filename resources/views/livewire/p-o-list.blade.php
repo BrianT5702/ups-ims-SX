@@ -1,5 +1,5 @@
 <div>
-    <div class="container my-3">
+    <div class="container my-3" style="padding-left: 0.25rem; padding-right: 0.25rem;">
         <div class="row">
             <div class="col-md-11 m-auto">
                 <div class="card shadow-sm">
@@ -18,7 +18,7 @@
                         @endif
                     </div>
 
-                    <div class="card-body">
+                    <div class="card-body" style="padding-left: 0.5rem; padding-right: 0.5rem;">
                         <div class="row d-flex justify-content-end align-items-end">
                              @if(!$filteredSupplier)
                                 <div class="col-md-2 text-end">
@@ -71,6 +71,15 @@
                                     display: flex;
                                     flex-direction: column;
                                     width: 100%;
+                                    max-width: 100%;
+                                    overflow: hidden;
+                                }
+                                
+                                /* Constrain Bootstrap table-responsive within wrapper */
+                                .po-list-wrapper .table-responsive {
+                                    max-width: 100%;
+                                    overflow-x: auto;
+                                    overflow-y: visible;
                                 }
                                 
                                 /* Scrollable table container - separate from pagination */
@@ -78,6 +87,7 @@
                                     overflow-x: auto;
                                     overflow-y: visible;
                                     width: 100%;
+                                    max-width: 100%;
                                     margin-bottom: 0;
                                     -webkit-overflow-scrolling: touch;
                                     scrollbar-width: thin;
@@ -101,8 +111,9 @@
                                 /* Table styling - auto layout to prevent overlapping */
                                 .table.po-list { 
                                     table-layout: auto; 
-                                    width: max-content;
+                                    width: 100%;
                                     min-width: 100%;
+                                    max-width: 100%; /* Constrain to container width */
                                     border-collapse: collapse; /* Changed to collapse for clearer borders */
                                     border-spacing: 0;
                                     margin-bottom: 0;
@@ -238,7 +249,7 @@
                             </style>
                             
                             <!-- Scrollable table area -->
-                            <div class="table-responsive mt-3 po-list-scrollable">
+                            <div class="table-responsive po-list-scrollable" style="margin-top: 0.5rem;">
                                 <table class="table table-hover po-list">
                                     <thead>
                                         <tr>

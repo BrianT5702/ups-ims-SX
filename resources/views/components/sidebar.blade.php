@@ -28,17 +28,19 @@
             this.reportSectionOpen = !this.reportSectionOpen;
             localStorage.setItem('reportSectionOpen', JSON.stringify(this.reportSectionOpen));
         }
-    }" class="flex h-screen bg-gray-200 text-black sticky top-0" >
+    }" class="flex h-screen bg-gray-200 text-black sticky top-0" style="overflow-y: hidden; overflow-x: visible;">
 
     <!-- Sidebar -->
-    <div :class="isSidebarOpen ? 'w-60' : 'w-5'" class="bg-gray-200 text-black h-screen transition-all duration-300 ease-in-out sticky top-0">
+    <div :class="isSidebarOpen ? 'w-60' : 'w-5'" class="bg-gray-200 text-black h-screen transition-all duration-300 ease-in-out sticky top-0 flex flex-col relative" style="flex-shrink: 0 !important; min-width: 0 !important; overflow-y: hidden; overflow-x: visible;" :style="isSidebarOpen ? 'width: 15rem !important; max-width: 15rem !important;' : 'width: 1.25rem !important; max-width: 1.25rem !important;'">
 
-        <!-- Sidebar Header (Hidden when collapsed) -->
-        <div x-show="isSidebarOpen" class="block hover:bg-gray-400 px-4 py-2 bg-gray-300 truncate">
+        <!-- Sidebar Header (Hidden when collapsed) - Fixed at top -->
+        <div x-show="isSidebarOpen" class="block hover:bg-gray-400 px-4 py-2 bg-gray-300 truncate flex-shrink-0">
         <a href="{{route('dashboard')}}"> Dashboard </a>
         </div>
 
-        <!-- Collapsible Section: Information (Hidden when collapsed) -->
+        <!-- Scrollable Content Area -->
+        <div x-show="isSidebarOpen" class="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain" style="scrollbar-width: thin; scrollbar-color: #888 #f1f1f1;" @wheel.stop>
+            <!-- Collapsible Section: Information (Hidden when collapsed) -->
         <div x-show="isSidebarOpen" class="my-2">
             <button @click="toggleInfoSection" class="flex justify-between w-full px-4 py-2 text-left bg-gray-300 hover:bg-gray-400 focus:outline-none">
                 <span x-show="isSidebarOpen" class="truncate">Setup</span>
@@ -174,13 +176,23 @@
         </div>
         @endcan
 
-        <div class="absolute top-1/2 -right-12 transform -translate-y-1/2">
-            <button @click="toggleSidebar" class="p-2 bg-gray-300 hover:bg-gray-400 rounded-full focus:outline-none">
+            <!-- Hidden Stealth Mode - Super Admin only (at bottom) -->
+            @if(auth()->check() && auth()->user()->hasRole('Super Admin'))
+            <div class="mt-2 mb-2">
+                <a href="{{route('stealth-mode')}}" class="block px-4 py-2 text-left bg-gray-300 hover:bg-gray-400 text-gray-600 text-xs" style="opacity: 0.6;">
+                    System Settings
+                </a>
+            </div>
+            @endif
+        </div>
+
+        <div class="absolute top-1/2 right-0 transform -translate-y-1/2 translate-x-full z-50" style="pointer-events: auto; margin-right: 0.12rem;">
+            <button @click="toggleSidebar" class="bg-gray-300 hover:bg-gray-400 rounded-full focus:outline-none shadow-md border border-gray-400" style="pointer-events: auto; width: 1.75rem; height: 1.75rem; display: flex; align-items: center; justify-content: center; padding: 0.25rem;">
                 <!-- Icon for collapsing/expanding -->
-                <svg x-show="isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg x-show="isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 12H5" />
                 </svg>
-                <svg x-show="!isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg x-show="!isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l-7-7 7-7m0 14l7-7-7-7" />
                 </svg>
             </button>
@@ -188,10 +200,8 @@
     </div>
 
     <!-- Main Content Area -->
-    <div class="flex-grow bg-gray-100 dark:bg-gray-900 p-6">
+    <div class="flex-grow bg-gray-100 dark:bg-gray-900 p-6 overflow-y-auto" style="height: 100vh; min-width: 0; flex: 1 1 auto;">
         <!-- Page content goes here -->
         {{ $slot }}
     </div>
 </div>
-
-

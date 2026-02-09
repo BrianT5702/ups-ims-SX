@@ -4,17 +4,22 @@ namespace App\Livewire;
 
 use App\Models\PurchaseOrder;
 use App\Models\DeliveryOrder;
+use App\Models\DeliveryOrderItem;
 use App\Models\Item;
 use App\Models\IBCChemical;
 use App\Models\IncomingQualityControl;
+use App\Models\Customer;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Livewire\Component;
+use Illuminate\Support\Facades\DB;
 
 class Dashboard extends Component
 {
     public $timeframe = 'today';
     public $chartData;
+    public $revenueTrendChartData;
+    public $topProductsChartData;
     public $startDate;
     public $endDate;
     public $interval;
@@ -23,6 +28,7 @@ class Dashboard extends Component
     public function mount()
     {
         $this->updateTimeframe('today');
+        $this->loadSalesCharts();
     }
 
     public function updateTimeframe($timeframe)
@@ -52,6 +58,13 @@ class Dashboard extends Component
         }
 
         $this->loadChartData();
+        $this->loadSalesCharts();
+    }
+
+    public function loadSalesCharts()
+    {
+        $this->revenueTrendChartData = $this->getRevenueTrendChart();
+        $this->topProductsChartData = $this->getTopProductsChart();
     }
 
     public function loadChartData()
@@ -135,41 +148,156 @@ class Dashboard extends Component
         ];
     }
 
-    public function getExpiringChemicals()
+    public function getSalesSummary()
     {
-        $now = Carbon::today();
-        $in7 = Carbon::today()->addDays(7);
+        // Calculate total revenue from delivery orders in the selected period
+        $totalRevenue = DeliveryOrder::whereBetween('created_at', [$this->startDate, $this->endDate])
+            ->where('status', 'Completed')
+            ->whereNotNull('total_amount')
+            ->sum('total_amount') ?? 0;
 
-        $ibc = IBCChemical::whereNotNull('expiry_date')
-            ->whereDate('expiry_date', '>', $now)
-            ->whereDate('expiry_date', '<=', $in7)
-            ->get(['do_num', 'che_code', 'expiry_date']);
+        return [
+            'total_revenue' => $totalRevenue,
+        ];
+    }
 
-        $iqc = IncomingQualityControl::whereNotNull('expiry_date')
-            ->whereDate('expiry_date', '>', $now)
-            ->whereDate('expiry_date', '<=', $in7)
-            ->get(['do_num', 'che_code', 'expiry_date']);
+    public function getRevenueTrendChart()
+    {
+        $period = CarbonPeriod::create($this->startDate, $this->interval, $this->endDate);
+        
+        $data = collect($period)->map(function ($date) {
+            $endDate = $this->getEndDate($date);
+            $startDate = $this->getStartDate($date);
 
-        // Merge and add days_left
-        $all = $ibc->map(function($row) use ($now) {
-            $row->type = 'IBC';
-            $row->days_left = Carbon::parse($row->expiry_date)->diffInDays($now);
-            return $row;
-        })->concat(
-            $iqc->map(function($row) use ($now) {
-                $row->type = 'iQC';
-                $row->days_left = Carbon::parse($row->expiry_date)->diffInDays($now);
-                return $row;
+            $revenue = DeliveryOrder::whereBetween('created_at', [$startDate, $endDate])
+                ->where('status', 'Completed')
+                ->whereNotNull('total_amount')
+                ->sum('total_amount') ?? 0;
+
+            return [
+                'time_label' => $date->format($this->format),
+                'revenue' => $revenue,
+            ];
+        });
+
+        return [
+            'labels' => $data->pluck('time_label')->toArray(),
+            'datasets' => [
+                [
+                    'label' => 'Revenue',
+                    'backgroundColor' => 'rgba(34, 197, 94, 0.31)',
+                    'borderColor' => 'rgba(34, 197, 94, 0.7)',
+                    'data' => $data->pluck('revenue')->toArray(),
+                ]
+            ]
+        ];
+    }
+
+    public function getTopCustomersChart()
+    {
+        $topCustomers = DeliveryOrder::whereBetween('created_at', [$this->startDate, $this->endDate])
+            ->where('status', 'Completed')
+            ->whereNotNull('total_amount')
+            ->where('total_amount', '>', 0)
+            ->select('cust_id', DB::raw('SUM(total_amount) as total_revenue'))
+            ->groupBy('cust_id')
+            ->havingRaw('SUM(total_amount) > 0')
+            ->orderByDesc('total_revenue')
+            ->limit(10)
+            ->get()
+            ->map(function ($order) {
+                // Try to get customer from snapshot first, then from customer table
+                $customer = null;
+                if ($order->customerSnapshot) {
+                    $customer = (object)['cust_name' => $order->customerSnapshot->cust_name];
+                } else {
+                    $customer = Customer::find($order->cust_id);
+                }
+                return [
+                    'name' => $customer ? $customer->cust_name : 'Unknown Customer',
+                    'revenue' => $order->total_revenue ?? 0,
+                ];
             })
-        );
-        return $all->sortBy('days_left')->values();
+            ->filter(function ($customer) {
+                return $customer['revenue'] > 0; // Only include customers with revenue
+            });
+
+        return [
+            'labels' => $topCustomers->pluck('name')->toArray(),
+            'datasets' => [
+                [
+                    'label' => 'Revenue',
+                    'backgroundColor' => 'rgba(59, 130, 246, 0.31)',
+                    'borderColor' => 'rgba(59, 130, 246, 0.7)',
+                    'data' => $topCustomers->pluck('revenue')->toArray(),
+                ]
+            ]
+        ];
+    }
+
+    public function getTopProductsChart()
+    {
+        $topProducts = DeliveryOrderItem::whereHas('deliveryOrder', function ($query) {
+                $query->whereBetween('created_at', [$this->startDate, $this->endDate])
+                      ->where('status', 'Completed');
+            })
+            ->select('item_id', DB::raw('SUM(COALESCE(amount, qty * unit_price, 0)) as total_revenue'))
+            ->groupBy('item_id')
+            ->havingRaw('SUM(COALESCE(amount, qty * unit_price, 0)) > 0')
+            ->orderByDesc('total_revenue')
+            ->limit(10)
+            ->get()
+            ->map(function ($item) {
+                $product = Item::find($item->item_id);
+                // If item doesn't exist, try to get custom_item_name from delivery order items
+                if (!$product) {
+                    $doItem = DeliveryOrderItem::where('item_id', $item->item_id)
+                        ->whereHas('deliveryOrder', function($q) {
+                            $q->whereBetween('created_at', [$this->startDate, $this->endDate])
+                              ->where('status', 'Completed');
+                        })
+                        ->whereNotNull('custom_item_name')
+                        ->first();
+                    // For deleted items, fall back to the custom item name (may be long but rare)
+                    $name = $doItem ? $doItem->custom_item_name : null; // Skip if no custom name
+                } else {
+                    // Use item_code instead of item_name for the chart label; fallback to name if code missing
+                    $name = $product->item_code ?: $product->item_name;
+                }
+                return [
+                    'name' => $name,
+                    'revenue' => $item->total_revenue ?? 0,
+                ];
+            })
+            ->filter(function ($item) {
+                // Only include items with revenue and valid name (exclude deleted items without custom name)
+                return $item['revenue'] > 0 && !empty($item['name']);
+            })
+            ->values(); // Re-index array
+
+        return [
+            'labels' => $topProducts->pluck('name')->toArray(),
+            'datasets' => [
+                [
+                    'label' => 'Revenue',
+                    'backgroundColor' => 'rgba(168, 85, 247, 0.31)',
+                    'borderColor' => 'rgba(168, 85, 247, 0.7)',
+                    'data' => $topProducts->pluck('revenue')->toArray(),
+                ]
+            ]
+        ];
     }
 
     public function render()
     {
+        // Load sales charts if not already loaded
+        if (!isset($this->revenueTrendChartData)) {
+            $this->loadSalesCharts();
+        }
+        
         $totals = $this->getTotalStats();
         $inventory = $this->getInventoryStats();
-        $expiringChemicals = $this->getExpiringChemicals();
-        return view('livewire.dashboard', compact('totals', 'inventory', 'expiringChemicals'))->layout('layouts.app');
+        $salesSummary = $this->getSalesSummary();
+        return view('livewire.dashboard', compact('totals', 'inventory', 'salesSummary'))->layout('layouts.app');
     }
 }

@@ -1,5 +1,5 @@
 <div>
-    <div class="container my-3">
+    <div class="container my-3" style="padding-left: 0.25rem; padding-right: 0.25rem;">
     <div class="row">
             <div class="col-md-11 m-auto">
             <div class="card shadow-sm">
@@ -19,7 +19,7 @@
                     @endif
                 </div>
                 
-                <div class="card-body" style="overflow-x: hidden;">
+                <div class="card-body" style="padding-left: 0.5rem; padding-right: 0.5rem;">
                     <div class="row mb-3">
                         <div class="col-md-2">
                             <label class="form-label">Group</label>
@@ -177,7 +177,14 @@
                                 flex-direction: column;
                                 width: 100%;
                                 max-width: 100%;
-                                overflow-x: hidden;
+                                overflow: hidden;
+                            }
+                            
+                            /* Constrain Bootstrap table-responsive within wrapper */
+                            .transaction-log-wrapper .table-responsive {
+                                max-width: 100%;
+                                overflow-x: auto;
+                                overflow-y: visible;
                             }
                             
                             /* Scrollable table container - separate from pagination */
@@ -185,6 +192,7 @@
                                 overflow-x: auto;
                                 overflow-y: visible;
                                 width: 100%;
+                                max-width: 100%;
                                 margin-bottom: 0;
                                 -webkit-overflow-scrolling: touch;
                                 scrollbar-width: thin;
@@ -210,6 +218,7 @@
                                 table-layout: auto; 
                                 width: max-content;
                                 min-width: 100%;
+                                max-width: 100%; /* Constrain to container width */
                                 border-collapse: collapse;
                                 border-spacing: 0;
                                 margin-bottom: 0;
@@ -355,7 +364,7 @@
                         </style>
                         
                         <!-- Scrollable table area -->
-                        <div class="table-responsive mt-3 transaction-log-scrollable">
+                        <div class="table-responsive transaction-log-scrollable" style="max-width: 100%; overflow-x: auto; margin-top: 0.5rem;">
                             <table class="table table-hover transaction-log-table">
                             <thead>
                                 <tr align="left">

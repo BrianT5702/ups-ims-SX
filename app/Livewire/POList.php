@@ -74,11 +74,11 @@ class POList extends Component
     public function render()
     {
         $user = Auth::user();
-        $isAdmin = $user && $user->hasRole('Admin');
+        $isPrivileged = $user && ($user->hasRole('Admin') || $user->hasRole('Super Admin'));
         
         $query = PurchaseOrder::with(['supplier', 'user', 'updatedBy'])
-            ->when(!$isAdmin, function($q) use ($user) {
-                // Non-admins only see their own records
+            ->when(!$isPrivileged, function($q) use ($user) {
+                // Non-admins (and non-super-admin) only see their own records
                 return $q->where('user_id', $user->id);
             })
             ->when($this->filterSupplierId, function($q) {
@@ -113,7 +113,7 @@ class POList extends Component
 
         $countQuery = PurchaseOrder::query()
             ->where('po_num', '!=', 'PO0000000000');
-        if (!$isAdmin) {
+        if (!$isPrivileged) {
             $countQuery->where('user_id', $user->id);
         }
         if ($this->filterSupplierId) {

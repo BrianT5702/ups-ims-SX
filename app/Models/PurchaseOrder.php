@@ -4,10 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Scopes\StealthModeScope;
 
 class PurchaseOrder extends BaseModel
 {
     use HasFactory, SoftDeletes;
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new StealthModeScope());
+    }
+
+    /**
+     * Query without stealth mode scope (for Super Admin or system use).
+     */
+    public static function withoutStealthMode()
+    {
+        return static::withoutGlobalScope(StealthModeScope::class);
+    }
 
     protected $fillable = [
         'ref_num',

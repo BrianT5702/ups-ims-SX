@@ -3,12 +3,33 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Scopes\StealthModeScope;
 
 class Transaction extends BaseModel
 {
     use HasFactory;
 
     protected $table = 'transactions';
+
+    /**
+     * The "booted" method of the model.
+     *
+     * @return void
+     */
+    protected static function booted()
+    {
+        static::addGlobalScope(new StealthModeScope());
+    }
+
+    /**
+     * Get transactions without stealth mode scope (for Super Admin or system operations)
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public static function withoutStealthMode()
+    {
+        return static::withoutGlobalScope(StealthModeScope::class);
+    }
 
     protected $fillable = [
         'item_id',

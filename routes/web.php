@@ -39,6 +39,7 @@ use App\Livewire\BatchList;
 use App\Livewire\BatchDetails;
 use App\Livewire\StockMovementList;
 use App\Livewire\StockMovementForm;
+use App\Livewire\StealthModeToggle;
 
 //production check
 if (app()->environment('production')) {
@@ -101,6 +102,9 @@ Route::middleware(['auth', 'preventBackHistory', 'switchdb'])->group(function ()
         Route::prefix('profiles')->name('profiles')->middleware('permission:Edit Company Profile')->group(function () {
             Route::get('/', Profile::class);
         });
+
+        // Stealth Mode Toggle - Super Admin only
+        Route::get('/stealth-mode', StealthModeToggle::class)->name('stealth-mode');
 
         // Location management routes
         Route::prefix('locations')->name('locations')->middleware('permission:Manage Location')->group(function () {

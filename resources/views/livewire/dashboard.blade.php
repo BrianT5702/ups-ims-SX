@@ -44,7 +44,8 @@
                 <p class="text-sm text-gray-700">No movement in over a year</p>
             </div>
         </div>
-        <div class="grid grid-cols-3 gap-6 mb-6">
+        <!-- Orders Summary -->
+        <div class="grid grid-cols-2 gap-6 mb-6">
             <div class="p-4 bg-green-50 rounded-lg">
                 <h3 class="text-lg font-medium text-green-800">Purchase Orders</h3>
                 <p class="text-3xl font-bold text-green-600">{{ $totals['purchase_orders'] }}</p>
@@ -55,31 +56,135 @@
                 <p class="text-3xl font-bold text-purple-600">{{ $totals['delivery_orders'] }}</p>
                 <p class="text-sm text-purple-700">Total for selected period</p>
             </div>
-            <div class="p-4 bg-blue-50 rounded-lg relative group" tabindex="0">
-                <h3 class="text-lg font-medium text-blue-800">Expiring Chemicals (7 days)</h3>
-                <p class="text-3xl font-bold text-blue-600">{{ $expiringChemicals->count() }}</p>
-                <p class="text-sm text-blue-700">IBC & iQC expiring soon</p>
-                @if($expiringChemicals->count())
-                <div class="absolute left-0 top-full mt-2 w-128 max-h-96 bg-white border border-blue-200 rounded-lg shadow-lg p-4 z-50 hidden group-hover:block group-focus-within:block">
-                    <h4 class="font-semibold text-blue-700 mb-2 text-lg">Expiring List</h4>
-                    <ul class="max-h-80 overflow-y-auto text-base">
-                        @foreach($expiringChemicals as $chem)
-                            <li class="mb-2 flex justify-between items-center">
-                                <span>
-                                    <span class="font-bold text-base">{{ $chem->type }}</span> |
-                                    DO: <span class="text-blue-700 text-lg font-semibold">{{ $chem->do_num }}</span> |
-                                    Code: <span class="text-blue-700 text-lg font-semibold">{{ $chem->che_code }}</span>
-                                </span>
-                                <span class="ml-4 text-lg font-bold text-red-600">{{ $chem->days_left }}d left</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-                @endif
+        </div>
+
+        <!-- Total Revenue Card -->
+        <div class="grid grid-cols-1 gap-6 mb-6">
+            <div class="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                <h3 class="text-lg font-medium text-green-800 mb-2">Total Revenue</h3>
+                <p class="text-4xl font-bold text-green-600">RM {{ number_format($salesSummary['total_revenue'], 2) }}</p>
+                <p class="text-sm text-green-700 mt-1">From completed delivery orders</p>
             </div>
         </div>
         
-        <!-- Chart -->
+        <!-- Sales Analytics Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Revenue Trend Chart -->
+            <div class="bg-white p-4 rounded-lg shadow-md" wire:key="revenue-trend-{{ $timeframe }}">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">Revenue Trend</h3>
+                <div class="w-full h-[300px]" x-data="{
+                    chart: null,
+                    chartData: @entangle('revenueTrendChartData'),
+                    init() {
+                        this.$watch('chartData', (newData) => {
+                            if (this.chart) {
+                                this.chart.destroy();
+                            }
+                            if (newData && newData.labels && newData.labels.length > 0) {
+                                this.$nextTick(() => {
+                                    this.initChart();
+                                });
+                            }
+                        });
+                        
+                        if (this.chartData && this.chartData.labels && this.chartData.labels.length > 0) {
+                            this.$nextTick(() => {
+                                this.initChart();
+                            });
+                        }
+                    },
+                    initChart() {
+                        if (!this.chartData || !this.$refs.canvas) return;
+                        const ctx = this.$refs.canvas.getContext('2d');
+                        this.chart = new Chart(ctx, {
+                            type: 'line',
+                            data: this.chartData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            callback: function(value) {
+                                                return 'RM ' + value.toLocaleString();
+                                            }
+                                        }
+                                    }
+                                },
+                                plugins: {
+                                    legend: { display: true, position: 'top' }
+                                }
+                            }
+                        });
+                    }
+                }">
+                    <canvas x-ref="canvas"></canvas>
+                    <div x-show="!chartData || !chartData.labels || chartData.labels.length === 0" class="text-center text-gray-500 py-20">
+                        No revenue data available for the selected period
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Products Chart -->
+            <div class="bg-white p-4 rounded-lg shadow-md" wire:key="top-products-{{ $timeframe }}">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">Top Products</h3>
+                <div class="w-full h-[300px]" x-data="{
+                    chart: null,
+                    chartData: @entangle('topProductsChartData'),
+                    init() {
+                        this.$watch('chartData', (newData) => {
+                            if (this.chart) {
+                                this.chart.destroy();
+                            }
+                            if (newData && newData.labels && newData.labels.length > 0) {
+                                this.$nextTick(() => {
+                                    this.initChart();
+                                });
+                            }
+                        });
+                        
+                        if (this.chartData && this.chartData.labels && this.chartData.labels.length > 0) {
+                            this.$nextTick(() => {
+                                this.initChart();
+                            });
+                        }
+                    },
+                    initChart() {
+                        if (!this.chartData || !this.$refs.canvas) return;
+                        const ctx = this.$refs.canvas.getContext('2d');
+                        this.chart = new Chart(ctx, {
+                            type: 'bar',
+                            data: this.chartData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            callback: function(value) {
+                                                return 'RM ' + value.toLocaleString();
+                                            }
+                                        }
+                                    }
+                                },
+                                plugins: {
+                                    legend: { display: true, position: 'top' }
+                                }
+                            }
+                        });
+                    }
+                }">
+                    <canvas x-ref="canvas"></canvas>
+                    <div x-show="!chartData || !chartData.labels || chartData.labels.length === 0" class="text-center text-gray-500 py-20">
+                        No product data available for the selected period
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Orders Chart -->
         <div class="w-full h-[400px]" x-data="{
             chart: null,
             chartData: @entangle('chartData'),

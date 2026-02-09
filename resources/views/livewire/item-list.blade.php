@@ -42,7 +42,7 @@
                                         <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                             {{ count($selectedCategories) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedCategoryNames()) : 'Select Categories' }}
                                         </button>
-                                        <ul class="dropdown-menu" aria-labelledby="categoryDropdown">
+                                        <ul class="dropdown-menu" aria-labelledby="categoryDropdown" style="max-height: 240px; overflow-y: auto;">
                                             @foreach($categories as $category)
                                                 <li>
                                                     <a class="dropdown-item" href="#" wire:click.prevent="toggleCategory({{ $category->id }})">
@@ -63,7 +63,7 @@
                                         <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="familyDropdown" data-bs-toggle="dropdown" aria-expanded="false" @if($filteredFamily) disabled @endif>
                                             {{ count($selectedFamilies) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedFamilyNames()) : 'Select Families' }}
                                         </button>
-                                        <ul class="dropdown-menu" aria-labelledby="familyDropdown">
+                                        <ul class="dropdown-menu" aria-labelledby="familyDropdown" style="max-height: 240px; overflow-y: auto;">
                                             @foreach($families as $family)
                                                 <li>
                                                     <a class="dropdown-item" href="#" wire:click.prevent="toggleFamily({{ $family->id }})">
@@ -84,7 +84,7 @@
                                         <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="groupDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                             {{ count($selectedGroups) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedGroupNames()) : 'Select Groups' }}
                                         </button>
-                                        <ul class="dropdown-menu" aria-labelledby="groupDropdown">
+                                        <ul class="dropdown-menu" aria-labelledby="groupDropdown" style="max-height: 240px; overflow-y: auto;">
                                             @foreach($groups as $group)
                                                 <li>
                                                     <a class="dropdown-item" href="#" wire:click.prevent="toggleGroup({{ $group->id }})">
@@ -105,7 +105,7 @@
                                         <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="supplierDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                             {{ count($selectedSuppliers) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedSupplierNames()) : 'Select Suppliers' }}
                                         </button>
-                                        <ul class="dropdown-menu" aria-labelledby="supplierDropdown">
+                                        <ul class="dropdown-menu" aria-labelledby="supplierDropdown" style="max-height: 240px; overflow-y: auto;">
                                             @foreach($suppliers as $supplier)
                                                 <li>
                                                     <a class="dropdown-item" href="#" wire:click.prevent="toggleSupplier({{ $supplier->id }})">

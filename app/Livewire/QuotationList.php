@@ -51,11 +51,11 @@ class QuotationList extends Component
     public function render()
     {
         $user = Auth::user();
-        $isAdmin = $user && $user->hasRole('Admin');
+        $isPrivileged = $user && ($user->hasRole('Admin') || $user->hasRole('Super Admin'));
         
         $query = Quotation::with(['customer', 'user', 'updatedBy'])
-            ->when(!$isAdmin, function($q) use ($user) {
-                // Non-admins only see their own records
+            ->when(!$isPrivileged, function($q) use ($user) {
+                // Non-admins (and non-super-admin) only see their own records
                 return $q->where('user_id', $user->id);
             })
             ->when($this->filterCustomerId, fn($q) => $q->where('cust_id', $this->filterCustomerId))
@@ -79,7 +79,7 @@ class QuotationList extends Component
         $filteredCustomer = $this->filterCustomerId ? \App\Models\Customer::find($this->filterCustomerId) : null;
         
         $countQuery = Quotation::query();
-        if (!$isAdmin) {
+        if (!$isPrivileged) {
             $countQuery->where('user_id', $user->id);
         }
         if ($this->filterCustomerId) {

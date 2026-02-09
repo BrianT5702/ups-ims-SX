@@ -35,13 +35,13 @@
     </style>
 
 </head>
-<body class="font-sans antialiased">
-    <div class="min-h-screen w-screen bg-gray-100 dark:bg-gray-900 flex">
+<body class="font-sans antialiased" style="overflow-x: hidden; overflow-y: hidden; height: 100vh;">
+    <div class="min-h-screen w-screen bg-gray-100 dark:bg-gray-900 flex" style="overflow-x: hidden; height: 100vh;">
         <!-- Sidebar -->
         <x-sidebar />
 
         <!-- Main Content Area -->
-        <div class="flex-grow bg-gray-100 dark:bg-gray-900">
+        <div class="flex-grow bg-gray-100 dark:bg-gray-900" style="overflow-x: hidden; min-width: 0;">
             <!-- Navigation -->
             @include('layouts.navigation')
 
