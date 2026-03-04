@@ -115,16 +115,27 @@ php artisan view:clear || true\n\
 php artisan route:clear || true\n\
 \n\
 wait_for_connection ups\n\
+wait_for_connection urs\n\
+wait_for_connection ucs\n\
+wait_for_connection ups2\n\
+wait_for_connection urs2\n\
+wait_for_connection ucs2\n\
 \n\
-echo "Running migrations for UPS/URS/UCS..."\n\
+echo "Running migrations for UPS/URS/UCS/UPS2/URS2/UCS2..."\n\
 php artisan migrate --force --database=ups || true\n\
 php artisan migrate --force --database=urs || true\n\
 php artisan migrate --force --database=ucs || true\n\
+php artisan migrate --force --database=ups2 || true\n\
+php artisan migrate --force --database=urs2 || true\n\
+php artisan migrate --force --database=ucs2 || true\n\
 \n\
-echo "Running seeders for UPS/URS/UCS..."\n\
+echo "Running seeders for UPS/URS/UCS/UPS2/URS2/UCS2..."\n\
 php artisan db:seed --force --database=ups || true\n\
 php artisan db:seed --force --database=urs || true\n\
 php artisan db:seed --force --database=ucs || true\n\
+php artisan db:seed --force --database=ups2 || true\n\
+php artisan db:seed --force --database=urs2 || true\n\
+php artisan db:seed --force --database=ucs2 || true\n\
 \n\
 echo "Rebuilding caches..."\n\
 php artisan config:cache || true\n\
