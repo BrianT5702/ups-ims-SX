@@ -8,6 +8,19 @@
             </div>
         @endif
 
+        @if (session('error'))
+            <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        @if ($loadError)
+            <div class="mb-4 p-4 bg-amber-100 border border-amber-400 text-amber-800 rounded">
+                <p class="font-semibold">Stealth settings unavailable</p>
+                <p class="mt-2">{{ $loadError }}</p>
+            </div>
+        @endif
+
         <div class="bg-white shadow-md rounded-lg p-6">
             <div class="mb-6">
                 <h2 class="text-xl font-semibold mb-4 text-gray-700">Current Status</h2>
@@ -27,10 +40,14 @@
                         @endif
                     </div>
                     <div class="flex items-center">
+                        @if (!$loadError)
                         <div class="relative inline-block w-16 h-8 rounded-full cursor-pointer transition-colors duration-200 ease-in-out {{ $isActive ? 'bg-red-500' : 'bg-gray-300' }}" 
                              wire:click="toggle">
                             <div class="absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out {{ $isActive ? 'translate-x-8' : 'translate-x-0' }}"></div>
                         </div>
+                        @else
+                        <span class="text-gray-500 text-sm">Unavailable</span>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -52,6 +69,7 @@
                 </div>
             </div>
 
+            @if (!$loadError)
             <div class="mt-6 pt-6 border-t">
                 <button 
                     wire:click="toggle"
@@ -60,7 +78,10 @@
                     {{ $isActive ? 'Deactivate Stealth Mode' : 'Activate Stealth Mode' }}
                 </button>
             </div>
+            @endif
         </div>
     </div>
 </div>
+
+
 
