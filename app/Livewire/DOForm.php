@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\RestockList;
 use App\Models\BatchTracking;
 use App\Models\CustomerSnapshot;
+use App\Services\DoNumberService;
 
 #[Title('UR | Manage Delivery Order')]
 class DOForm extends Component
@@ -70,6 +71,12 @@ class DOForm extends Component
         if ($deliveryOrder) {
             $this->deliveryOrder = $deliveryOrder;
             $this->do_num = $deliveryOrder->do_num;
+
+            // New DO: assign next sequential number (per-company sequence)
+            if (!$deliveryOrder->id) {
+                $connection = session('active_db') ?: DB::getDefaultConnection();
+                $this->do_num = DoNumberService::getNextDoNumber($connection);
+            }
             $this->ref_num = $deliveryOrder->ref_num;
             $this->date = $deliveryOrder->date;
             $this->cust_id = $deliveryOrder->cust_id;
@@ -1659,7 +1666,7 @@ class DOForm extends Component
     public function render()
     {
         $this->date = $this->date ?? now()->toDateString();
-        $this->do_num = $this->do_num ?? 'DO' . time();
+        // do_num is set in mount for new DOs; avoid overwriting here (would consume extra numbers)
         $this->user_id = $this->user_id ?? auth()->id();
         // Load salesmen list sorted by name for dropdown
         // Use current database connection (not just 'ups') to match validation

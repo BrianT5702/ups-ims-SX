@@ -21,6 +21,13 @@ use App\Models\Supplier;
 use App\Models\Customer;
 use App\Models\Item;
 use App\Models\RestockList;
+use App\Models\DeliveryOrder;
+use App\Models\DeliveryOrderItem;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
+use App\Models\Quotation;
+use App\Models\QuotationItem;
+use App\Models\Scopes\StealthModeScope;
 use Excel;
 
 class UserController extends Controller
@@ -210,7 +217,7 @@ class UserController extends Controller
     public function deleteRecords(Request $request)
     {
         $request->validate([
-            'delete_type' => 'required|in:items,customers,suppliers',
+            'delete_type' => 'required|in:items,customers,suppliers,delivery_orders,quotations,purchase_orders',
             'db_connection' => 'required|in:ups,urs,ucs',
         ]);
 
@@ -244,6 +251,27 @@ class UserController extends Controller
                     }
                 }
                 $message = "Successfully deleted {$deletedCount} supplier(s) from {$request->db_connection} database. Some suppliers could not be deleted because they have associated items or purchase orders.";
+            }
+            elseif ($request->delete_type === 'delivery_orders') {
+                DeliveryOrderItem::on($request->db_connection)->forceDelete();
+                $query = DeliveryOrder::on($request->db_connection)->withoutGlobalScope(StealthModeScope::class);
+                $deletedCount = $query->count();
+                $query->forceDelete();
+                $message = "Successfully deleted {$deletedCount} delivery order(s) from {$request->db_connection} database.";
+            }
+            elseif ($request->delete_type === 'quotations') {
+                QuotationItem::on($request->db_connection)->forceDelete();
+                $query = Quotation::on($request->db_connection)->withoutGlobalScope(StealthModeScope::class);
+                $deletedCount = $query->count();
+                $query->forceDelete();
+                $message = "Successfully deleted {$deletedCount} quotation(s) from {$request->db_connection} database.";
+            }
+            elseif ($request->delete_type === 'purchase_orders') {
+                PurchaseOrderItem::on($request->db_connection)->forceDelete();
+                $query = PurchaseOrder::on($request->db_connection)->withoutGlobalScope(StealthModeScope::class);
+                $deletedCount = $query->count();
+                $query->forceDelete();
+                $message = "Successfully deleted {$deletedCount} purchase order(s) from {$request->db_connection} database.";
             }
             else {
                 $deletedCount = Customer::on($request->db_connection)->count();

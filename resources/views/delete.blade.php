@@ -131,6 +131,9 @@
                 <select name="delete_type" id="delete_type" required>
                     <option value="">-- Choose Type --</option>
                     <option value="items">Delete All Items</option>
+                    <option value="delivery_orders">Delete All Delivery Orders</option>
+                    <option value="quotations">Delete All Quotations</option>
+                    <option value="purchase_orders">Delete All Purchase Orders</option>
                     <option value="customers">Delete All Customers</option>
                     <option value="suppliers">Delete All Suppliers</option>
                 </select>
@@ -154,7 +157,13 @@
             if (deleteType) {
                 let info = '';
                 if (deleteType === 'items') {
-                    info = '<li>All items from the selected database</li><li>This will remove all item records, including their stock quantities, prices, and other details</li>';
+                    info = '<li>All items from the selected database</li><li>This will remove all item records, including their stock quantities, prices, and other details</li><li><strong>Note:</strong> This also wipes transaction log and batch tracking records</li>';
+                } else if (deleteType === 'delivery_orders') {
+                    info = '<li>All delivery orders and their line items from the selected database</li>';
+                } else if (deleteType === 'quotations') {
+                    info = '<li>All quotations and their line items from the selected database</li>';
+                } else if (deleteType === 'purchase_orders') {
+                    info = '<li>All purchase orders and their line items from the selected database</li><li>Batch tracking records will have their PO reference set to null</li>';
                 } else if (deleteType === 'customers') {
                     info = '<li>All customers from the selected database</li><li>This will remove all customer records, including their contact information and details</li><li><strong>Note:</strong> Customers with associated Delivery Orders cannot be deleted from the list page, but this bulk delete will attempt to remove all customers</li>';
                 } else if (deleteType === 'suppliers') {
