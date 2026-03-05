@@ -11,9 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('delivery_orders_items', function (Blueprint $table) {
-            $table->decimal('qty', 10, 2)->default(1)->change();
-        });
+        $connections = ['mysql', 'ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'];
+
+        foreach ($connections as $connection) {
+            if (config("database.connections.{$connection}") && Schema::connection($connection)->hasTable('delivery_orders_items')) {
+                Schema::connection($connection)->table('delivery_orders_items', function (Blueprint $table) {
+                    $table->decimal('qty', 10, 2)->default(1)->change();
+                });
+            }
+        }
     }
 
     /**
@@ -21,8 +27,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('delivery_orders_items', function (Blueprint $table) {
-            $table->integer('qty')->default(1)->change();
-        });
+        $connections = ['mysql', 'ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'];
+
+        foreach ($connections as $connection) {
+            if (config("database.connections.{$connection}") && Schema::connection($connection)->hasTable('delivery_orders_items')) {
+                Schema::connection($connection)->table('delivery_orders_items', function (Blueprint $table) {
+                    $table->integer('qty')->default(1)->change();
+                });
+            }
+        }
     }
 };
