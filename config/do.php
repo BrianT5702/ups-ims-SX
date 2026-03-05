@@ -19,6 +19,6 @@ return [
     | DO Number Format
     |--------------------------------------------------------------------------
     */
-    'prefix' => 'DO',
+    'prefix' => '',  // Empty = numbers only (e.g. 049037), use 'DO' for DO049037
     'pad_length' => 6,
 ];

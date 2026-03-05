@@ -15,6 +15,7 @@ class DeliveryOrderItem extends BaseModel
         'do_id',
         'item_id',
         'custom_item_name',
+        'custom_um',
         'qty',
         'unit_price',
         'pricing_tier',

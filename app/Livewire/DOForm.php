@@ -106,6 +106,7 @@ class DOForm extends Component
                             'details' => '',
                         ],
                         'custom_item_name' => $doItem->custom_item_name ?? '',
+                        'custom_um' => $doItem->custom_um ?? '',
                         'item_qty' => $doItem->qty ?? 0, // Load qty for text-only items
                         'item_unit_price' => 0,
                         'amount' => 0,
@@ -474,7 +475,7 @@ class DOForm extends Component
             }
             
             // Always recalculate amount based on current unit price
-            $this->stackedItems[$index]['amount'] = intval($this->stackedItems[$index]['item_qty'] ?? 0) * floatval($this->stackedItems[$index]['item_unit_price'] ?? 0);
+            $this->stackedItems[$index]['amount'] = floatval($this->stackedItems[$index]['item_qty'] ?? 0) * floatval($this->stackedItems[$index]['item_unit_price'] ?? 0);
             
             $this->calculateTotalAmount();
         }
@@ -500,7 +501,7 @@ class DOForm extends Component
                 $this->stackedItems[$key]['item_unit_price'] = $tierPrice;
                 
                 // Always recalculate amount based on current unit price
-                $this->stackedItems[$key]['amount'] = intval($this->stackedItems[$key]['item_qty'] ?? 0) * floatval($this->stackedItems[$key]['item_unit_price'] ?? 0);
+                $this->stackedItems[$key]['amount'] = floatval($this->stackedItems[$key]['item_qty'] ?? 0) * floatval($this->stackedItems[$key]['item_unit_price'] ?? 0);
             } else {
                 // For custom prices, just recalculate amount without changing the price
                 $this->stackedItems[$key]['amount'] = $this->stackedItems[$key]['item_qty'] * $this->stackedItems[$key]['item_unit_price'];
@@ -529,7 +530,7 @@ class DOForm extends Component
     {
         if (isset($this->stackedItems[$index])) {
             $item = $this->stackedItems[$index];
-            $requestedQty = intval($item['item_qty'] ?? 0);
+            $requestedQty = floatval($item['item_qty'] ?? 0);
             
             // No stock validation - allow any quantity, including negative stock
             $item['item_qty'] = $requestedQty;
@@ -770,7 +771,7 @@ class DOForm extends Component
         foreach ($this->freeFormTextRows as $rowIndex => $rowData) {
             // Handle both old format (string) and new format (array with 'text' and 'qty')
             $text = is_array($rowData) ? ($rowData['text'] ?? '') : $rowData;
-            $qty = is_array($rowData) ? (intval($rowData['qty'] ?? 0)) : 0;
+            $qty = is_array($rowData) ? (floatval($rowData['qty'] ?? 0)) : 0;
             
             if (!empty(trim($text))) {
                 // Check if this text row already exists as an item
@@ -784,6 +785,7 @@ class DOForm extends Component
                 }
                 
                 if (!$exists) {
+                    $customUm = is_array($rowData) ? ($rowData['um'] ?? '') : '';
                     // Store item with original row index to preserve position
                     $textItemsToAdd[$rowIndex] = [
                         'item' => [
@@ -794,6 +796,7 @@ class DOForm extends Component
                             'details' => '',
                         ],
                         'custom_item_name' => trim($text),
+                        'custom_um' => is_string($customUm) ? trim($customUm) : '',
                         'item_qty' => $qty, // Use qty from freeFormTextRows
                         'item_unit_price' => 0,
                         'amount' => 0,
@@ -997,7 +1000,7 @@ class DOForm extends Component
             foreach ($this->stackedItems as $index => $item) {
                 // Skip validation for text-only items
                 if (!isset($item['is_text_only']) || !$item['is_text_only']) {
-                    $validationRules["stackedItems.{$index}.item_qty"] = 'required|integer|min:1';
+                    $validationRules["stackedItems.{$index}.item_qty"] = 'required|numeric|min:0.01';
                     $validationRules["stackedItems.{$index}.item_unit_price"] = 'required|numeric|min:0';
                 }
             }
@@ -1014,8 +1017,8 @@ class DOForm extends Component
             'date.date' => 'The date must be a valid date.',
             'cust_po.required' => 'The customer PO number is required.',
             'stackedItems.*.item_qty.required' => 'The item quantity is required for each item.',
-            'stackedItems.*.item_qty.integer' => 'The item quantity must be an integer.',
-            'stackedItems.*.item_qty.min' => 'The item quantity must be at least 1.',
+            'stackedItems.*.item_qty.numeric' => 'The item quantity must be a number.',
+            'stackedItems.*.item_qty.min' => 'The item quantity must be at least 0.01.',
             'stackedItems.*.item_unit_price.required' => 'The unit price is required for each item.',
             'stackedItems.*.item_unit_price.numeric' => 'The unit price must be a number.',
             'stackedItems.*.item_unit_price.min' => 'The unit price must be at least 0.',
@@ -1075,7 +1078,7 @@ class DOForm extends Component
                         return !(isset($item['is_text_only']) && $item['is_text_only']);
                     })
                     ->mapWithKeys(function($item) {
-                        return [$item['item']['id'] => (int) ($item['item_qty'] ?? 0)];
+                        return [$item['item']['id'] => (int) round($item['item_qty'] ?? 0)];
                     })
                     ->toArray();
 
@@ -1094,7 +1097,7 @@ class DOForm extends Component
                             }
                             
                             $itemId = $item['item']['id'];
-                            $qty = (int) ($item['item_qty'] ?? 0);
+                            $qty = (int) round($item['item_qty'] ?? 0);
                             
                             if ($qty > 0) {
                                 $this->restoreToBatchesFifo($itemId, $qty);
@@ -1118,7 +1121,7 @@ class DOForm extends Component
                             }
                             
                             $itemId = $item['item']['id'];
-                            $qty = (int) ($item['item_qty'] ?? 0);
+                            $qty = (int) round($item['item_qty'] ?? 0);
                             
                             if ($qty > 0) {
                                 $this->deductFromBatchesFifo($itemId, $qty, false);
@@ -1270,7 +1273,8 @@ class DOForm extends Component
                         'do_id' => $this->deliveryOrder->id,
                         'item_id' => null, // Text-only items have no item_id
                         'custom_item_name' => $item['custom_item_name'] ?? null,
-                        'qty' => intval($item['item_qty'] ?? 0), // Allow qty for text-only items
+                        'custom_um' => !empty(trim($item['custom_um'] ?? '')) ? trim($item['custom_um']) : null,
+                        'qty' => floatval($item['item_qty'] ?? 0), // Allow decimal qty for text-only items
                         'unit_price' => 0,
                         'pricing_tier' => null,
                         'more_description' => null,
@@ -1303,7 +1307,7 @@ class DOForm extends Component
                     }
                     
                     $itemId = $item['item']['id'];
-                    $qty = (int) ($item['item_qty'] ?? 0);
+                    $qty = (int) round($item['item_qty'] ?? 0);
 
                     if ($qty > 0) {
                         $this->deductFromBatchesFifo($itemId, $qty, false);

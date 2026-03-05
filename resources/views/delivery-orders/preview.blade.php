@@ -253,28 +253,28 @@
         }
         
 
-        /* Ensure NOTES row (row 25) is properly positioned - minimal padding to stick to content */
-        .items-table tbody tr:nth-child(26) td {
+        /* Ensure NOTES row is properly positioned - minimal padding to stick to content */
+        .items-table tbody tr.notes-row td {
             padding: 2px 8px !important;
             border-top: 1px solid #000;
             line-height: 1.1 !important;
             margin: 0 !important;
         }
 
-        /* Ensure last row (row 25 - NOTES) has a visible top border in Description column only, starting from vertical separator */
-        .items-table tbody tr:last-child td:first-child {
+        /* Ensure last row (NOTES) has visible top border in Description column only, starting from vertical separator */
+        .items-table tbody tr.notes-row td:first-child {
             border-top: none;
             border-bottom: none;
             padding: 2px 8px !important;
         }
-        .items-table tbody tr:last-child td:last-child {
+        .items-table tbody tr.notes-row td:last-child {
             border-top: none;
             border-bottom: none;
             position: relative;
             padding: 2px 8px !important;
             line-height: 1.1 !important;
         }
-        .items-table tbody tr:last-child td:last-child::before {
+        .items-table tbody tr.notes-row td:last-child::before {
             content: '';
             position: absolute;
             left: 0;
@@ -286,13 +286,15 @@
         
         
         /* Ensure NOTES row is immediately after content - no gap */
-        .items-table tbody tr:nth-child(26) {
+        .items-table tbody tr.notes-row {
             margin-top: 0 !important;
             padding-top: 0 !important;
         }
 
         /* Fixed column widths (favoring more space for Item Name) */
         .items-table th:nth-child(1), .items-table td:nth-child(1) { width: var(--qty-col-width); }   /* QTY */
+        /* QTY column: slightly smaller font */
+        .items-table td:nth-child(1) { font-size: calc(1em - 0.5px); }
         .items-table th:nth-child(2), .items-table td:nth-child(2) { width: auto; }   /* Item Name - fill all remaining space */
         
         /* Ensure consistent padding and alignment */
@@ -721,6 +723,10 @@
                 font-size: 1.0em !important;
                 line-height: 1.2 !important;
             }
+            /* QTY column: slightly smaller font in print */
+            .items-table td:nth-child(1) {
+                font-size: calc(1em - 0.5px) !important;
+            }
 
             .items-table th {
                 padding: 6px 8px 4px 8px !important;
@@ -728,9 +734,8 @@
                 line-height: 1.3 !important;
             }
 
-            /* Ensure NOTES row (row 25) has minimal padding in print - MUST come after general td rule to override */
-            /* Match preview exactly: padding 2px, line-height 1.1, no extra spacing */
-            .items-table tbody tr:nth-child(26) td {
+            /* Ensure NOTES row has minimal padding in print - MUST come after general td rule to override */
+            .items-table tbody tr.notes-row td {
                 padding: 2px 8px !important;
                 line-height: 1.1 !important;
                 margin: 0 !important;
@@ -738,7 +743,7 @@
             }
             
             /* Ensure NOTES row is immediately after content - no gap in print */
-            .items-table tbody tr:nth-child(26) {
+            .items-table tbody tr.notes-row {
                 margin-top: 0 !important;
                 padding-top: 0 !important;
                 margin-bottom: 0 !important;
@@ -747,20 +752,20 @@
                 min-height: auto !important;
             }
 
-            /* Ensure last row (row 25 - NOTES) has a visible top border in Description column only in print, starting from vertical separator */
-            .items-table tbody tr:last-child td:first-child {
+            /* Ensure NOTES row has visible top border in Description column only in print */
+            .items-table tbody tr.notes-row td:first-child {
                 border-top: none !important;
                 border-bottom: none !important;
                 padding: 2px 8px !important;
             }
-            .items-table tbody tr:last-child td:last-child {
+            .items-table tbody tr.notes-row td:last-child {
                 border-top: none !important;
                 border-bottom: none !important;
                 position: relative !important;
                 padding: 2px 8px !important;
                 line-height: 1.1 !important;
             }
-            .items-table tbody tr:last-child td:last-child::before {
+            .items-table tbody tr.notes-row td:last-child::before {
                 content: '' !important;
                 position: absolute !important;
                 left: 0 !important;
@@ -935,6 +940,18 @@
                         </thead>
                         <tbody>
                             @php
+                                // Count total description lines - deduct that many rows from the bottom
+                                $totalDescriptionLines = 0;
+                                foreach ($deliveryOrder->items as $item) {
+                                    $desc = $item->more_description ?? '';
+                                    if (!empty($desc)) {
+                                        $lines = explode("\n", $desc);
+                                        foreach ($lines as $line) {
+                                            $totalDescriptionLines += max(1, ceil(strlen($line) / 60));
+                                        }
+                                    }
+                                }
+                                
                                 // Build a map from row_index to item for absolute positioning
                                 $rowToItemMap = [];
                                 $itemsWithoutRowIndex = [];
@@ -958,23 +975,27 @@
                                         $nextAvailableRow++;
                                     }
                                 }
+                                
+                                // Deduct last N rows when there are N lines of description (match form logic)
+                                $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
+                                $itemRowsToShow = min(25, max($maxItemRowIndex + 1, 25 - $totalDescriptionLines));
+                                $notesRowIndex = $itemRowsToShow; // NOTES row follows item rows
                             @endphp
-                            @for($rowIndex = 0; $rowIndex < 26; $rowIndex++)
+                            @for($rowIndex = 0; $rowIndex <= $notesRowIndex; $rowIndex++)
                                 @php
-                                    // Row 25 is ALWAYS reserved for NOTES - never assign items to it
-                                    $item = ($rowIndex === 25) ? null : ($rowToItemMap[$rowIndex] ?? null);
+                                    $item = ($rowIndex === $notesRowIndex) ? null : ($rowToItemMap[$rowIndex] ?? null);
                                 @endphp
-                                <tr>
-                                    @if($rowIndex === 25)
-                                        {{-- Last row (row 25): ALWAYS show notes - this is the 26th and final row --}}
+                                <tr class="{{ $rowIndex === $notesRowIndex ? 'notes-row' : '' }}">
+                                    @if($rowIndex === $notesRowIndex)
+                                        {{-- NOTES row: always the last row, deducts when descriptions exist --}}
                                         <td style="padding: 2px 8px;">&nbsp;</td>
                                         <td style="font-weight: bold; text-transform: uppercase; padding: 2px 8px; line-height: 1.1;">NOTES: GOODS SOLD ARE NOT RETURNABLE.</td>
                                     @elseif($item)
                                         <td>
                                             @if($item->item_id === null)
-                                                {{-- Text-only item: show qty only if not 0 --}}
+                                                {{-- Text-only item: show qty + custom UOM (or leave empty) --}}
                                                 @if($item->qty > 0)
-                                                    {{ $item->qty }} {{ 'UNITS' }}
+                                                    {{ $item->qty }}{{ !empty($item->custom_um) ? ' ' . $item->custom_um : '' }}
                                                 @else
                                                     &nbsp;
                                                 @endif

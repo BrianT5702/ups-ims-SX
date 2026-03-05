@@ -188,6 +188,19 @@
                                             }
                                         @endphp
                                         @php
+                                            // Count total description lines across all items (each line = 1 row to deduct from bottom)
+                                            $totalDescriptionLines = 0;
+                                            foreach ($stackedItems as $item) {
+                                                $desc = $item['more_description'] ?? '';
+                                                if (!empty($desc)) {
+                                                    $lines = explode("\n", $desc);
+                                                    foreach ($lines as $line) {
+                                                        $lineLength = strlen($line);
+                                                        $totalDescriptionLines += max(1, ceil($lineLength / 60));
+                                                    }
+                                                }
+                                            }
+                                            
                                             // Build a map from row index to item index (for absolute row positioning)
                                             $rowToItemMap = [];
                                             $regularItemIndex = 0;
@@ -220,8 +233,13 @@
                                                     }
                                                 }
                                             }
+                                            
+                                            // Deduct last N rows when there are N lines of description (keeps table from growing)
+                                            // Must show at least enough rows for all items
+                                            $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
+                                            $rowsToShow = min(25, max($maxItemRowIndex + 1, 25 - $totalDescriptionLines));
                                         @endphp
-                                        @for($rowIndex = 0; $rowIndex < 25; $rowIndex++)
+                                        @for($rowIndex = 0; $rowIndex < $rowsToShow; $rowIndex++)
                                             @php
                                                 // Map row index to item index (preserve absolute row positions)
                                                 $itemIndex = $rowToItemMap[$rowIndex] ?? null;
@@ -232,28 +250,31 @@
                                                 <td style="width: 70px; vertical-align: top;">
                                                     @if($item)
                                                         @if((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
-                                                            {{-- Text-only item: allow qty input --}}
+                                                            {{-- Text-only item: allow qty + editable UOM (or leave empty) --}}
                                                             <div class="d-flex flex-column gap-1">
                                                                 <input type="number" 
                                                                     wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
                                                                     class="form-control form-control-sm" 
                                                                     min="0" 
+                                                                    step="0.01"
+                                                                    inputmode="decimal"
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     style="width: 100%;">
-                                                                <small class="text-muted" style="font-size: 0.75em;">
-                                                                    @php
-                                                                        $unit = $item['item']['um'] ?? 'UNITS';
-                                                                        $unit = ($unit === 'UNIT') ? 'UNITS' : $unit;
-                                                                    @endphp
-                                                                    {{ $unit }}
-                                                                </small>
+                                                                <input type="text" 
+                                                                    wire:model.lazy="stackedItems.{{ $itemIndex }}.custom_um" 
+                                                                    class="form-control form-control-sm" 
+                                                                    placeholder="UOM" 
+                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                    style="font-size: 0.75em; padding: 0.15rem 0.25rem;">
                                                             </div>
                                                         @else
                                                             <div class="d-flex flex-column gap-1">
                                                                 <input type="number" 
                                                                     wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
                                                                     class="form-control form-control-sm @error('stackedItems.'.$itemIndex.'.item_qty') is-invalid @enderror" 
-                                                                    min="1" 
+                                                                    min="0.01" 
+                                                                    step="0.01"
+                                                                    inputmode="decimal"
                                                                     wire:change="updatePriceLine({{ $itemIndex }})" 
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     style="width: 100%;">
@@ -270,17 +291,21 @@
                                                             </div>
                                                         @endif
                                                     @elseif(!$isView && $isEmptyRow)
-                                                        {{-- Empty row: allow qty input for text entries --}}
+                                                        {{-- Empty row: allow qty + UOM input for text entries (UOM can be empty) --}}
                                                         <div class="d-flex flex-column gap-1">
                                                             <input type="number" 
                                                                 wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.qty" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
                                                                 class="form-control form-control-sm" 
                                                                 min="0" 
+                                                                step="0.01"
+                                                                inputmode="decimal"
                                                                 placeholder="0"
                                                                 style="width: 100%;">
-                                                            <small class="text-muted" style="font-size: 0.75em;">
-                                                                UNITS
-                                                            </small>
+                                                            <input type="text" 
+                                                                wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.um" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
+                                                                class="form-control form-control-sm" 
+                                                                placeholder="UOM" 
+                                                                style="font-size: 0.75em; padding: 0.15rem 0.25rem;">
                                                         </div>
                                                     @elseif(!$isView)
                                                         <input type="text" 
