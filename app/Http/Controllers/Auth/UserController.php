@@ -20,6 +20,8 @@ use App\Imports\SupplierImport;
 use App\Models\Supplier;
 use App\Models\Customer;
 use App\Models\Item;
+use App\Models\RestockList;
+use App\Models\QuotationItem;
 use Excel;
 
 class UserController extends Controller
@@ -226,6 +228,9 @@ class UserController extends Controller
 
             if ($request->delete_type === 'items') {
                 $deletedCount = Item::on($request->db_connection)->count();
+                // Delete child records first (restock_lists, quotation_items) - they have no ON DELETE CASCADE
+                RestockList::on($request->db_connection)->delete();
+                QuotationItem::on($request->db_connection)->delete();
                 Item::on($request->db_connection)->delete();
                 $message = "Successfully deleted {$deletedCount} item(s) from {$request->db_connection} database.";
             } 
