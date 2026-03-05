@@ -74,4 +74,37 @@ class DeliveryOrder extends BaseModel
     {
         return $this->belongsTo(DeliveryOrder::class, 'do_id');
     }
+
+    /**
+     * Generate the next DO number. Uses config/do.php. Start number is per-tenant:
+     * UPS starts at 049037; URS/UCS start at 1. Increments by 1 for each new DO.
+     */
+    public static function getNextDoNumber(?string $connection = null): string
+    {
+        $prefix = config('do.prefix', 'DO');
+        $padLength = (int) config('do.pad_length', 6);
+        $tenants = config('do.tenants', []);
+        $defaultStart = (int) config('do.default_start_number', 1);
+        $startNumber = isset($tenants[$connection]) ? (int) $tenants[$connection] : $defaultStart;
+
+        $query = $connection
+            ? static::on($connection)->withoutStealthMode()
+            : static::withoutStealthMode();
+
+        $doNums = $query->withTrashed()->pluck('do_num');
+
+        $maxNum = $doNums
+            ->map(function ($doNum) use ($prefix) {
+                if (str_starts_with($doNum, $prefix) && preg_match('/^' . preg_quote($prefix) . '(\d+)$/', $doNum, $m)) {
+                    return (int) $m[1];
+                }
+                return null;
+            })
+            ->filter()
+            ->max();
+
+        $nextNum = $maxNum !== null ? $maxNum + 1 : $startNumber;
+
+        return $prefix . str_pad((string) $nextNum, $padLength, '0', STR_PAD_LEFT);
+    }
 }

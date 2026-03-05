@@ -1659,7 +1659,10 @@ class DOForm extends Component
     public function render()
     {
         $this->date = $this->date ?? now()->toDateString();
-        $this->do_num = $this->do_num ?? 'DO' . time();
+        if ($this->do_num === null || $this->do_num === '') {
+            $connection = session('active_db') ?: DB::getDefaultConnection();
+            $this->do_num = DeliveryOrder::getNextDoNumber($connection);
+        }
         $this->user_id = $this->user_id ?? auth()->id();
         // Load salesmen list sorted by name for dropdown
         // Use current database connection (not just 'ups') to match validation
