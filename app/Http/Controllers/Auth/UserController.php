@@ -27,6 +27,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
+use App\Models\CustomerSnapshot;
 use App\Models\Scopes\StealthModeScope;
 use Excel;
 
@@ -274,6 +275,12 @@ class UserController extends Controller
                 $message = "Successfully deleted {$deletedCount} purchase order(s) from {$request->db_connection} database.";
             }
             else {
+                // Delete dependent records first: DOs/quotations reference customer_snapshots, which reference customers
+                DeliveryOrderItem::on($request->db_connection)->forceDelete();
+                DeliveryOrder::on($request->db_connection)->withoutGlobalScope(StealthModeScope::class)->forceDelete();
+                QuotationItem::on($request->db_connection)->forceDelete();
+                Quotation::on($request->db_connection)->withoutGlobalScope(StealthModeScope::class)->forceDelete();
+                CustomerSnapshot::on($request->db_connection)->delete();
                 $deletedCount = Customer::on($request->db_connection)->count();
                 Customer::on($request->db_connection)->delete();
                 $message = "Successfully deleted {$deletedCount} customer(s) from {$request->db_connection} database.";

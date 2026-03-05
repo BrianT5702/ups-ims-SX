@@ -7,6 +7,21 @@ use Illuminate\Support\Facades\DB;
 class DoNumberService
 {
     /**
+     * Preview the next DO number without consuming it (for display only).
+     */
+    public static function getNextDoNumberPreview(string $connection): string
+    {
+        $prefix = config('do.prefix', 'DO');
+        $padLength = config('do.pad_length', 6);
+        $start = config("do.start.{$connection}", 1);
+
+        $row = DB::connection($connection)->table('do_number_sequences')->first();
+        $nextNumber = $row ? (int) $row->next_number : $start;
+
+        return $prefix . str_pad((string) $nextNumber, $padLength, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * Get the next sequential DO number for the given database connection.
      * Uses atomic increment to prevent duplicates.
      */

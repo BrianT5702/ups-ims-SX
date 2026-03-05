@@ -72,10 +72,10 @@ class DOForm extends Component
             $this->deliveryOrder = $deliveryOrder;
             $this->do_num = $deliveryOrder->do_num;
 
-            // New DO: assign next sequential number (per-company sequence)
+            // New DO: show preview of next number (does not consume until save)
             if (!$deliveryOrder->id) {
                 $connection = session('active_db') ?: DB::getDefaultConnection();
-                $this->do_num = DoNumberService::getNextDoNumber($connection);
+                $this->do_num = DoNumberService::getNextDoNumberPreview($connection);
             }
             $this->ref_num = $deliveryOrder->ref_num;
             $this->date = $deliveryOrder->date;
@@ -947,12 +947,9 @@ class DOForm extends Component
             return;
         }
 
-        // Posting should finalize unless explicitly saving draft
-
-        // Custom validation for pricing tier - only required if not manually modified
-        // Convert free-form text to items first
+        // Convert free-form text first so we can check content
         $this->convertFreeFormTextToItems();
-        
+
         // Normalize all descriptions: convert empty strings to null
         foreach ($this->stackedItems as $idx => $item) {
             if (isset($item['more_description'])) {
@@ -961,6 +958,29 @@ class DOForm extends Component
                     $this->stackedItems[$idx]['more_description'] = null;
                 }
             }
+        }
+
+        // Check content before consuming DO number
+        $hasFreeFormText = false;
+        if (!empty($this->freeFormTextRows)) {
+            foreach ($this->freeFormTextRows as $rowData) {
+                $text = is_array($rowData) ? ($rowData['text'] ?? '') : $rowData;
+                if (!empty(trim($text))) {
+                    $hasFreeFormText = true;
+                    break;
+                }
+            }
+        }
+        $hasContent = !empty($this->stackedItems) || $hasFreeFormText;
+        if (!$hasContent) {
+            toastr()->error('Please add at least one item or enter some text before saving.');
+            return;
+        }
+
+        // For new DO: consume next number when saving (preview is display-only)
+        if (!$this->deliveryOrder || !$this->deliveryOrder->id) {
+            $connection = session('active_db') ?: DB::getDefaultConnection();
+            $this->do_num = DoNumberService::getNextDoNumber($connection);
         }
         
         // Only validate stackedItems if there are items
@@ -1000,24 +1020,6 @@ class DOForm extends Component
             'stackedItems.*.item_unit_price.numeric' => 'The unit price must be a number.',
             'stackedItems.*.item_unit_price.min' => 'The unit price must be at least 0.',
         ]);
-        
-        // Check if there's at least some content (items or free-form text)
-        // Handle both old format (string) and new format (array with 'text' and 'qty')
-        $hasFreeFormText = false;
-        if (!empty($this->freeFormTextRows)) {
-            foreach ($this->freeFormTextRows as $rowData) {
-                $text = is_array($rowData) ? ($rowData['text'] ?? '') : $rowData;
-                if (!empty(trim($text))) {
-                    $hasFreeFormText = true;
-                    break;
-                }
-            }
-        }
-        $hasContent = !empty($this->stackedItems) || $hasFreeFormText;
-        if (!$hasContent) {
-            toastr()->error('Please add at least one item or enter some text before saving.');
-            return;
-        }
 
         // Custom validation for pricing tier - only required if price hasn't been manually modified
         // Only validate if there are items (skip text-only items)

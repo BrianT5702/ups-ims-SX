@@ -165,7 +165,7 @@
                 } else if (deleteType === 'purchase_orders') {
                     info = '<li>All purchase orders and their line items from the selected database</li><li>Batch tracking records will have their PO reference set to null</li>';
                 } else if (deleteType === 'customers') {
-                    info = '<li>All customers from the selected database</li><li>This will remove all customer records, including their contact information and details</li><li><strong>Note:</strong> Customers with associated Delivery Orders cannot be deleted from the list page, but this bulk delete will attempt to remove all customers</li>';
+                    info = '<li>All customers from the selected database</li><li>This will remove all customer records, including their contact information and details</li><li><strong>Note:</strong> This also removes associated delivery orders, quotations, and customer snapshots</li>';
                 } else if (deleteType === 'suppliers') {
                     info = '<li>All suppliers from the selected database</li><li>This will remove all supplier records, including their contact information and details</li><li><strong>Note:</strong> Suppliers with associated Items or Purchase Orders cannot be deleted from the list page, but this bulk delete will attempt to remove all suppliers</li>';
                 }
