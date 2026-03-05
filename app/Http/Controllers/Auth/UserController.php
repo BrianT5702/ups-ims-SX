@@ -195,9 +195,9 @@ class UserController extends Controller
                 $message = 'Customers imported successfully!';
             }
             
-            return back()->with('success', $message);
+            return back()->with('import_success', $message);
         } catch (\Exception $e) {
-            return back()->with('error', 'Error importing file: ' . $e->getMessage());
+            return back()->with('import_error', 'Error importing file: ' . $e->getMessage());
         }
     }
 

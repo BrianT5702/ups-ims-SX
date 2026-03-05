@@ -24,11 +24,11 @@
             --col-align-offset: -5px;
         }
         
-        /* Wider QTY column for print */
+        /* Keep same vertical line position in print as preview */
         @media print {
             :root {
                 --qty-col-width: 80px;
-                --vline-position: 15px;
+                --vline-position: 105px;
             }
         }
         
