@@ -20,6 +20,7 @@ use App\Models\BatchTracking;
 use Illuminate\Support\Facades\Auth;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 
 #[Title('UR | Manage Item')]
@@ -505,6 +506,28 @@ class ItemForm extends Component
             $totalQuantity = $this->item ? 
                 BatchTracking::where('item_id', $this->item->id)->sum('quantity') : 
                 0;
+
+            // For UPS + DERVET SLIDING DOOR: use direct qty edit, create transaction for audit
+            $activeDb = session('active_db', DB::getDefaultConnection());
+            if ($activeDb === 'ups' && $this->item_code === 'DERVET SLIDING DOOR' && $this->item) {
+                $qtyBefore = $this->item->qty;
+                $qtyAfter = (int) $this->qty;
+                if ($qtyBefore !== $qtyAfter) {
+                    Transaction::create([
+                        'item_id' => $this->item->id,
+                        'batch_id' => null,
+                        'user_id' => Auth::id(),
+                        'qty_on_hand' => $qtyAfter,
+                        'qty_before' => $qtyBefore,
+                        'qty_after' => $qtyAfter,
+                        'transaction_qty' => abs($qtyAfter - $qtyBefore),
+                        'transaction_type' => $qtyAfter > $qtyBefore ? 'Stock In' : 'Stock Out',
+                        'source_type' => 'Batch Adjustment',
+                        'source_doc_num' => '-',
+                    ]);
+                }
+                $totalQuantity = $qtyAfter;
+            }
     
             $itemData = [
                 'item_code' => $this->item_code,
@@ -662,7 +685,13 @@ class ItemForm extends Component
 
     public function render()
     {
-        return view('livewire.item-form')->layout('layouts.app');
+        $activeDb = session('active_db', DB::getDefaultConnection());
+        $canEditQtyForUpsDervet = $activeDb === 'ups' && $this->item_code === 'DERVET SLIDING DOOR';
+
+        return view('livewire.item-form', [
+            'activeDb' => $activeDb,
+            'canEditQtyForUpsDervet' => $canEditQtyForUpsDervet,
+        ])->layout('layouts.app');
     }
 
     private function checkStockAlertLevel(Item $item)

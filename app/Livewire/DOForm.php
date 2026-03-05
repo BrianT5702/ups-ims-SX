@@ -61,13 +61,13 @@ class DOForm extends Component
         return $this->deliveryOrder && $this->deliveryOrder->status === 'Completed';
     }
 
-    public function mount(?DeliveryOrder $deliveryOrder = null)
+    public function mount(DeliveryOrder $deliveryOrder)
     {
 
         $this->isView = request()->routeIs('delivery-orders.view');
 
         
-        if ($deliveryOrder && $deliveryOrder->id) {
+        if ($deliveryOrder) {
             $this->deliveryOrder = $deliveryOrder;
             $this->do_num = $deliveryOrder->do_num;
             $this->ref_num = $deliveryOrder->ref_num;
@@ -1659,14 +1659,11 @@ class DOForm extends Component
     public function render()
     {
         $this->date = $this->date ?? now()->toDateString();
-        if ($this->do_num === null || $this->do_num === '') {
-            $connection = session('active_db', 'ups');
-            $this->do_num = DeliveryOrder::getNextDoNumber($connection);
-        }
+        $this->do_num = $this->do_num ?? 'DO' . time();
         $this->user_id = $this->user_id ?? auth()->id();
         // Load salesmen list sorted by name for dropdown
         // Use current database connection (not just 'ups') to match validation
-        $connection = session('active_db', 'ups');
+        $connection = session('active_db') ?: DB::getDefaultConnection();
         $this->salesmen = User::on($connection)->role('Salesperson')->orderBy('name','asc')->get();
         return view('livewire.d-o-form')->layout('layouts.app');
     }

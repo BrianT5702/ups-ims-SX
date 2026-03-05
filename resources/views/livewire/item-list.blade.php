@@ -179,7 +179,7 @@
                                                     </div>
                                                 @endif
                                             </td>
-                                            <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ ($activeDb === 'ups' || $activeDb === 'ucs') ? 0 : $item->qty }}</a></td>
+                                            <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $activeDb === 'ucs' ? 0 : (($activeDb === 'ups' && $item->item_code !== 'DERVET HANDLE 83024110') ? 0 : $item->qty) }}</a></td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->cost }}</a></td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->cash_price }}</a></td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->term_price }}</a></td>
