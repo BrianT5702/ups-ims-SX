@@ -1081,7 +1081,7 @@
 
         <div id="signature-template" class="signature-section" style="display: none;">
             <div class="signature-left">
-                <p><strong>Recipient Acknowledgment:</strong></p>
+                <p><strong>Recipient Acknowledgement:</strong></p>
                 <br><br><br>
                 <div class="signature-line"></div>
                 <p class="signature-label">Recipient's Signature</p>
