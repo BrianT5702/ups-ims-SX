@@ -80,7 +80,7 @@
                                 </div>
 
                                 <div class="col-md-3">
-                                    <label for="cust_po">Customer PO Number <span class="text-danger">*</span></label>
+                                    <label for="cust_po">Customer PO Number</label>
                                     <input type="text" wire:model="cust_po" id="cust_po" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter Cust PO Number" autocomplete="off">
                                     @error('cust_po') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
@@ -195,6 +195,7 @@
                                         @php
                                             // Count total description lines across all items (each line = 1 row to deduct from bottom)
                                             $totalDescriptionLines = 0;
+                                            $totalDetailLines = 0;
                                             foreach ($stackedItems as $item) {
                                                 $desc = $item['more_description'] ?? '';
                                                 if (!empty($desc)) {
@@ -202,6 +203,17 @@
                                                     foreach ($lines as $line) {
                                                         $lineLength = strlen($line);
                                                         $totalDescriptionLines += max(1, ceil($lineLength / 60));
+                                                    }
+                                                }
+                                                // Count item details lines (deduct from bottom)
+                                                $details = $item['item']['details'] ?? '';
+                                                if (!empty($details)) {
+                                                    $detailLines = explode("\n", $details);
+                                                    foreach ($detailLines as $line) {
+                                                        $line = trim($line);
+                                                        if ($line === '') continue;
+                                                        $lineLength = strlen($line);
+                                                        $totalDetailLines += max(1, ceil($lineLength / 60));
                                                     }
                                                 }
                                             }
@@ -239,10 +251,12 @@
                                                 }
                                             }
                                             
-                                            // Deduct rows using formula 1+N: N lines = deduct (1+N) rows (1 line→2, 2 lines→3, etc.)
+                                            // Deduct rows from bottom: formula 1+N for descriptions + item details lines
                                             $rowsDeducedForDesc = $totalDescriptionLines > 0 ? (1 + $totalDescriptionLines) : 0;
+                                            $rowsDeducedForDetails = $totalDetailLines; // Each detail line deducts from available rows
+                                            $rowsDeducedTotal = $rowsDeducedForDesc + $rowsDeducedForDetails;
                                             $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
-                                            $rowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedForDesc));
+                                            $rowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedTotal));
                                         @endphp
                                         @for($rowIndex = 0; $rowIndex < $rowsToShow; $rowIndex++)
                                             @php

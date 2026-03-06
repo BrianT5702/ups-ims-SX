@@ -357,8 +357,8 @@ class DOForm extends Component
                 }
                 
                 // DO MUST FIT ON ONE PAGE - estimate based on rows
-                // Calculate estimated rows for current items + new item
-                $estimatedRows = $this->estimateTotalRows(true); // true = include new item
+                // Calculate estimated rows for current items + new item (including its detail lines)
+                $estimatedRows = $this->estimateTotalRows(true, $item);
                 
                 if ($estimatedRows > $maxRows) {
                     toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add item. Adding this item would result in ' . $estimatedRows . ' rows (max: ' . $maxRows . ' rows). Please remove items or shorten descriptions to fit on a single page.');
@@ -830,10 +830,11 @@ class DOForm extends Component
 
     /**
      * Estimate total rows needed for all items + remarks
-     * Each item = 1 base row + additional rows for descriptions
+     * Each item = 1 base row + additional rows for descriptions + additional rows for item details
      * Remarks = estimated rows based on text length
+     * When including a new item, pass the Item model to properly count its detail lines.
      */
-    private function estimateTotalRows($includeNewItem = false)
+    private function estimateTotalRows($includeNewItem = false, $newItem = null)
     {
         $totalRows = 0;
         $items = $this->stackedItems;
@@ -897,9 +898,20 @@ class DOForm extends Component
             $totalRows += 1;
         }
         
-        // If including new item, add 1 more row
-        if ($includeNewItem) {
-            $totalRows += 1;
+        // If including new item, add 1 base row + rows for item details (deduct available rows by detail lines)
+        if ($includeNewItem && $newItem) {
+            $totalRows += 1; // Base row for the item
+            $details = $newItem->details ?? '';
+            if (!empty($details)) {
+                $detailLines = explode("\n", $details);
+                foreach ($detailLines as $line) {
+                    $line = trim($line);
+                    if ($line === '') continue;
+                    $lineLength = strlen($line);
+                    $wrappedLines = max(1, ceil($lineLength / 60));
+                    $totalRows += $wrappedLines;
+                }
+            }
         }
         
         // Add rows for remarks if present
@@ -1006,7 +1018,7 @@ class DOForm extends Component
             'cust_id' => ['required', new ExistsInCurrentDatabase('customers', 'id')],
             'salesman_id' => ['required', new ExistsInCurrentDatabase('users', 'id')],
             'date' => 'required|date',
-            'cust_po' => 'required',
+            'cust_po' => 'nullable',
         ];
         
         // Only validate regular items (exclude text-only items from qty/price validation)
@@ -1029,7 +1041,6 @@ class DOForm extends Component
             'salesman_id.exists' => 'The selected salesperson does not exist.',
             'date.required' => 'The date field is required.',
             'date.date' => 'The date must be a valid date.',
-            'cust_po.required' => 'The customer PO number is required.',
             'stackedItems.*.item_qty.required' => 'The item quantity is required for each item.',
             'stackedItems.*.item_qty.numeric' => 'The item quantity must be a number.',
             'stackedItems.*.item_qty.min' => 'The item quantity must be at least 0.1.',

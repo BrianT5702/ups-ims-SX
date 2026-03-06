@@ -944,12 +944,22 @@
                             @php
                                 // Count total description lines - deduct that many rows from the bottom
                                 $totalDescriptionLines = 0;
+                                $totalDetailLines = 0;
                                 foreach ($deliveryOrder->items as $item) {
                                     $desc = $item->more_description ?? '';
                                     if (!empty($desc)) {
                                         $lines = explode("\n", $desc);
                                         foreach ($lines as $line) {
                                             $totalDescriptionLines += max(1, ceil(strlen($line) / 60));
+                                        }
+                                    }
+                                    // Count item details lines (deduct from bottom, same as description)
+                                    if ($item->item_id !== null && $item->item && !empty($item->item->details ?? '')) {
+                                        $detailLines = explode("\n", $item->item->details);
+                                        foreach ($detailLines as $line) {
+                                            $line = trim($line);
+                                            if ($line === '') continue;
+                                            $totalDetailLines += max(1, ceil(strlen($line) / 60));
                                         }
                                     }
                                 }
@@ -978,10 +988,12 @@
                                     }
                                 }
                                 
-                                // Deduct rows using formula 1+N: N lines = deduct (1+N) rows (1 line→2, 2 lines→3, etc.)
+                                // Deduct rows from bottom: formula 1+N for descriptions + item details lines
                                 $rowsDeducedForDesc = $totalDescriptionLines > 0 ? (1 + $totalDescriptionLines) : 0;
+                                $rowsDeducedForDetails = $totalDetailLines;
+                                $rowsDeducedTotal = $rowsDeducedForDesc + $rowsDeducedForDetails;
                                 $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
-                                $itemRowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedForDesc));
+                                $itemRowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedTotal));
                                 $notesRowIndex = $itemRowsToShow; // NOTES row follows item rows
                             @endphp
                             @for($rowIndex = 0; $rowIndex <= $notesRowIndex; $rowIndex++)
