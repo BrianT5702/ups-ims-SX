@@ -107,7 +107,7 @@ class DOForm extends Component
                         ],
                         'custom_item_name' => $doItem->custom_item_name ?? '',
                         'custom_um' => $doItem->custom_um ?? '',
-                        'item_qty' => $doItem->qty ?? 0, // Load qty for text-only items
+                        'item_qty' => floatval($doItem->qty ?? 0), // Normalize: 1.50 -> 1.5 for display
                         'item_unit_price' => 0,
                         'amount' => 0,
                         'pricing_tier' => null,
@@ -146,6 +146,7 @@ class DOForm extends Component
                     }
                     
                     // Regular item - store row_index for absolute positioning
+                    $defaultUm = ($doItem->item->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($doItem->item->um ?? 'UNIT');
                     $this->stackedItems[] = [
                         'item' => [
                             'id' => $doItem->item->id,
@@ -159,8 +160,10 @@ class DOForm extends Component
                             'latest_do_price' => $this->getLatestDOPriceForItem($doItem->item->id, $this->cust_id),
                             'latest_do_date' => $this->getLatestDODateForItem($doItem->item->id, $this->cust_id),
                         'details' => $doItem->item->details,
+                        'um' => $doItem->item->um ?? 'UNIT',
                         ],
-                        'item_qty' => $doItem->qty, // Quantity in this specific delivery order
+                        'custom_um' => !empty(trim($doItem->custom_um ?? '')) ? trim($doItem->custom_um) : $defaultUm, // Editable, fallback to item um
+                        'item_qty' => floatval($doItem->qty), // Normalize: 1.50 -> 1.5 for display (1.25 stays 1.25)
                         'pricing_tier' => $pricingTier, // Load the saved pricing tier
                         'item_unit_price' => $doItem->unit_price,
                         'amount' => $doItem->amount,
@@ -343,7 +346,7 @@ class DOForm extends Component
 
             if (!$itemExists) {
                 // DO MUST FIT ON ONE PAGE - check current rows first
-                $maxRows = 25; // Fixed 25-row limit (row 25 is for NOTES)
+                $maxRows = 24; // Fixed 24-item-row limit (row 24 is for NOTES, 25 rows total)
                 $currentRows = $this->estimateTotalRows(false);
                 
                 // Block adding if already at or over limit
@@ -383,6 +386,7 @@ class DOForm extends Component
                     'details' => $item->details,
                     'um' => $item->um ?? 'UNIT',
                     ],
+                    'custom_um' => $item->um ?? 'UNIT', // Autofill from inventory, editable
                     'item_qty' => 1,
                     'pricing_tier' => '',
                     'item_unit_price' => 0,
@@ -655,7 +659,7 @@ class DOForm extends Component
             return;
         }
 
-        $maxRows = 25; // Fixed 25-row limit (row 25 is for NOTES)
+        $maxRows = 24; // Fixed 24-item-row limit (row 24 is for NOTES, 25 rows total)
         $currentDesc = $this->stackedItems[$index]['more_description'] ?? '';
         $lastValidDesc = $this->lastValidDescriptions[$index] ?? '';
         
@@ -847,21 +851,16 @@ class DOForm extends Component
             
             $totalRows += 1; // Base row for each item
             
-            // Estimate description rows - MUST account for actual newlines (Enter key)
-            // Each description line counts as 1 full row (since we have fixed 24-row table)
+            // Estimate description rows - formula 1+N: N lines = (1+N) row cost (1 line→2, 2 lines→3, etc.)
             $desc = $stackedItem['more_description'] ?? '';
             if (!empty($desc)) {
-                // Count actual newlines - each line counts as 1 row
                 $lines = explode("\n", $desc);
                 $totalDescRows = 0;
                 foreach ($lines as $line) {
                     $lineLength = strlen($line);
-                    // If line is longer than 60 chars, it will wrap (more conservative estimate)
                     $wrappedLines = max(1, ceil($lineLength / 60));
                     $totalDescRows += $wrappedLines;
                 }
-                
-                // Each description line counts as a full row (no subtraction)
                 $totalRows += $totalDescRows;
             }
 
@@ -881,6 +880,21 @@ class DOForm extends Component
                 // Each detail line is an additional row (bulleted list under the item)
                 $totalRows += $detailRows;
             }
+        }
+        
+        // Formula 1+N: add 1 extra row when any description exists
+        $totalDescRows = 0;
+        foreach ($items as $stackedItem) {
+            $desc = $stackedItem['more_description'] ?? '';
+            if (!empty($desc)) {
+                $lines = explode("\n", $desc);
+                foreach ($lines as $line) {
+                    $totalDescRows += max(1, ceil(strlen($line) / 60));
+                }
+            }
+        }
+        if ($totalDescRows > 0) {
+            $totalRows += 1;
         }
         
         // If including new item, add 1 more row
@@ -919,8 +933,8 @@ class DOForm extends Component
      */
     private function calculateMaxRows()
     {
-        // Fixed 25-row limit for the new table structure (row 25 is for NOTES)
-        return 25;
+        // Fixed 24-item-row limit (row 24 is for NOTES, 25 rows total)
+        return 24;
     }
 
     public function updateUnitPrice($index)
@@ -1000,7 +1014,7 @@ class DOForm extends Component
             foreach ($this->stackedItems as $index => $item) {
                 // Skip validation for text-only items
                 if (!isset($item['is_text_only']) || !$item['is_text_only']) {
-                    $validationRules["stackedItems.{$index}.item_qty"] = 'required|numeric|min:0.01';
+                    $validationRules["stackedItems.{$index}.item_qty"] = 'required|numeric|min:0.1';
                     $validationRules["stackedItems.{$index}.item_unit_price"] = 'required|numeric|min:0';
                 }
             }
@@ -1018,7 +1032,7 @@ class DOForm extends Component
             'cust_po.required' => 'The customer PO number is required.',
             'stackedItems.*.item_qty.required' => 'The item quantity is required for each item.',
             'stackedItems.*.item_qty.numeric' => 'The item quantity must be a number.',
-            'stackedItems.*.item_qty.min' => 'The item quantity must be at least 0.01.',
+            'stackedItems.*.item_qty.min' => 'The item quantity must be at least 0.1.',
             'stackedItems.*.item_unit_price.required' => 'The unit price is required for each item.',
             'stackedItems.*.item_unit_price.numeric' => 'The unit price must be a number.',
             'stackedItems.*.item_unit_price.min' => 'The unit price must be at least 0.',
@@ -1224,14 +1238,14 @@ class DOForm extends Component
             foreach ($this->stackedItems as $idx => $item) {
                 // Check if item has original_row_index (both text-only and regular items can have it)
                 if (isset($item['original_row_index']) && $item['original_row_index'] !== null) {
-                    // Item has stored row position: use it (but don't allow row 25 - reassign if needed)
+                    // Item has stored row position: use it (but don't allow row 24 - reassign if needed)
                     $originalRow = $item['original_row_index'];
-                    if ($originalRow >= 25) {
-                        // Reassign items from row 25 to available rows 0-24
-                        while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 25) {
+                    if ($originalRow >= 24) {
+                        // Reassign items from row 24 to available rows 0-23
+                        while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
                             $regularItemIndex++;
                         }
-                        if ($regularItemIndex < 25) {
+                        if ($regularItemIndex < 24) {
                             $rowToItemMap[$regularItemIndex] = $idx;
                             $regularItemIndex++;
                         }
@@ -1239,11 +1253,11 @@ class DOForm extends Component
                         $rowToItemMap[$originalRow] = $idx;
                     }
                 } else {
-                    // Item doesn't have row position: find first available row (only rows 0-24)
-                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 25) {
+                    // Item doesn't have row position: find first available row (only rows 0-23)
+                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
                         $regularItemIndex++;
                     }
-                    if ($regularItemIndex < 25) {
+                    if ($regularItemIndex < 24) {
                         $rowToItemMap[$regularItemIndex] = $idx;
                         $regularItemIndex++;
                     }
@@ -1282,10 +1296,12 @@ class DOForm extends Component
                         'row_index' => $rowIndex, // Store row position
                     ]);
                 } else {
+                    $customUm = !empty(trim($item['custom_um'] ?? '')) ? trim($item['custom_um']) : null;
                     DeliveryOrderItem::create([
                         'do_id' => $this->deliveryOrder->id,
                         'item_id' => $itemId,
                         'custom_item_name' => $item['custom_item_name'] ?? null,
+                        'custom_um' => $customUm,
                         'qty' => $item['item_qty'],
                         'unit_price' => $item['item_unit_price'],
                         'pricing_tier' => $item['pricing_tier'] ?? null,
@@ -1293,6 +1309,15 @@ class DOForm extends Component
                         'amount' => $item['item_qty'] * $item['item_unit_price'],
                         'row_index' => $rowIndex, // Store row position
                     ]);
+
+                    // If UOM was edited and differs from inventory, update the item's UOM
+                    if ($customUm !== null) {
+                        $itemRecord = Item::find($itemId);
+                        if ($itemRecord && (trim($itemRecord->um ?? '') !== $customUm)) {
+                            $itemRecord->um = $customUm;
+                            $itemRecord->save();
+                        }
+                    }
                 }
             }
 

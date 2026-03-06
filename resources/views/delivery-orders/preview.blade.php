@@ -17,9 +17,9 @@
 
         :root {
             /* Qty column width */
-            --qty-col-width: 80px;
+            --qty-col-width: 90px;
             /* Vertical separator line position (adjusted for wider QTY column) */
-            --vline-position: 105px;
+            --vline-position: 115px;
             /* Offset to account for column padding differences */
             --col-align-offset: -5px;
         }
@@ -27,8 +27,8 @@
         /* Keep same vertical line position in print as preview */
         @media print {
             :root {
-                --qty-col-width: 80px;
-                --vline-position: 105px;
+                --qty-col-width: 90px;
+                --vline-position: 115px;
             }
         }
         
@@ -224,7 +224,7 @@
             border-collapse: collapse;
             margin-bottom: 0; /* keep tight to allow continuous vertical line */
             padding-bottom: 0;
-            font-size: 0.85em;
+            font-size: 0.9em;
             table-layout: fixed;
             position: relative;
         }
@@ -236,7 +236,7 @@
             border-top: 1px solid #000;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 0.8em;
+            font-size: 0.75em;
             line-height: 1.3;
             vertical-align: middle;
         }
@@ -717,21 +717,23 @@
                 position: relative !important;
             }
 
-            /* Ensure table cells match preview exactly - critical for 25 rows */
+            /* Ensure table styles match preview exactly - critical for WYSIWYG print */
+            .items-table {
+                font-size: 0.9em !important;
+            }
+            .items-table th {
+                padding: 4px 8px 4px 8px !important;
+                font-size: 0.75em !important;
+                line-height: 1.3 !important;
+            }
             .items-table td {
                 padding: 3.7px 8px !important;
                 font-size: 1.0em !important;
                 line-height: 1.2 !important;
             }
-            /* QTY column: slightly smaller font in print */
+            /* QTY column: slightly smaller font - match preview */
             .items-table td:nth-child(1) {
                 font-size: calc(1em - 0.5px) !important;
-            }
-
-            .items-table th {
-                padding: 6px 8px 4px 8px !important;
-                font-size: 0.8em !important;
-                line-height: 1.3 !important;
             }
 
             /* Ensure NOTES row has minimal padding in print - MUST come after general td rule to override */
@@ -956,29 +958,30 @@
                                 $rowToItemMap = [];
                                 $itemsWithoutRowIndex = [];
                                 foreach ($deliveryOrder->items as $item) {
-                                    // Only allow items in rows 0-24 (row 25 is reserved for NOTES)
-                                    if ($item->row_index !== null && $item->row_index >= 0 && $item->row_index < 25) {
+                                    // Only allow items in rows 0-23 (row 24 is reserved for NOTES)
+                                    if ($item->row_index !== null && $item->row_index >= 0 && $item->row_index < 24) {
                                         $rowToItemMap[$item->row_index] = $item;
                                     } else {
-                                        // Backward compatibility: items without row_index or items at row 25+
+                                        // Backward compatibility: items without row_index or items at row 24+
                                         $itemsWithoutRowIndex[] = $item;
                                     }
                                 }
-                                // For items without row_index, assign them sequentially to available rows (only 0-24)
+                                // For items without row_index, assign them sequentially to available rows (only 0-23)
                                 $nextAvailableRow = 0;
                                 foreach ($itemsWithoutRowIndex as $item) {
-                                    while (isset($rowToItemMap[$nextAvailableRow]) && $nextAvailableRow < 25) {
+                                    while (isset($rowToItemMap[$nextAvailableRow]) && $nextAvailableRow < 24) {
                                         $nextAvailableRow++;
                                     }
-                                    if ($nextAvailableRow < 25) {
+                                    if ($nextAvailableRow < 24) {
                                         $rowToItemMap[$nextAvailableRow] = $item;
                                         $nextAvailableRow++;
                                     }
                                 }
                                 
-                                // Deduct last N rows when there are N lines of description (match form logic)
+                                // Deduct rows using formula 1+N: N lines = deduct (1+N) rows (1 line→2, 2 lines→3, etc.)
+                                $rowsDeducedForDesc = $totalDescriptionLines > 0 ? (1 + $totalDescriptionLines) : 0;
                                 $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
-                                $itemRowsToShow = min(25, max($maxItemRowIndex + 1, 25 - $totalDescriptionLines));
+                                $itemRowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedForDesc));
                                 $notesRowIndex = $itemRowsToShow; // NOTES row follows item rows
                             @endphp
                             @for($rowIndex = 0; $rowIndex <= $notesRowIndex; $rowIndex++)
@@ -995,16 +998,22 @@
                                             @if($item->item_id === null)
                                                 {{-- Text-only item: show qty + custom UOM (or leave empty) --}}
                                                 @if($item->qty > 0)
-                                                    {{ $item->qty }}{{ !empty($item->custom_um) ? ' ' . $item->custom_um : '' }}
+                                                    @php
+                                                        $q = floatval($item->qty);
+                                                        $qtyFmt = (round($q) == $q) ? number_format($q, 0) : ((round($q * 100) == round($q * 10) * 10) ? number_format($q, 1) : number_format($q, 2));
+                                                    @endphp
+                                                    {{ $qtyFmt }}{{ !empty($item->custom_um) ? ' ' . $item->custom_um : '' }}
                                                 @else
                                                     &nbsp;
                                                 @endif
                                             @else
                                                 @php
-                                                    $unit = $item->item->um ?? 'UNITS';
+                                                    $unit = !empty(trim($item->custom_um ?? '')) ? trim($item->custom_um) : ($item->item->um ?? 'UNITS');
                                                     $unit = ($unit === 'UNIT') ? 'UNITS' : $unit;
+                                                    $q = floatval($item->qty);
+                                                    $qtyFmt = (round($q) == $q) ? number_format($q, 0) : ((round($q * 100) == round($q * 10) * 10) ? number_format($q, 1) : number_format($q, 2));
                                                 @endphp
-                                                {{ $item->qty }} {{ $unit }}
+                                                {{ $qtyFmt }} {{ $unit }}
                                             @endif
                                         </td>
                                         <td>
@@ -1019,7 +1028,7 @@
                                                 </div>
                                             @endif
                                             @if(!empty($item->more_description))
-                                                <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
+                                                <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 20px; margin-bottom: 8px;">
                                                     @foreach(explode("\n", $item->more_description) as $line)
                                                         @if(trim($line) !== '')
                                                             <div>• {{ $line }}</div>

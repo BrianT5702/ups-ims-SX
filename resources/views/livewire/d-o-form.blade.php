@@ -106,16 +106,18 @@
 
                             <div class="do-items-table mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="mb-0">Delivery Order Items (Max 25 rows)</h6>
+                                    <h6 class="mb-0">Delivery Order Items (Max 24 rows + NOTES)</h6>
                                     @php
-                                        // Calculate current row count
+                                        // Calculate current row count (formula 1+N for descriptions)
                                         $currentRowCount = 0;
+                                        $hasDescLines = false;
                                         foreach ($stackedItems as $item) {
                                             $currentRowCount += 1; // Base row for each item
                                             
                                             // Count description rows
                                             $desc = $item['more_description'] ?? '';
                                             if (!empty($desc)) {
+                                                $hasDescLines = true;
                                                 $lines = explode("\n", $desc);
                                                 foreach ($lines as $line) {
                                                     $lineLength = strlen($line);
@@ -137,10 +139,13 @@
                                                 }
                                             }
                                         }
-                                        $remainingRows = 25 - $currentRowCount;
+                                        if ($hasDescLines) {
+                                            $currentRowCount += 1; // Formula 1+N: extra row when any description
+                                        }
+                                        $remainingRows = 24 - $currentRowCount;
                                     @endphp
                                     <small class="text-muted">
-                                        Used: <strong>{{ $currentRowCount }}</strong> / 25 rows | 
+                                        Used: <strong>{{ $currentRowCount }}</strong> / 24 rows | 
                                         Remaining: <strong>{{ $remainingRows }}</strong> rows
                                     </small>
                                 </div>
@@ -150,13 +155,13 @@
                                 <table class="table table-bordered do-fixed-table">
                                     <thead>
                                         <tr>
-                                            <th style="width: 70px;">QTY</th>
+                                            <th style="width: 95px;">QTY</th>
                                             <th>Description</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @php
-                                            // Always show exactly 25 rows (items stay in absolute positions)
+                                            // Show up to 24 item rows (row 24 is NOTES, 25 total)
                                             // Calculate total used rows for validation purposes
                                             $totalUsedRows = 0;
                                             foreach ($stackedItems as $item) {
@@ -208,36 +213,36 @@
                                             foreach ($stackedItems as $idx => $item) {
                                                 // Both text-only and regular items can have original_row_index
                                                 if (isset($item['original_row_index']) && $item['original_row_index'] !== null) {
-                                                    // Item has stored row position: use it (but skip row 25 - it's for NOTES)
+                                                    // Item has stored row position: use it (but skip row 24 - it's for NOTES)
                                                     $originalRow = $item['original_row_index'];
-                                                    if ($originalRow < 25) {
+                                                    if ($originalRow < 24) {
                                                         $rowToItemMap[$originalRow] = $idx;
                                                     } else {
-                                                        // Item is at row 25 or beyond - reassign to available row 0-24
-                                                        while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 25) {
+                                                        // Item is at row 24 or beyond - reassign to available row 0-23
+                                                        while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
                                                             $regularItemIndex++;
                                                         }
-                                                        if ($regularItemIndex < 25) {
+                                                        if ($regularItemIndex < 24) {
                                                             $rowToItemMap[$regularItemIndex] = $idx;
                                                             $regularItemIndex++;
                                                         }
                                                     }
                                                 } else {
                                                     // Item doesn't have row position: find first available row
-                                                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 25) {
+                                                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
                                                         $regularItemIndex++;
                                                     }
-                                                    if ($regularItemIndex < 25) {
+                                                    if ($regularItemIndex < 24) {
                                                         $rowToItemMap[$regularItemIndex] = $idx;
                                                         $regularItemIndex++;
                                                     }
                                                 }
                                             }
                                             
-                                            // Deduct last N rows when there are N lines of description (keeps table from growing)
-                                            // Must show at least enough rows for all items
+                                            // Deduct rows using formula 1+N: N lines = deduct (1+N) rows (1 line→2, 2 lines→3, etc.)
+                                            $rowsDeducedForDesc = $totalDescriptionLines > 0 ? (1 + $totalDescriptionLines) : 0;
                                             $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
-                                            $rowsToShow = min(25, max($maxItemRowIndex + 1, 25 - $totalDescriptionLines));
+                                            $rowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedForDesc));
                                         @endphp
                                         @for($rowIndex = 0; $rowIndex < $rowsToShow; $rowIndex++)
                                             @php
@@ -247,7 +252,7 @@
                                                 $isEmptyRow = ($itemIndex === null);
                                             @endphp
                                             <tr class="item-row">
-                                                <td style="width: 70px; vertical-align: top;">
+                                                <td style="width: 95px; vertical-align: top;">
                                                     @if($item)
                                                         @if((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
                                                             {{-- Text-only item: allow qty + editable UOM (or leave empty) --}}
@@ -261,7 +266,7 @@
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     style="width: 100%;">
                                                                 <input type="text" 
-                                                                    wire:model.lazy="stackedItems.{{ $itemIndex }}.custom_um" 
+                                                                    wire:model="stackedItems.{{ $itemIndex }}.custom_um" 
                                                                     class="form-control form-control-sm" 
                                                                     placeholder="UOM" 
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
@@ -272,19 +277,18 @@
                                                                 <input type="number" 
                                                                     wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
                                                                     class="form-control form-control-sm @error('stackedItems.'.$itemIndex.'.item_qty') is-invalid @enderror" 
-                                                                    min="0.01" 
+                                                                    min="0.1" 
                                                                     step="0.01"
                                                                     inputmode="decimal"
                                                                     wire:change="updatePriceLine({{ $itemIndex }})" 
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     style="width: 100%;">
-                                                                <small class="text-muted" style="font-size: 0.75em;">
-                                                                    @php
-                                                                        $unit = $item['item']['um'] ?? 'UNITS';
-                                                                        $unit = ($unit === 'UNIT') ? 'UNITS' : $unit;
-                                                                    @endphp
-                                                                    {{ $unit }}
-                                                                </small>
+                                                                <input type="text" 
+                                                                    wire:model="stackedItems.{{ $itemIndex }}.custom_um" 
+                                                                    class="form-control form-control-sm" 
+                                                                    placeholder="{{ ($item['item']['um'] ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item['item']['um'] ?? 'UOM') }}" 
+                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                    style="font-size: 0.75em; padding: 0.15rem 0.25rem;">
                                                                 @error('stackedItems.'.$itemIndex.'.item_qty')
                                                                     <div class="text-danger small">!</div>
                                                                 @enderror
@@ -437,7 +441,7 @@
                                                     </div>
                                                 @endif
                                                             @if($isView && !empty($stackedItems[$itemIndex]['more_description']))
-                                                                <div class="mt-1 ms-0 text-muted" style="font-size: 0.85em;">
+                                                                <div class="ms-0 text-muted" style="font-size: 0.85em; margin-top: 14px; margin-bottom: 14px;">
                                                                     @foreach(explode("\n", $stackedItems[$itemIndex]['more_description']) as $line)
                                                             @if(trim($line) !== '')
                                                                 <div>• {{ $line }}</div>
@@ -451,11 +455,11 @@
                                                                         wire:model.defer="stackedItems.{{ $itemIndex }}.more_description" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                             class="form-control form-control-sm"
                                                             rows="3"
-                                                                        placeholder="Enter additional description (each line = 1 row)"
+                                                                        placeholder="Enter additional description"
                                                                         style="font-size: 0.85em; resize: vertical;"></textarea>
                                                                     <div class="d-flex justify-content-between align-items-center mt-2">
                                                                         <small class="text-muted" style="font-size: 0.75em;">
-                                                                            Each line counts as 1 row. Max 25 rows total.
+                                                                            Formula 1+N rows. Max 24 rows total.
                                                                         </small>
                                                                         <button type="button"
                                                                             wire:click="saveDescriptionAndValidate({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
@@ -578,9 +582,9 @@
                                             </td>
                                             </tr>
                                         @endfor
-                                        {{-- Hidden row 25 border - only shown in preview/print, hidden in form --}}
+                                        {{-- Hidden row 24 (NOTES) - only shown in preview/print, hidden in form --}}
                                         <tr class="item-row" style="display: none;">
-                                            <td style="width: 70px; vertical-align: top; padding: 4px 8px;">
+                                            <td style="width: 95px; vertical-align: top; padding: 4px 8px;">
                                                 &nbsp;
                                             </td>
                                             <td style="vertical-align: top; padding: 4px 8px;">
