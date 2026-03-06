@@ -1006,20 +1006,20 @@ class DOForm extends Component
             return;
         }
 
-        // For new DO: consume next number when saving (preview is display-only)
-        if (!$this->deliveryOrder || !$this->deliveryOrder->id) {
-            $connection = session('active_db') ?: DB::getDefaultConnection();
-            $this->do_num = DoNumberService::getNextDoNumber($connection);
-        }
-        
+        $connection = session('active_db') ?: DB::getDefaultConnection();
+        $isNewDO = !$this->deliveryOrder || !$this->deliveryOrder->id;
+
         // Only validate stackedItems if there are items
+        // For new DO: do_num is assigned in transaction after validation. For existing DO: validate do_num.
         $validationRules = [
-            'do_num' => ['required', new UniqueInCurrentDatabase('delivery_orders', 'do_num', $this->deliveryOrder?->id)],
             'cust_id' => ['required', new ExistsInCurrentDatabase('customers', 'id')],
             'salesman_id' => ['required', new ExistsInCurrentDatabase('users', 'id')],
             'date' => 'required|date',
             'cust_po' => 'nullable',
         ];
+        if (!$isNewDO) {
+            $validationRules['do_num'] = ['required', new UniqueInCurrentDatabase('delivery_orders', 'do_num', $this->deliveryOrder->id)];
+        }
         
         // Only validate regular items (exclude text-only items from qty/price validation)
         if (!empty($this->stackedItems)) {
@@ -1073,7 +1073,7 @@ class DOForm extends Component
         }
 
         try {
-            DB::beginTransaction();
+            DB::connection($connection)->beginTransaction();
             
             // Free-form text is already converted in validation step above
             
@@ -1204,6 +1204,9 @@ class DOForm extends Component
                 // Delete existing items
                 DeliveryOrderItem::where('do_id', $this->deliveryOrder->id)->delete();
             } else {
+                // New DO: consume next number only now (inside transaction, so it rolls back on failure)
+                $this->do_num = DoNumberService::getNextDoNumber($connection, true);
+
                 // Create customer snapshot
                 $customer = Customer::find($this->cust_id);
                 $customerSnapshot = CustomerSnapshot::create([
@@ -1359,7 +1362,7 @@ class DOForm extends Component
                 }
             }
 
-            DB::commit();
+            DB::connection($connection)->commit();
             if (!$this->isPreviewMode) {
                 // Check if we're changing from Completed to Draft
                 $wasCompleted = $this->deliveryOrder && $this->deliveryOrder->status === 'Completed';
@@ -1383,7 +1386,7 @@ class DOForm extends Component
             }
             
         } catch (\Exception $e) {
-            DB::rollBack();
+            DB::connection($connection)->rollBack();
             if (!$this->isPreviewMode) {
                 toastr()->error('An error occurred while processing the Delivery Order: ' . $e->getMessage());
             }

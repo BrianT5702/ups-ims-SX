@@ -24,14 +24,18 @@ class DoNumberService
     /**
      * Get the next sequential DO number for the given database connection.
      * Uses atomic increment to prevent duplicates.
+     *
+     * @param string $connection Database connection name
+     * @param bool $withinTransaction If true, run without own transaction (caller must be in transaction).
+     *                                Use when the increment should roll back if the caller's transaction fails.
      */
-    public static function getNextDoNumber(string $connection): string
+    public static function getNextDoNumber(string $connection, bool $withinTransaction = false): string
     {
         $prefix = config('do.prefix', 'DO');
         $padLength = config('do.pad_length', 6);
         $start = config("do.start.{$connection}", 1);
 
-        return DB::connection($connection)->transaction(function () use ($connection, $prefix, $padLength, $start) {
+        $doIncrement = function () use ($connection, $prefix, $padLength, $start) {
             $row = DB::connection($connection)
                 ->table('do_number_sequences')
                 ->lockForUpdate()
@@ -56,6 +60,12 @@ class DoNumberService
             }
 
             return $prefix . str_pad((string) $nextNumber, $padLength, '0', STR_PAD_LEFT);
-        });
+        };
+
+        if ($withinTransaction) {
+            return $doIncrement();
+        }
+
+        return DB::connection($connection)->transaction($doIncrement);
     }
 }
