@@ -93,6 +93,7 @@ class DOForm extends Component
             $this->remark = $deliveryOrder->remark;
             $this->lastValidRemark = $deliveryOrder->remark ?? '';
             $this->total_amount = $deliveryOrder->total_amount;
+            $this->user_id = $deliveryOrder->user_id; // Preserve creator when editing
     
             // Clear previous stackedItems
             $this->stackedItems = [];
@@ -1927,7 +1928,14 @@ class DOForm extends Component
     private function getDuplicateDoList()
     {
         $user = Auth::user();
-        $isPrivileged = $user && ($user->hasRole('Admin') || $user->hasRole('Super Admin'));
+        $isPrivileged = $user && (
+            $user->hasRole('Admin')
+            || $user->hasRole('Super Admin')
+            || $user->hasRole('Department1')
+            || $user->hasRole('Department 1')
+            || $user->hasRole('Department2')
+            || $user->hasRole('Department 2')
+        );
 
         return DeliveryOrder::with(['customerSnapshot', 'customer'])
             ->when(!$isPrivileged, function ($q) use ($user) {

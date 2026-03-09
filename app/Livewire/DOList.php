@@ -67,7 +67,14 @@ class DOList extends Component
     public function render()
     {
         $user = Auth::user();
-        $isPrivileged = $user && ($user->hasRole('Admin') || $user->hasRole('Super Admin'));
+        $isPrivileged = $user && (
+            $user->hasRole('Admin')
+            || $user->hasRole('Super Admin')
+            || $user->hasRole('Department1')
+            || $user->hasRole('Department 1')
+            || $user->hasRole('Department2')
+            || $user->hasRole('Department 2')
+        );
         
         $query = DeliveryOrder::with(['customer', 'user', 'updatedBy'])
             ->when(!$isPrivileged, function($q) use ($user) {

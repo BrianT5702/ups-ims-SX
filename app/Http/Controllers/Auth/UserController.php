@@ -61,8 +61,16 @@ class UserController extends Controller
     // Regenerate the session
     $request->session()->regenerate();
 
+    // Set default landing company based on role: Department 2 users land on UPS2
+    $user = Auth::user();
+    if ($user->hasRole('Department2') || $user->hasRole('Department 2')) {
+        $request->session()->put('active_db', 'ups2');
+    } else {
+        $request->session()->put('active_db', 'ups');
+    }
+
     toastr()->success('Logged In Successfully');
-            return redirect()->intended(route('dashboard'));
+    return redirect()->intended(route('dashboard'));
             
 
 

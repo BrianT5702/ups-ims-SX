@@ -14,6 +14,10 @@ class CompanyAccess
     private static $roleCompanyMap = [
         'Super Admin' => ['ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'], // All companies
         'Admin' => ['ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'], // All companies
+        'Department 1' => ['ups', 'urs', 'ucs'],
+        'Department1' => ['ups', 'urs', 'ucs'],
+        'Department 2' => ['ups2', 'urs2', 'ucs2'],
+        'Department2' => ['ups2', 'urs2', 'ucs2'],
         // Add other role mappings here if needed
         // 'Salesperson' => ['ups'],
         // 'User' => ['ups'],
