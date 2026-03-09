@@ -336,24 +336,13 @@
             }
         }
 
-        /* Page counter display */
+        /* Page counter display - hidden per user request */
         .page-counter {
-            position: fixed;
-            top: 50px;
-            right: 20px;
-            padding: 10px 15px;
-            font-size: 14px;
-            font-weight: bold;
-            color: #0d6efd;
-            background: #e7f3ff;
-            border: 2px solid #0d6efd;
-            border-radius: 4px;
-            z-index: 1000;
-            display: none;
+            display: none !important;
         }
 
         .page-counter.show {
-            display: block;
+            display: none !important;
         }
 
         /* Make pages-container pages match container styling on screen for accurate preview */
@@ -1097,8 +1086,24 @@
     <button type="button" onclick="triggerPrint()" class="print-button">Print</button>
 
     <script>
-        // Force standard zoom level detection and warning
+        // Force standard zoom level detection and warning (skip when embedded in iframe, e.g. Duplicate DO modal)
         (function() {
+            var isEmbedded = window.self !== window.top;
+            if (isEmbedded) {
+                var warning = document.getElementById('zoom-warning');
+                var printReminder = document.querySelector('.print-reminder');
+                var pageCounter = document.getElementById('page-counter');
+                var backBtn = document.querySelector('.back-button');
+                var printBtn = document.querySelector('.print-button');
+                if (warning) warning.style.display = 'none';
+                if (printReminder) printReminder.style.display = 'none';
+                if (pageCounter) pageCounter.style.display = 'none';
+                if (backBtn) backBtn.style.display = 'none';
+                if (printBtn) printBtn.style.display = 'none';
+                return;
+            }
+            var warning = document.getElementById('zoom-warning');
+
             function checkZoom() {
                 // Multiple methods to detect zoom level
                 var zoom = Math.round(window.devicePixelRatio * 100);
@@ -1111,7 +1116,6 @@
                 }
                 
                 // Show warning if not 100%
-                var warning = document.getElementById('zoom-warning');
                 if (warning) {
                     if (Math.abs(detectedZoom - 100) > 5) { // 5% tolerance
                         warning.style.display = 'block';

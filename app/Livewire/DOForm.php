@@ -14,10 +14,12 @@ use App\Rules\ExistsInCurrentDatabase;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Title;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use App\Models\RestockList;
 use App\Models\BatchTracking;
 use App\Models\CustomerSnapshot;
 use App\Services\DoNumberService;
+use Carbon\Carbon;
 
 #[Title('UR | Manage Delivery Order')]
 class DOForm extends Component
@@ -52,6 +54,11 @@ class DOForm extends Component
     private bool $isPreviewMode = false;
     public array $lastValidDescriptions = [];
     public array $freeFormTextRows = []; // Store free-form text for empty rows
+
+    // Duplicate DO modal
+    public $showDuplicateModal = false;
+    public $duplicateSelectedDoId = null;
+    public $duplicateDoSearchTerm = '';
 
     /**
      * Check if the DO is posted (status is Completed)
@@ -1032,22 +1039,42 @@ class DOForm extends Component
             }
         }
         
-        $this->validate($validationRules, [
-            'do_num.required' => 'The DO number field is required.',
-            'do_num.unique' => 'The DO number is already taken.',
-            'cust_id.required' => 'The customer field is required.',
-            'cust_id.exists' => 'The selected customer does not exist.',
-            'salesman_id.required' => 'The salesperson field is required.',
-            'salesman_id.exists' => 'The selected salesperson does not exist.',
-            'date.required' => 'The date field is required.',
-            'date.date' => 'The date must be a valid date.',
-            'stackedItems.*.item_qty.required' => 'The item quantity is required for each item.',
-            'stackedItems.*.item_qty.numeric' => 'The item quantity must be a number.',
-            'stackedItems.*.item_qty.min' => 'The item quantity must be at least 0.1.',
-            'stackedItems.*.item_unit_price.required' => 'The unit price is required for each item.',
-            'stackedItems.*.item_unit_price.numeric' => 'The unit price must be a number.',
-            'stackedItems.*.item_unit_price.min' => 'The unit price must be at least 0.',
-        ]);
+        $validator = Validator::make(
+            [
+                'cust_id' => $this->cust_id,
+                'salesman_id' => $this->salesman_id,
+                'date' => $this->date,
+                'do_num' => $this->do_num,
+                'cust_po' => $this->cust_po,
+                'stackedItems' => $this->stackedItems,
+            ],
+            $validationRules,
+            [
+                'do_num.required' => 'The DO number field is required.',
+                'do_num.unique' => 'The DO number is already taken.',
+                'cust_id.required' => 'The customer field is required.',
+                'cust_id.exists' => 'The selected customer does not exist.',
+                'salesman_id.required' => 'The salesperson field is required.',
+                'salesman_id.exists' => 'The selected salesperson does not exist.',
+                'date.required' => 'The date field is required.',
+                'date.date' => 'The date must be a valid date.',
+                'stackedItems.*.item_qty.required' => 'The item quantity is required for each item.',
+                'stackedItems.*.item_qty.numeric' => 'The item quantity must be a number.',
+                'stackedItems.*.item_qty.min' => 'The item quantity must be at least 0.1.',
+                'stackedItems.*.item_unit_price.required' => 'The unit price is required for each item.',
+                'stackedItems.*.item_unit_price.numeric' => 'The unit price must be a number.',
+                'stackedItems.*.item_unit_price.min' => 'The unit price must be at least 0.',
+            ]
+        );
+
+            if ($validator->fails()) {
+                $this->setErrorBag($validator->errors());
+                $firstKey = $validator->errors()->keys()[0] ?? null;
+                if ($firstKey) {
+                    $this->dispatch('scroll-to-first-error', ['firstKey' => $firstKey]);
+                }
+                return;
+            }
 
         // Custom validation for pricing tier - only required if price hasn't been manually modified
         // Only validate if there are items (skip text-only items)
@@ -1069,6 +1096,10 @@ class DOForm extends Component
         // No stock validation - allow negative stock values
         // Check if there are any validation errors
         if ($this->getErrorBag()->any()) {
+            $firstKey = $this->getErrorBag()->keys()[0] ?? null;
+            if ($firstKey) {
+                $this->dispatch('scroll-to-first-error', ['firstKey' => $firstKey]);
+            }
             return;
         }
 
@@ -1707,6 +1738,171 @@ class DOForm extends Component
         }
     }
 
+    /**
+     * Open the Duplicate DO modal and load DO list.
+     */
+    public function openDuplicateModal()
+    {
+        $this->showDuplicateModal = true;
+        $this->duplicateSelectedDoId = null;
+        $this->duplicateDoSearchTerm = '';
+    }
+
+    /**
+     * Close the Duplicate DO modal.
+     */
+    public function closeDuplicateModal()
+    {
+        $this->showDuplicateModal = false;
+        $this->duplicateSelectedDoId = null;
+        $this->duplicateDoSearchTerm = '';
+    }
+
+    /**
+     * Select a DO in the duplicate modal for preview.
+     */
+    public function selectDoForDuplicate($doId)
+    {
+        $this->duplicateSelectedDoId = $doId;
+    }
+
+    /**
+     * Confirm duplicate: copy only the item list from selected DO into stackedItems.
+     */
+    public function confirmDuplicate()
+    {
+        if (!$this->duplicateSelectedDoId) {
+            toastr()->warning('Please select a Delivery Order to duplicate.');
+            return;
+        }
+
+        $sourceDo = DeliveryOrder::with(['items.item', 'customer', 'salesman'])->find($this->duplicateSelectedDoId);
+        if (!$sourceDo) {
+            toastr()->error('Delivery Order not found.');
+            return;
+        }
+
+        // Copy customer from source DO
+        if ($sourceDo->cust_id && $sourceDo->customer) {
+            $this->cust_id = $sourceDo->cust_id;
+            $this->selectedCustomer = $sourceDo->customer;
+            $this->customerSearchTerm = $sourceDo->customer->cust_name;
+            // Copy salesman - prefer source DO's salesman, else customer's default salesman
+            if ($sourceDo->salesman_id && $sourceDo->salesman) {
+                $this->salesman_id = $sourceDo->salesman_id;
+                $this->salesmanSearchTerm = $sourceDo->salesman->name;
+            } elseif ($sourceDo->customer->salesman_id) {
+                $this->salesman_id = $sourceDo->customer->salesman_id;
+                $connection = session('active_db') ?: DB::getDefaultConnection();
+                $salesman = User::on($connection)->find($this->salesman_id);
+                $this->salesmanSearchTerm = $salesman ? $salesman->name : '';
+            } else {
+                $this->salesman_id = null;
+                $this->salesmanSearchTerm = '';
+            }
+        } else {
+            $this->cust_id = null;
+            $this->selectedCustomer = null;
+            $this->customerSearchTerm = '';
+            $this->salesman_id = null;
+            $this->salesmanSearchTerm = '';
+        }
+
+        $doItems = $sourceDo->items()->orderByRaw('row_index IS NULL, row_index')->get();
+        $this->stackedItems = [];
+        $usedRowIndices = [];
+        $fallbackRowIndex = 0;
+
+        foreach ($doItems as $doItem) {
+            // Preserve original row position from source DO (for both regular and text-only items)
+            if ($doItem->row_index !== null && $doItem->row_index < 24) {
+                $originalRowIndex = (int) $doItem->row_index;
+            } else {
+                // Find next available row for items without row_index (legacy data)
+                while (isset($usedRowIndices[$fallbackRowIndex]) && $fallbackRowIndex < 24) {
+                    $fallbackRowIndex++;
+                }
+                $originalRowIndex = min($fallbackRowIndex, 23);
+                $fallbackRowIndex = $originalRowIndex + 1;
+            }
+            $usedRowIndices[$originalRowIndex] = true;
+
+            if ($doItem->item_id === null || !$doItem->item) {
+                $this->stackedItems[] = [
+                    'item' => [
+                        'id' => null,
+                        'item_code' => '',
+                        'item_name' => '',
+                        'um' => '',
+                        'details' => '',
+                    ],
+                    'custom_item_name' => $doItem->custom_item_name ?? '',
+                    'custom_um' => $doItem->custom_um ?? '',
+                    'item_qty' => floatval($doItem->qty ?? 0),
+                    'item_unit_price' => 0,
+                    'amount' => 0,
+                    'pricing_tier' => null,
+                    'more_description' => $doItem->more_description,
+                    'is_text_only' => true,
+                    'original_row_index' => $originalRowIndex,
+                ];
+            } else {
+                if (!$doItem->item) {
+                    continue;
+                }
+                $tierPrices = [
+                    'Customer Price' => $doItem->item->cust_price,
+                    'Term Price' => $doItem->item->term_price,
+                    'Cash Price' => $doItem->item->cash_price,
+                ];
+                $pricingTier = $doItem->pricing_tier ?? '';
+                $priceManuallyModified = false;
+                if ($pricingTier && in_array($pricingTier, ['Customer Price', 'Term Price', 'Cash Price'])) {
+                    $expectedPrice = match ($pricingTier) {
+                        'Customer Price' => $doItem->item->cust_price,
+                        'Term Price' => $doItem->item->term_price,
+                        'Cash Price' => $doItem->item->cash_price,
+                        default => $doItem->item->cust_price
+                    };
+                    $priceManuallyModified = ($doItem->unit_price != $expectedPrice);
+                } else {
+                    $priceManuallyModified = true;
+                }
+                $defaultUm = ($doItem->item->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($doItem->item->um ?? 'UNIT');
+                $this->stackedItems[] = [
+                    'item' => [
+                        'id' => $doItem->item->id,
+                        'item_code' => $doItem->item->item_code,
+                        'item_name' => $doItem->item->item_name,
+                        'qty' => $doItem->item->qty,
+                        'cost' => $doItem->item->cost,
+                        'cust_price' => $doItem->item->cust_price,
+                        'term_price' => $doItem->item->term_price,
+                        'cash_price' => $doItem->item->cash_price,
+                        'latest_do_price' => $this->getLatestDOPriceForItem($doItem->item->id, $this->cust_id),
+                        'latest_do_date' => $this->getLatestDODateForItem($doItem->item->id, $this->cust_id),
+                        'details' => $doItem->item->details,
+                        'um' => $doItem->item->um ?? 'UNIT',
+                    ],
+                    'custom_um' => !empty(trim($doItem->custom_um ?? '')) ? trim($doItem->custom_um) : $defaultUm,
+                    'item_qty' => floatval($doItem->qty),
+                    'pricing_tier' => $pricingTier,
+                    'item_unit_price' => $doItem->unit_price,
+                    'amount' => $doItem->amount,
+                    'more_description' => $doItem->more_description,
+                    'custom_item_name' => $doItem->custom_item_name ?? $doItem->item->item_name,
+                    'price_manually_modified' => $priceManuallyModified,
+                    'original_row_index' => $originalRowIndex,
+                ];
+            }
+        }
+
+        $this->freeFormTextRows = [];
+        $this->calculateTotalAmount();
+        $this->closeDuplicateModal();
+        toastr()->success('Items and customer copied from selected Delivery Order. Please fill in date and other details.');
+    }
+
     
     public function render()
     {
@@ -1717,7 +1913,37 @@ class DOForm extends Component
         // Use current database connection (not just 'ups') to match validation
         $connection = session('active_db') ?: DB::getDefaultConnection();
         $this->salesmen = User::on($connection)->role('Salesperson')->orderBy('name','asc')->get();
-        return view('livewire.d-o-form')->layout('layouts.app');
+
+        $duplicateDoList = collect();
+        if ($this->showDuplicateModal) {
+            $duplicateDoList = $this->getDuplicateDoList();
+        }
+
+        return view('livewire.d-o-form', [
+            'duplicateDoList' => $duplicateDoList,
+        ])->layout('layouts.app');
+    }
+
+    private function getDuplicateDoList()
+    {
+        $user = Auth::user();
+        $isPrivileged = $user && ($user->hasRole('Admin') || $user->hasRole('Super Admin'));
+
+        return DeliveryOrder::with(['customerSnapshot', 'customer'])
+            ->when(!$isPrivileged, function ($q) use ($user) {
+                return $q->where('user_id', $user->id);
+            })
+            ->when($this->duplicateDoSearchTerm, function ($q) {
+                return $q->where(function ($query) {
+                    $query->where('do_num', 'like', '%' . $this->duplicateDoSearchTerm . '%')
+                        ->orWhereHas('customer', function ($sub) {
+                            $sub->where('cust_name', 'like', '%' . $this->duplicateDoSearchTerm . '%');
+                        });
+                });
+            })
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
     }
 
     private function getLatestDOPriceForItem($itemId, $customerId = null)

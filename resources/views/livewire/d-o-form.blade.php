@@ -9,7 +9,7 @@
                     <div class="card-body">
                         <form wire:submit.prevent="addDO">
                         <div class="row mb-3">
-                            <div class="col-md-4" x-data="{ hi: 0 }">
+                            <div class="col-md-4" id="field-cust_id" x-data="{ hi: 0 }">
                                 @if(!$deliveryOrder || !$isView)
                                     <label for="customer">Customer <span class="text-danger">*</span></label>
                                     <input type="text" wire:model.debounce.100ms="customerSearchTerm" 
@@ -58,14 +58,14 @@
 
 
 
-                            <div class="col-md-4">
+                            <div class="col-md-4" id="field-date">
                                 <label for="date">Date <span class="text-danger">*</span></label>
                                 <input type="date" wire:model="date" id="date" class="form-control rounded" 
                                     placeholder="dd/mm/yyyy"
                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}>
                                 @error('date') <p class="text-danger">{{ $message }}</p> @enderror
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4" id="field-do_num">
                                     <label for="do_num">DO Number <span class="text-danger">*</span></label>
                                     <input type="text" wire:model="do_num" id="do_num" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter DO Number">
                                     @error('do_num') <p class="text-danger">{{ $message }}</p> @enderror
@@ -85,7 +85,7 @@
                                     @error('cust_po') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
 
-                                <div class="col-md-3">
+                                <div class="col-md-3" id="field-salesman_id">
                                     <label for="salesman">Salesperson <span class="text-danger">*</span></label>
                                     <select id="salesman" class="form-select rounded" wire:model.live="salesman_id" {{ ($isView || $this->isPosted || empty($cust_id)) ? 'disabled' : '' }}>
                                         <option value="">{{ empty($cust_id) ? 'Select a customer first' : 'Select Salesperson' }}</option>
@@ -104,7 +104,7 @@
                                 </div>
                             </div>
 
-                            <div class="do-items-table mb-3">
+                            <div class="do-items-table mb-3" id="field-items">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h6 class="mb-0">Delivery Order Items (Max 24 rows + NOTES)</h6>
                                     @php
@@ -156,7 +156,16 @@
                                     <thead>
                                         <tr>
                                             <th style="width: 95px;">QTY</th>
-                                            <th>Description</th>
+                                            <th>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>Description</span>
+                                                    @if((!$deliveryOrder || !$deliveryOrder->id) && !$isView)
+                                                        <button type="button" class="btn btn-sm btn-outline-primary" wire:click="openDuplicateModal" title="Duplicate items from an existing DO">
+                                                            Duplicate DO
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -683,6 +692,66 @@
         </div>
     </div>
 
+    {{-- Duplicate DO Modal --}}
+    @if($showDuplicateModal)
+    <div class="modal fade show" tabindex="-1" style="display: block;" aria-modal="true" role="dialog">
+        <div class="modal-backdrop fade show" style="z-index: 1040;"></div>
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="z-index: 1045;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Duplicate DO - Copy items from existing Delivery Order</h5>
+                    <button type="button" class="btn-close" wire:click="closeDuplicateModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="row g-0" style="min-height: 400px;">
+                        {{-- Left: DO List --}}
+                        <div class="col-md-4 border-end" style="max-height: 500px; overflow-y: auto;">
+                            <div class="p-3">
+                                <input type="text" wire:model.live.debounce.300ms="duplicateDoSearchTerm" class="form-control form-control-sm mb-2" placeholder="Search DO number or customer...">
+                                <div class="list-group list-group-flush">
+                                    @forelse($duplicateDoList as $do)
+                                        <a href="javascript:void(0)" 
+                                           class="list-group-item list-group-item-action py-2 {{ $duplicateSelectedDoId == $do->id ? 'active' : '' }}"
+                                           wire:click="selectDoForDuplicate({{ $do->id }})">
+                                            <div class="d-flex justify-content-between">
+                                                <strong>{{ $do->do_num }}</strong>
+                                                <small>{{ $do->date ? \Carbon\Carbon::parse($do->date)->format('d/m/Y') : '-' }}</small>
+                                            </div>
+                                            <small class="text-muted">{{ $do->customerSnapshot->cust_name ?? $do->customer->cust_name ?? '-' }}</small>
+                                            <div><small>{{ $do->customerSnapshot->currency ?? $do->customer->currency ?? 'RM' }} {{ number_format($do->total_amount ?? 0, 2) }}</small></div>
+                                        </a>
+                                    @empty
+                                        <div class="list-group-item text-muted text-center py-4">No delivery orders found</div>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+                        {{-- Right: Preview --}}
+                        <div class="col-md-8" style="min-height: 400px;">
+                            @if($duplicateSelectedDoId)
+                                <iframe src="{{ route('print.delivery-order.preview', $duplicateSelectedDoId) }}" 
+                                        class="w-100 border-0" 
+                                        style="height: 500px; min-height: 400px;"
+                                        title="DO Preview"></iframe>
+                            @else
+                                <div class="d-flex align-items-center justify-content-center h-100 text-muted p-4">
+                                    <div class="text-center">
+                                        <p class="mb-0">Select a Delivery Order from the list to preview</p>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" wire:click="closeDuplicateModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" wire:click="confirmDuplicate" @if(!$duplicateSelectedDoId) disabled @endif>Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <style>
         .search-results {
             position: relative;
@@ -765,5 +834,35 @@
         
         [x-cloak] { display: none !important; }
     </style>
+
+    <script>
+        (function() {
+            var registered = false;
+            function registerScrollToError() {
+                if (typeof Livewire === 'undefined' || registered) return;
+                registered = true;
+                Livewire.on('scroll-to-first-error', (event) => {
+                    var payload = event && event[0];
+                    var firstKey = (payload && payload.firstKey) || (typeof payload === 'string' ? payload : null);
+                    if (!firstKey) return;
+
+                    var el = null;
+                    if (firstKey === 'cust_id') el = document.getElementById('field-cust_id');
+                    else if (firstKey === 'date') el = document.getElementById('field-date');
+                    else if (firstKey === 'do_num') el = document.getElementById('field-do_num');
+                    else if (firstKey === 'salesman_id') el = document.getElementById('field-salesman_id');
+                    else if (typeof firstKey === 'string' && firstKey.indexOf('stackedItems.') === 0) el = document.getElementById('field-items');
+
+                    if (el) {
+                        setTimeout(function() {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 150);
+                    }
+                });
+            }
+            document.addEventListener('livewire:init', registerScrollToError);
+            if (document.readyState !== 'loading' && typeof Livewire !== 'undefined') registerScrollToError();
+        })();
+    </script>
     
 </div>
