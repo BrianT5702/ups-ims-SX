@@ -12,6 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         // Create stealth_settings table in UPS database (where users are stored)
+        if (Schema::connection('ups')->hasTable('stealth_settings')) {
+            return;
+        }
         Schema::connection('ups')->create('stealth_settings', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
