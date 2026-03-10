@@ -17,7 +17,7 @@
                     <form wire:submit.prevent="addCustomer">
                         
                         <div class="form-group mb-2">
-                            <label for="account" class="form-label">Account Number <span class="text-danger">*</span></label>
+                            <label for="account" class="form-label">Account Number</label>
                             <input type="text" name="account" wire:model.live="account" class="form-control form-control-sm rounded" id="account" {{ $isView ? 'disabled' : ''}}>
                             @error('account')
                                 <p class="text-danger">{{ $message }}</p>
@@ -33,7 +33,7 @@
                         </div>
 
                         <div class="form-group mb-2">
-                            <label for="address_line1" class="form-label">Address Line 1 <span class="text-danger">*</span></label>
+                            <label for="address_line1" class="form-label">Address Line 1</label>
                             <input type="text" name="address_line1" wire:model.live="address_line1" class="form-control form-control-sm rounded" id="address_line1" {{ $isView ? 'disabled' : ''}}>
                             @error('address_line1')
                                 <p class="text-danger">{{ $message }}</p>
@@ -41,7 +41,7 @@
                         </div>
 
                         <div class="form-group mb-2">
-                            <label for="address_line2" class="form-label">Address Line 2 <span class="text-danger">*</span></label>
+                            <label for="address_line2" class="form-label">Address Line 2 </label>
                             <input type="text" name="address_line2" wire:model.live="address_line2" class="form-control form-control-sm rounded" id="address_line2" {{ $isView ? 'disabled' : ''}}>
                             @error('address_line2')
                                 <p class="text-danger">{{ $message }}</p>
@@ -59,7 +59,7 @@
                         </div>
 
                         <div class="form-group mb-2">
-                            <label for="phone_num" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                            <label for="phone_num" class="form-label">Phone Number</label>
                             <input type="text" name="phone_num" wire:model.live="phone_num" class="form-control form-control-sm rounded" id="phone_num" {{ $isView ? 'disabled' : ''}}>
                             @error('phone_num')
                                 <p class="text-danger">{{ $message }}</p>
@@ -91,7 +91,7 @@
                         </div>
 
                         <div class="form-group mb-2">
-                            <label for="term" class="form-label">Term <span class="text-danger">*</span></label>
+                            <label for="term" class="form-label">Term</label>
                             <select name="term" class="form-select form-select-sm rounded" id="term" wire:model.live="term" {{ $isView ? 'disabled' : ''}}>
                                 <option value="" disabled {{ empty($term) ? 'selected' : '' }}>Select a term</option>
                                 @foreach($termOptions as $option)
@@ -120,7 +120,7 @@
                         </div>
 
                         <div class="form-group mb-2">
-                            <label for="currency" class="form-label">Currency <span class="text-danger">*</span></label>
+                            <label for="currency" class="form-label">Currency</label>
                             <select name="currency" class="form-select form-select-sm rounded" id="currency" wire:model.live="currency" {{ $isView ? 'disabled' : ''}}>
                                 <option value="RM" selected>RM - Malaysian Ringgit</option>
                                 <option value="USD">USD - US Dollar</option>
