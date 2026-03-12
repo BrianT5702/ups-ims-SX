@@ -39,14 +39,18 @@
         .container { max-width: 1000px; /* Wider for letter size */ margin: 20px auto; border: 1px solid #000; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); background-color: #fff; min-height: 100vh; /* Full viewport height for screen view */ position: relative; display: flex; flex-direction: column; }
         .content { padding: 24px 20px 20px; flex: 0 0 auto; /* Don't grow */ }
         .company-info { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 6px; }
-        .company-info-left { text-align: left; width: 70%; }
+        .company-info-left { display: flex; align-items: flex-start; gap: 12px; text-align: left; width: 70%; }
+        .company-logo-wrap { flex-shrink: 0; max-height: 75px; line-height: 0; }
+        .company-logo-wrap img { max-height: 75px; width: auto; object-fit: contain; display: block; }
         .company-info-left h2 { font-size: calc(1.1em + 1px); /* Match DO font size */ margin-bottom: 6px; line-height: 1.2; }
         .company-info-right { text-align: right; margin-top: 0; width: 28%; min-width: 200px; }
         .company-info-right h2 { margin-bottom: 4px; white-space: nowrap; font-size: calc(1.0em + 1px); /* Match DO font size */ text-transform: uppercase; }
         .company-info h2 { margin-bottom: 4px; color: #000; font-weight: bold; font-size: calc(1.1em + 1px); /* Match DO font size */ white-space: nowrap; text-transform: uppercase; }
         .company-info p { margin: 0; font-size: calc(0.78em + 1px); /* Match DO font size */ line-height: 1.3; /* Reduced line spacing */ }
         .customer-info { display: flex; justify-content: space-between; margin-bottom: 14px; }
-        .customer-info-frame { border: 1px solid #000; padding: 6px; width: 100%; font-size: 1.1em; /* Match DO font size */ line-height: 1.3; /* Reduced line spacing */ }
+        .customer-info-frame { border: 1px solid #000; padding: 6px; padding-left: 40px; width: 100%; font-size: 1.1em; /* Match DO font size */ line-height: 1.3; /* Reduced line spacing */ }
+        .customer-info-frame p { margin: 0; }
+        .customer-info-frame p:first-child { text-indent: -40px; }
         .items-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; font-size: 0.85em; /* Smaller font */ }
         .items-table th { padding: 6px 8px 4px 8px; /* Reduced padding */ text-align: left; border-bottom: 1px solid #000; border-top: 1px solid #000; font-weight: bold; text-transform: uppercase; font-size: 0.8em; /* Header font */ line-height: 1.3; /* Reduced line spacing */ }
         .items-table td { padding: 4px 8px; /* Reduced padding */ text-align: left; vertical-align: top; border-bottom: none; font-size: 1.1em; /* Smaller font */ line-height: 1.3; /* Reduced line spacing */ }
@@ -468,6 +472,10 @@
                 <div class="page-header">
                     <div class="company-info">
                         <div class="company-info-left">
+                            <div class="company-logo-wrap">
+                                <img src="{{ asset('images/company-logo-1.png') }}" alt="{{ $companyProfile->company_name ?? 'Company' }}" />
+                            </div>
+                            <div class="company-info-text">
                             <h2>{{ $companyProfile->company_name }}</h2>
                             <p>{{ $companyProfile->company_no }} | GST No: {{ $companyProfile->gst_no }}</p>
                             <p>{{ $companyProfile->address_line1 }}</p>
@@ -486,6 +494,7 @@
                                 @endif
                             </p>
                             <p>Fax: {{ $companyProfile->fax_num }} | Email: {{ $companyProfile->email }}</p>
+                            </div>
                         </div>
                         <div class="company-info-right">
                             <h2>Quotation</h2>
@@ -499,7 +508,7 @@
 
                     <div class="customer-info">
                         <div class="customer-info-frame">
-                            <p><strong>{{ $quotation->customerSnapshot->cust_name ?? $quotation->customer->cust_name ?? 'N/A' }}</strong></p>
+                            <p><strong>To: </strong><strong>{{ $quotation->customerSnapshot->cust_name ?? $quotation->customer->cust_name ?? 'N/A' }}</strong></p>
                             @if($quotation->customerSnapshot->address_line1 ?? $quotation->customer->address_line1)
                                 <p>{{ $quotation->customerSnapshot->address_line1 ?? $quotation->customer->address_line1 }}</p>
                             @endif

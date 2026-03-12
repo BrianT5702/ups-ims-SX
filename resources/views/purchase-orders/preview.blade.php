@@ -64,8 +64,23 @@
         }
 
         .company-info-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
             text-align: left;
             width: 70%;  /* Give more space to company info */
+        }
+
+        .company-logo-wrap {
+            flex-shrink: 0;
+            max-height: 75px;
+            line-height: 0;
+        }
+        .company-logo-wrap img {
+            max-height: 75px;
+            width: auto;
+            object-fit: contain;
+            display: block;
         }
         
         .company-info-left h2 {
@@ -142,9 +157,18 @@
         .supplier-info-frame {
             border: 1px solid #000;
             padding: 6px;
+            padding-left: 40px;
             width: 100%;
             font-size: 1.1em;
             line-height: 1.3; /* Already matches print */
+        }
+
+        .supplier-info-frame p {
+            margin: 0;
+        }
+
+        .supplier-info-frame p:first-child {
+            text-indent: -40px; /* Pull 'To:' line back to margin */
         }
 
         .supplier-info-date {
@@ -798,6 +822,10 @@
             <!-- Company Information Section -->
             <div class="company-info">
                 <div class="company-info-left">
+                    <div class="company-logo-wrap">
+                        <img src="{{ asset('images/company-logo-1.png') }}" alt="{{ $companyProfile->company_name ?? 'Company' }}" />
+                    </div>
+                    <div class="company-info-text">
                     <h2>{{ $companyProfile->company_name }}</h2>
                     <p>{{ $companyProfile->company_no }} | GST No: {{ $companyProfile->gst_no }}</p>
                     <p>{{ $companyProfile->address_line1 }}</p>
@@ -816,6 +844,7 @@
                         @endif
                     </p>
                     <p>Fax: {{ $companyProfile->fax_num }} | Email: {{ $companyProfile->email }}</p>
+                    </div>
                 </div>
                 <div class="company-info-right">
                     <h2>Purchase Order</h2>
@@ -828,7 +857,7 @@
             <!-- Supplier Information Section -->
             <div class="supplier-info">
                 <div class="supplier-info-frame">
-                    <p><strong>{{ $purchaseOrder->supplierSnapshot->sup_name ?? 'N/A' }}</strong></p>
+                    <p><strong>To: </strong><strong>{{ $purchaseOrder->supplierSnapshot->sup_name ?? 'N/A' }}</strong></p>
 
                     @if($purchaseOrder->supplierSnapshot->address_line1)
                     <p>{{ $purchaseOrder->supplierSnapshot->address_line1 }}</p>

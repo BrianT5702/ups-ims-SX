@@ -116,8 +116,24 @@
         }
 
         .company-info-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
             text-align: left;
             width: 70%; /* Match PO width */
+        }
+
+        /* Company logo: fixed max-height so header height stays the same */
+        .company-logo-wrap {
+            flex-shrink: 0;
+            max-height: 75px;
+            line-height: 0;
+        }
+        .company-logo-wrap img {
+            max-height: 75px;
+            width: auto;
+            object-fit: contain;
+            display: block;
         }
         
         .company-info-left h2 {
@@ -204,6 +220,7 @@
         .customer-info-frame {
             border: 1px solid #000;
             padding: 4px;
+            padding-left: 30px; /* Indent entire block */
             width: 100%;
             font-size: 0.9em;
             
@@ -216,6 +233,14 @@
             display: flex;
             flex-direction: column;
             justify-content: center; /* Optional: Centers content vertically if short */
+        }
+
+        .customer-info-frame p {
+            margin: 0;
+        }
+
+        .customer-info-frame p:first-child {
+            text-indent: -26px; /* Pull 'To:' back to the left margin */
         }
 
         /* Table styles matching Quotation */
@@ -621,13 +646,15 @@
             position: fixed;
             top: 70px;
             right: 20px;
-            padding: 6px 10px;
-            font-size: 12px;
+            padding: 4px 8px;
+            font-size: 10px;
+            line-height: 1.2;
             color: #856404;
             background: #fff3cd;
             border: 1px solid #ffeeba;
             border-radius: 4px;
             z-index: 1000;
+            max-width: 180px;
         }
 
         /* Force standard zoom detection warning */
@@ -870,6 +897,10 @@
                 <div class="page-header">
                     <div class="company-info">
                         <div class="company-info-left">
+                            <div class="company-logo-wrap">
+                                <img src="{{ asset('images/company-logo-1.png') }}" alt="{{ $companyProfile->company_name ?? 'Company' }}" />
+                            </div>
+                            <div class="company-info-text">
                             <h2>{{ $companyProfile->company_name }}</h2>
                             <p>{{ $companyProfile->company_no }} | GST No: {{ $companyProfile->gst_no }}</p>
                             <p>{{ $companyProfile->address_line1 }}</p>
@@ -888,6 +919,7 @@
                                 @endif
                             </p>
                             <p>Fax: {{ $companyProfile->fax_num }} | Email: {{ $companyProfile->email }}</p>
+                            </div>
                         </div>
                         <div class="company-info-right">
                             <h2>Delivery Order</h2>
@@ -902,7 +934,7 @@
 
                     <div class="customer-info">
                         <div class="customer-info-frame">
-                            <p><strong>{{ $deliveryOrder->customerSnapshot->cust_name ?? 'N/A' }}</strong></p>
+                            <p><strong>To: </strong><strong>{{ $deliveryOrder->customerSnapshot->cust_name ?? 'N/A' }}</strong></p>
                             @if($deliveryOrder->customerSnapshot->address_line1)
                             <p>{{ $deliveryOrder->customerSnapshot->address_line1 }}</p>
                             @endif
