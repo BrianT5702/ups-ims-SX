@@ -339,79 +339,67 @@ class DOForm extends Component
                 return;
             }
 
-            $itemExists = false;
+            // Always create a new row for the selected item
+            // (even if the same item already exists on this DO)
 
-            foreach ($this->stackedItems as $key => $stackedItem) {
-                if ($stackedItem['item']['id'] === $item->id) {
-                    // Always allow incrementing quantity - quantity changes don't affect row count
-                    $this->stackedItems[$key]['item_qty'] += 1;
-                    $this->stackedItems[$key]['amount'] = 
-                        $this->stackedItems[$key]['item_qty'] * $this->stackedItems[$key]['item_unit_price'];
-                    $itemExists = true;
-                    break;
-                }
+            // DO MUST FIT ON ONE PAGE - check current rows first
+            $maxRows = 24; // Fixed 24-item-row limit (row 24 is for NOTES, 25 rows total)
+            $currentRows = $this->estimateTotalRows(false);
+            
+            // Block adding if already at or over limit
+            if ($currentRows >= $maxRows) {
+                toastr()->error('⚠️ PAGE LIMIT REACHED: Cannot add item. Current: ' . $currentRows . ' rows, Maximum: ' . $maxRows . ' rows. Please remove items or shorten descriptions before adding new items.');
+                $this->dispatch('show-limit-error', ['message' => 'Page limit reached (' . $currentRows . '/' . $maxRows . ' rows). Remove items or shorten content to add more.']);
+                return;
             }
-
-            if (!$itemExists) {
-                // DO MUST FIT ON ONE PAGE - check current rows first
-                $maxRows = 24; // Fixed 24-item-row limit (row 24 is for NOTES, 25 rows total)
-                $currentRows = $this->estimateTotalRows(false);
-                
-                // Block adding if already at or over limit
-                if ($currentRows >= $maxRows) {
-                    toastr()->error('⚠️ PAGE LIMIT REACHED: Cannot add item. Current: ' . $currentRows . ' rows, Maximum: ' . $maxRows . ' rows. Please remove items or shorten descriptions before adding new items.');
-                    $this->dispatch('show-limit-error', ['message' => 'Page limit reached (' . $currentRows . '/' . $maxRows . ' rows). Remove items or shorten content to add more.']);
-                    return;
-                }
-                
-                // DO MUST FIT ON ONE PAGE - estimate based on rows
-                // Calculate estimated rows for current items + new item (including its detail lines)
-                $estimatedRows = $this->estimateTotalRows(true, $item);
-                
-                if ($estimatedRows > $maxRows) {
-                    toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add item. Adding this item would result in ' . $estimatedRows . ' rows (max: ' . $maxRows . ' rows). Please remove items or shorten descriptions to fit on a single page.');
-                    $this->dispatch('show-limit-error', ['message' => 'Would exceed limit (' . $estimatedRows . '/' . $maxRows . ' rows). Remove items or shorten content first.']);
-                    return;
-                }
-                
-                // Show warning if getting close to limit
-                if ($estimatedRows > ($maxRows * 0.9)) {
-                    toastr()->warning('Adding this item will bring you close to the one-page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows).');
-                }
-                
-                $newItem = [
-                    'item' => [
-                        'id' => $item->id,
-                        'item_code' => $item->item_code,
-                        'item_name' => $item->item_name,
-                        'qty' => $item->qty,
-                        'cost' => $item->cost,
-                        'cust_price' => $item->cust_price,
-                        'term_price' => $item->term_price,
-                        'cash_price' => $item->cash_price,
-                        'latest_do_price' => $this->getLatestDOPriceForItem($item->id, $this->cust_id),
-                        'latest_do_date' => $this->getLatestDODateForItem($item->id, $this->cust_id),
+            
+            // DO MUST FIT ON ONE PAGE - estimate based on rows
+            // Calculate estimated rows for current items + new item (including its detail lines)
+            $estimatedRows = $this->estimateTotalRows(true, $item);
+            
+            if ($estimatedRows > $maxRows) {
+                toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add item. Adding this item would result in ' . $estimatedRows . ' rows (max: ' . $maxRows . ' rows). Please remove items or shorten descriptions to fit on a single page.');
+                $this->dispatch('show-limit-error', ['message' => 'Would exceed limit (' . $estimatedRows . '/' . $maxRows . ' rows). Remove items or shorten content first.']);
+                return;
+            }
+            
+            // Show warning if getting close to limit
+            if ($estimatedRows > ($maxRows * 0.9)) {
+                toastr()->warning('Adding this item will bring you close to the one-page limit (' . $estimatedRows . ' rows, max ' . $maxRows . ' rows).');
+            }
+            
+            $newItem = [
+                'item' => [
+                    'id' => $item->id,
+                    'item_code' => $item->item_code,
+                    'item_name' => $item->item_name,
+                    'qty' => $item->qty,
+                    'cost' => $item->cost,
+                    'cust_price' => $item->cust_price,
+                    'term_price' => $item->term_price,
+                    'cash_price' => $item->cash_price,
+                    'latest_do_price' => $this->getLatestDOPriceForItem($item->id, $this->cust_id),
+                    'latest_do_date' => $this->getLatestDODateForItem($item->id, $this->cust_id),
                     'details' => $item->details,
                     'um' => $item->um ?? 'UNIT',
-                    ],
-                    'custom_um' => $item->um ?? 'UNIT', // Autofill from inventory, editable
-                    'item_qty' => 1,
-                    'pricing_tier' => '',
-                    'item_unit_price' => 0,
-                    'amount' => 0,
-                    'total_amount' => 0,
-                    'more_description' => null,
-                    'custom_item_name' => $item->item_name,
-                    'price_manually_modified' => true
-                ];
-                
-                // Set original_row_index if rowIndex is provided to preserve absolute row position
-                if ($rowIndex !== null) {
-                    $newItem['original_row_index'] = $rowIndex;
-                }
-                
-                $this->stackedItems[] = $newItem;
+                ],
+                'custom_um' => $item->um ?? 'UNIT', // Autofill from inventory, editable
+                'item_qty' => 1,
+                'pricing_tier' => '',
+                'item_unit_price' => 0,
+                'amount' => 0,
+                'total_amount' => 0,
+                'more_description' => null,
+                'custom_item_name' => $item->item_name,
+                'price_manually_modified' => true
+            ];
+            
+            // Set original_row_index if rowIndex is provided to preserve absolute row position
+            if ($rowIndex !== null) {
+                $newItem['original_row_index'] = $rowIndex;
             }
+            
+            $this->stackedItems[] = $newItem;
 
             $this->itemSearchTerm = '';
             $this->itemSearchResults = [];

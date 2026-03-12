@@ -654,7 +654,7 @@
             border: 1px solid #ffeeba;
             border-radius: 4px;
             z-index: 1000;
-            max-width: 180px;
+            max-width: 150px;
         }
 
         /* Force standard zoom detection warning */
