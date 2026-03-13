@@ -289,10 +289,15 @@ class DOForm extends Component
         
         if (!empty($this->itemSearchTerm)) {
             // Show all items regardless of stock level - allow out of stock items
-            $query = Item::where('item_code', 'like', '%' . $this->itemSearchTerm . '%')
-                ->orWhere('item_name', 'like', '%' . $this->itemSearchTerm . '%');
+            // Order by item_code so list matches display (item_name often has leading @, *, etc. which breaks name sort)
+            $term = $this->itemSearchTerm;
+            $query = Item::where(function ($q) use ($term) {
+                    $q->where('item_code', 'like', '%' . $term . '%')
+                      ->orWhere('item_name', 'like', '%' . $term . '%');
+                });
             
-            $this->itemSearchResults = $query->orderBy('item_name','asc')
+            $this->itemSearchResults = $query
+                ->orderBy('item_code', 'asc')
                 ->limit(50)
                 ->get();
             $this->itemHighlightIndex = (count($this->itemSearchResults) > 0) ? 0 : -1;

@@ -577,9 +577,11 @@
                                                                                     <span>{{ $result->item_code }} - {{ $result->item_name }}</span>
                                                                                     @if($result->qty > 0)
                                                                                         <span class="badge bg-success ms-2">Qty: {{ $result->qty }}</span>
-                                                            @else
-                                                                                        <span class="badge bg-warning ms-2">Out of Stock</span>
-                                                            @endif
+                                                                                    @elseif($result->qty < 0)
+                                                                                        <span class="badge ms-2" style="background-color: #f8d7da; color: #000; border: 1px solid #f5c2c7;">Qty: {{ $result->qty }}</span>
+                                                                                    @else
+                                                                                        <span class="badge bg-warning ms-2" style="color: #000;">Qty: {{ $result->qty }}</span>
+                                                                                    @endif
                                                         </li>
                                                                             @endforeach
                                                                         </ul>
