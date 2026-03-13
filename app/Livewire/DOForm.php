@@ -71,9 +71,7 @@ class DOForm extends Component
 
     public function mount(DeliveryOrder $deliveryOrder)
     {
-
         $this->isView = request()->routeIs('delivery-orders.view');
-
         
         if ($deliveryOrder) {
             $this->deliveryOrder = $deliveryOrder;
@@ -191,10 +189,13 @@ class DOForm extends Component
             if ($deliveryOrder->salesman) {
                 $this->salesmanSearchTerm = $deliveryOrder->salesman->name;
             }
-            // Allow editing even if status is Completed
-        } 
-    
-
+        }
+        
+        // Auto-restore completed DOs when entering the edit route so user can edit immediately
+        if (!$this->isView && $this->deliveryOrder && $this->deliveryOrder->status === 'Completed') {
+            $this->saveAsDraft = true;
+            $this->addDO();
+        }
     }
     
     public function updatedCustomerSearchTerm()
