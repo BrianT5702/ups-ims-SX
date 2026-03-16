@@ -287,7 +287,8 @@
                                                                     step="0.01"
                                                                     inputmode="decimal"
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                    style="width: 100%;">
+                                                                    style="width: 100%;"
+                                                                    data-do-role="qty">
                                                                 <input type="text" 
                                                                     wire:model="stackedItems.{{ $itemIndex }}.custom_um" 
                                                                     class="form-control form-control-sm" 
@@ -305,7 +306,8 @@
                                                                     inputmode="decimal"
                                                                     wire:change="updatePriceLine({{ $itemIndex }})" 
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                    style="width: 100%;">
+                                                                    style="width: 100%;"
+                                                                    data-do-role="qty">
                                                                 <input type="text" 
                                                                     wire:model="stackedItems.{{ $itemIndex }}.custom_um" 
                                                                     class="form-control form-control-sm" 
@@ -327,7 +329,8 @@
                                                                 step="0.01"
                                                                 inputmode="decimal"
                                                                 placeholder="0"
-                                                                style="width: 100%;">
+                                                                style="width: 100%;"
+                                                                data-do-role="qty">
                                                             <input type="text" 
                                                                 wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.um" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
                                                                 class="form-control form-control-sm" 
@@ -546,7 +549,8 @@
                                                                     wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     class="form-control form-control-sm flex-grow-1" 
                                                                     placeholder="Type anything here (remarks, notes, etc.)"
-                                                                    style="font-size: 0.85em;">
+                                                                    style="font-size: 0.85em;"
+                                                                    data-do-role="desc">
                                                                 <div x-show="showSearch" class="position-relative flex-grow-1">
                                                                     <input type="text" 
                                                                         x-ref="searchInput"
@@ -867,16 +871,42 @@
     </script>
     <script>
         (function() {
-            // Prevent Enter key from submitting the DO form anywhere in the form.
-            // Existing field-specific handlers (customer search, item search, etc.)
-            // still run, but the form itself will never submit on Enter.
+            // Enter handling inside DO form:
+            // - Never submits the form
+            // - From ANY field in an item row: jump into the NEXT row's description text field (if any)
             document.addEventListener('keydown', function (e) {
                 if (e.key !== 'Enter') return;
+
+                // Let field-specific handlers (e.g. Alpine x-on:keydown.enter.prevent) win
+                if (e.defaultPrevented) return;
+
+                // Only handle inside the DO form
                 var form = e.target.closest('form[wire\\:submit\\.prevent="addDO"]');
                 if (!form) return;
-                // Allow normal Enter behavior inside textareas only (for new lines)
-                if (e.target.tagName === 'TEXTAREA') return;
+
                 e.preventDefault();
+
+                // Only handle movement inside the items grid rows
+                var currentRow = e.target.closest('tr.item-row');
+                if (!currentRow) {
+                    // Outside grid in the form: Enter is just blocked (no submit, no move)
+                    return;
+                }
+
+                // Find the next item-row that has a free-form description input
+                var nextRow = currentRow.nextElementSibling;
+                while (nextRow) {
+                    if (nextRow.classList.contains('item-row')) {
+                        var descInput = nextRow.querySelector('[data-do-role="desc"]');
+                        if (descInput && !descInput.disabled) {
+                            descInput.focus();
+                            if (typeof descInput.select === 'function') descInput.select();
+                            return;
+                        }
+                    }
+                    nextRow = nextRow.nextElementSibling;
+                }
+                // If no suitable next-row description is found, do nothing else (focus stays put).
             });
         })();
     </script>
