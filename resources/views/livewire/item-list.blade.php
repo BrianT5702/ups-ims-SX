@@ -121,6 +121,16 @@
                                 </div>
 
                                 <div class="col-md-2 mb-3">
+                                    <label for="quantityFilter" class="form-label">Quantity</label>
+                                    <select id="quantityFilter" class="form-select form-select-sm" wire:model.live="quantityFilter">
+                                        <option value="">All</option>
+                                        <option value="positive">&gt; 0</option>
+                                        <option value="zero">= 0</option>
+                                        <option value="negative">&lt; 0</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-2 mb-3">
                                     <label for="deadStockFilter" class="form-label">Filters</label>
                                     <div>
                                         <button type="button" class="btn btn-outline-danger w-100" wire:click="toggleDeadStockFilter">

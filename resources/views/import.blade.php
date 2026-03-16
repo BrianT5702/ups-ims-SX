@@ -110,6 +110,12 @@
                                         <li>G: Cost, H: Cash Price, I: Term Price, J: Customer Price</li>
                                     </ul>
                                 </div>
+                                <div>
+                                    <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Unit of measure:</p>
+                                    <ul class="list-disc list-inside space-y-1 ml-2">
+                                        <li>K: UOM (defaults to "UNIT" if empty)</li>
+                                    </ul>
+                                </div>
                                 <p class="text-xs pt-2 border-t border-gray-200 dark:border-gray-600 mt-3">
                                     <strong>Note:</strong> Import starts from row 4. Header row is at row 3. At minimum, Description (column B) must be provided. Supplier, warehouse, and location use default values.
                                 </p>

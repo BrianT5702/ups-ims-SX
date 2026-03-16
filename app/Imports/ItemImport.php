@@ -82,6 +82,7 @@ class ItemImport implements ToModel, WithStartRow
             // Column H (index 7) = cash
             // Column I (index 8) = term
             // Column J (index 9) = customer
+            // Column K (index 10) = UOM (Unit of Measure; default "UNIT" if empty)
             $stockCode = $this->getString($row, 0);  // Column A (index 0): code1
             $itemName = $this->getString($row, 1);  // Column B (index 1): desc
             $categoryName = $this->getString($row, 2);  // Column C (index 2): category
@@ -92,6 +93,8 @@ class ItemImport implements ToModel, WithStartRow
             $cashPrice = $this->getNumeric($row, 7, 0.0);  // Column H (index 7): cash
             $termPrice = $this->getNumeric($row, 8, 0.0);  // Column I (index 8): term
             $custPrice = $this->getNumeric($row, 9, 0.0);  // Column J (index 9): customer
+            $uom = $this->getString($row, 10, 'UNIT');
+            $uom = ($uom !== null && trim($uom) !== '') ? trim($uom) : 'UNIT';  // Column K (index 10): UOM
             
             if (empty($itemName)) {
                 Log::warning("Skipping row due to missing item name: " . json_encode($row));
@@ -250,7 +253,7 @@ class ItemImport implements ToModel, WithStartRow
             $item->sup_id = $supplier?->id;
             $item->warehouse_id = $warehouse?->id;
             $item->location_id = $location?->id;
-            $item->um = 'UNIT'; // Default unit of measure
+            $item->um = $uom;  // From column K, or "UNIT" if empty
             $item->created_at = now();
             $item->save();
 

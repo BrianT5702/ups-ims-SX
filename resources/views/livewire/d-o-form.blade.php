@@ -852,7 +852,6 @@
                     if (firstKey === 'cust_id') el = document.getElementById('field-cust_id');
                     else if (firstKey === 'date') el = document.getElementById('field-date');
                     else if (firstKey === 'do_num') el = document.getElementById('field-do_num');
-                    else if (firstKey === 'salesman_id') el = document.getElementById('field-salesman_id');
                     else if (typeof firstKey === 'string' && firstKey.indexOf('stackedItems.') === 0) el = document.getElementById('field-items');
 
                     if (el) {
@@ -864,6 +863,21 @@
             }
             document.addEventListener('livewire:init', registerScrollToError);
             if (document.readyState !== 'loading' && typeof Livewire !== 'undefined') registerScrollToError();
+        })();
+    </script>
+    <script>
+        (function() {
+            // Prevent Enter key from submitting the DO form anywhere in the form.
+            // Existing field-specific handlers (customer search, item search, etc.)
+            // still run, but the form itself will never submit on Enter.
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter') return;
+                var form = e.target.closest('form[wire\\:submit\\.prevent="addDO"]');
+                if (!form) return;
+                // Allow normal Enter behavior inside textareas only (for new lines)
+                if (e.target.tagName === 'TEXTAREA') return;
+                e.preventDefault();
+            });
         })();
     </script>
     

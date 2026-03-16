@@ -26,6 +26,9 @@ class ItemList extends Component
 
     public $filterDeadStock = false;
 
+    /** Quantity filter: null = all, 'zero' = 0, 'positive' = >0, 'negative' = <0 */
+    public $quantityFilter = null;
+
     public $selectedCategories = [];
     public $selectedFamilies = [];
     public $selectedGroups = [];
@@ -75,6 +78,11 @@ class ItemList extends Component
         }
     }
 
+    public function updatingQuantityFilter()
+    {
+        $this->resetPage();
+    }
+
     public function fetchItems()
     {
         $query = Item::query()
@@ -102,7 +110,16 @@ class ItemList extends Component
             })
             ->when($this->filterDeadStock, function ($query) {
                 $query->where('qty', 0);
-            });;
+            })
+            ->when($this->quantityFilter === 'zero', function ($query) {
+                $query->where('qty', 0);
+            })
+            ->when($this->quantityFilter === 'positive', function ($query) {
+                $query->where('qty', '>', 0);
+            })
+            ->when($this->quantityFilter === 'negative', function ($query) {
+                $query->where('qty', '<', 0);
+            });
 
         return $query->paginate(50);
     }
@@ -175,13 +192,13 @@ class ItemList extends Component
     {
         if ($this->filterLocationId) {
          
-            $this->reset(['selectedCategories', 'selectedFamilies', 'selectedGroups', 'selectedSuppliers', 'filterFamilyId', 'filterDeadStock']);
+            $this->reset(['selectedCategories', 'selectedFamilies', 'selectedGroups', 'selectedSuppliers', 'filterFamilyId', 'filterDeadStock', 'quantityFilter']);
         } elseif ($this->filterFamilyId) {
           
-            $this->reset(['selectedCategories', 'selectedGroups', 'selectedSuppliers', 'filterLocationId', 'filterDeadStock']);
+            $this->reset(['selectedCategories', 'selectedGroups', 'selectedSuppliers', 'filterLocationId', 'filterDeadStock', 'quantityFilter']);
         } else {
            
-            $this->reset(['selectedCategories', 'selectedFamilies', 'selectedGroups', 'selectedSuppliers', 'filterLocationId', 'filterFamilyId', 'filterDeadStock']);
+            $this->reset(['selectedCategories', 'selectedFamilies', 'selectedGroups', 'selectedSuppliers', 'filterLocationId', 'filterFamilyId', 'filterDeadStock', 'quantityFilter']);
         }
     }
 
