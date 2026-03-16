@@ -160,8 +160,12 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span>Description</span>
                                                     @if((!$deliveryOrder || !$deliveryOrder->id) && !$isView)
-                                                        <button type="button" class="btn btn-sm btn-outline-primary" wire:click="openDuplicateModal" title="Duplicate items from an existing DO">
-                                                            Duplicate DO
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-primary"
+                                                                wire:click="openDuplicateModal"
+                                                                title="Duplicate items from an existing DO"
+                                                                data-do-duplicate-button="1">
+                                                            Duplicate DO (Ctrl+X)
                                                         </button>
                                                     @endif
                                                 </div>
@@ -560,11 +564,74 @@
                                                                         autocomplete="off"
                                                                         {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                         @keydown.escape="showSearch = false; searchTerm = ''; showResults = false"
-                                                                        @keydown.arrow-down.prevent="highlightIndex = Math.min(highlightIndex + 1, $wire.itemSearchResults.length - 1)"
-                                                                        @keydown.arrow-up.prevent="highlightIndex = Math.max(highlightIndex - 1, -1)"
-                                                                        @keydown.enter.prevent="if(highlightIndex >= 0 && $wire.itemSearchResults[highlightIndex]) { $wire.call('addItemToRow', $wire.itemSearchResults[highlightIndex].id, {{ $rowIndex }}); searchTerm = ''; showResults = false; showSearch = false; }"
-                                                                        @input="$wire.set('itemSearchTerm', searchTerm); $wire.call('searchItems'); if(searchTerm.length > 0) showResults = true"
-                                                                        @focus="if($wire.itemSearchResults.length > 0) showResults = true"
+                                                                        @keydown.arrow-down.prevent="
+                                                                            const container = $el.closest('[x-data]').querySelector('ul.list-group');
+                                                                            const items = container ? container.querySelectorAll('li') : [];
+                                                                            if (items.length === 0) return;
+                                                                            if (highlightIndex < items.length - 1) { highlightIndex++; } else { highlightIndex = 0; }
+                                                                            const active = items[highlightIndex];
+                                                                            if (active && container) {
+                                                                                const activeTop = active.offsetTop;
+                                                                                const activeBottom = activeTop + active.offsetHeight;
+                                                                                const viewTop = container.scrollTop;
+                                                                                const viewBottom = viewTop + container.clientHeight;
+                                                                                if (activeTop < viewTop) {
+                                                                                    container.scrollTop = activeTop;
+                                                                                } else if (activeBottom > viewBottom) {
+                                                                                    container.scrollTop = activeBottom - container.clientHeight;
+                                                                                }
+                                                                            }
+                                                                        "
+                                                                        @keydown.arrow-up.prevent="
+                                                                            const container = $el.closest('[x-data]').querySelector('ul.list-group');
+                                                                            const items = container ? container.querySelectorAll('li') : [];
+                                                                            if (items.length === 0) return;
+                                                                            if (highlightIndex > 0) { highlightIndex--; } else { highlightIndex = items.length - 1; }
+                                                                            const active = items[highlightIndex];
+                                                                            if (active && container) {
+                                                                                const activeTop = active.offsetTop;
+                                                                                const activeBottom = activeTop + active.offsetHeight;
+                                                                                const viewTop = container.scrollTop;
+                                                                                const viewBottom = viewTop + container.clientHeight;
+                                                                                if (activeTop < viewTop) {
+                                                                                    container.scrollTop = activeTop;
+                                                                                } else if (activeBottom > viewBottom) {
+                                                                                    container.scrollTop = activeBottom - container.clientHeight;
+                                                                                }
+                                                                            }
+                                                                        "
+                                                                        @keydown.enter.prevent="
+                                                                            const items = $el.closest('[x-data]').querySelectorAll('ul.list-group li');
+                                                                            if (items.length === 0) return;
+                                                                            if (highlightIndex < 0) highlightIndex = 0;
+                                                                            const target = items[highlightIndex];
+                                                                            if (target) {
+                                                                                target.click();
+                                                                                searchTerm = '';
+                                                                                showResults = false;
+                                                                                showSearch = false;
+                                                                                highlightIndex = -1;
+                                                                            }
+                                                                        "
+                                                                        @input="
+                                                                            $wire.set('itemSearchTerm', searchTerm);
+                                                                            $wire.call('searchItems');
+                                                                            if(searchTerm.length > 0) {
+                                                                                showResults = true;
+                                                                                const items = $el.closest('[x-data]').querySelectorAll('ul.list-group li');
+                                                                                if (highlightIndex < 0 && items.length > 0) { highlightIndex = 0; }
+                                                                            } else {
+                                                                                showResults = false;
+                                                                                highlightIndex = -1;
+                                                                            }
+                                                                        "
+                                                                        @focus="
+                                                                            const items = $el.closest('[x-data]').querySelectorAll('ul.list-group li');
+                                                                            if (items.length > 0) {
+                                                                                showResults = true;
+                                                                                if (highlightIndex < 0) { highlightIndex = 0; }
+                                                                            }
+                                                                        "
                                                                         @blur="setTimeout(() => showResults = false, 200)"
                                                                         style="font-size: 0.85em; width: 100%;">
                                                                     @if(count($itemSearchResults) > 0 && !$this->isPosted)
@@ -596,14 +663,16 @@
                                                                     @click="showSearch = true; $nextTick(() => { $refs.searchInput?.focus(); })"
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     class="btn btn-sm btn-outline-primary"
-                                                                    style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;">
-                                                                    + Add Item
+                                                                    style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;"
+                                                                    data-do-add-item-button="1">
+                                                                    + Add Item (F2)
                                                                 </button>
                                                                 <button type="button" 
                                                                     x-show="showSearch"
                                                                     @click="showSearch = false; searchTerm = ''; showResults = false"
                                                                     class="btn btn-sm btn-outline-secondary"
-                                                                    style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;">
+                                                                    style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;"
+                                                                    data-do-add-item-cancel="1">
                                                                     Cancel
                                                                 </button>
                                                     </div>
@@ -692,6 +761,17 @@
                             </div>
                             @endif
                         </form>
+
+                        {{-- Global loading overlay for heavier DO actions (e.g. Duplicate DO) --}}
+                        <div wire:loading.delay
+                             wire:target="openDuplicateModal, confirmDuplicate"
+                             class="do-loading-backdrop">
+                            <div class="do-loading-content">
+                                <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+                                <div class="mt-2 fw-semibold">Loading duplicate DO list...</div>
+                                <div class="text-muted small">Please wait a moment.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -839,8 +919,100 @@
         }
         
         [x-cloak] { display: none !important; }
+
+        .do-loading-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .do-loading-content {
+            background: #ffffff;
+            padding: 1.5rem 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            text-align: center;
+        }
     </style>
 
+    <script>
+        (function () {
+            // F2 handling inside DO form:
+            // - If item search is closed on the current row: behaves like clicking "+ Add Item"
+            // - If item search is open on the current row: behaves like clicking "Cancel" (closes search)
+            // - Lets users add/exit item mode without touching the mouse
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== 'F2') return;
+
+                // Only handle inside the DO form
+                var form = e.target.closest('form[wire\\:submit\\.prevent="addDO"]');
+                if (!form) return;
+
+                e.preventDefault();
+
+                // Prefer the current item row, if any
+                var currentRow = e.target.closest('tr.item-row');
+                var targetRow = currentRow;
+
+                // If not focused inside a row, fall back to the last visible item row
+                if (!targetRow) {
+                    var rows = form.querySelectorAll('tr.item-row');
+                    if (rows.length === 0) return;
+                    targetRow = rows[rows.length - 1];
+                }
+
+                if (!targetRow) return;
+
+                // If search is already open on this row, click the Cancel button (toggle off)
+                var cancelBtn = targetRow.querySelector('[data-do-add-item-cancel]');
+                if (cancelBtn && !cancelBtn.disabled && cancelBtn.offsetParent !== null) {
+                    cancelBtn.click();
+                    // After closing search, return focus to the row's main text/description field if available
+                    setTimeout(function () {
+                        var descInput = targetRow.querySelector('[data-do-role=\"desc\"]');
+                        if (descInput && !descInput.disabled) {
+                            descInput.focus();
+                            if (typeof descInput.select === 'function') descInput.select();
+                        }
+                    }, 0);
+                    return;
+                }
+
+                // Otherwise, trigger the "+ Add Item" button for this row (toggle on)
+                var addBtn = targetRow.querySelector('[data-do-add-item-button]');
+                if (addBtn && !addBtn.disabled && addBtn.offsetParent !== null) {
+                    addBtn.click();
+                }
+            });
+        })();
+    </script>
+    <script>
+        (function () {
+            // Ctrl+X handling:
+            // - Triggers the Duplicate DO feature (same as clicking the button)
+            // - Works even if focus is not currently inside the form
+            document.addEventListener('keydown', function (e) {
+                // Ctrl+X (or Cmd+X on Mac just in case)
+                const isCtrlX = (e.key === 'x' || e.key === 'X') && (e.ctrlKey || e.metaKey);
+                if (!isCtrlX) return;
+
+                // Find the DO form on the page
+                var form = document.querySelector('form[wire\\:submit\\.prevent="addDO"]');
+                if (!form) return;
+
+                var duplicateBtn = form.querySelector('[data-do-duplicate-button]');
+                if (duplicateBtn && !duplicateBtn.disabled) {
+                    // Prevent the browser's default cut behavior to avoid delay
+                    e.preventDefault();
+                    duplicateBtn.click();
+                }
+            });
+        })();
+    </script>
     <script>
         (function() {
             var registered = false;
