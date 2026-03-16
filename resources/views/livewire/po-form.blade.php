@@ -204,19 +204,19 @@
                                                     })
                                                 ">
                                                 <div class="d-flex gap-2" style="align-items: flex-start; position: relative;">
-                                                    <div style="flex: 1; cursor: pointer; position: relative;" 
-                                                         @mouseenter="hoverTimeout = setTimeout(() => { showMemo = true }, 1000)"
+                                                    <div x-data="{ showMemo: false, hoverTimeout: null }"
+                                                         style="flex: 1; cursor: pointer; position: relative;"
+                                                         @mouseenter="hoverTimeout = setTimeout(() => { showMemo = true }, 800)"
                                                          @mouseleave="clearTimeout(hoverTimeout); showMemo = false">
-                                                        <span wire:key="item-name-{{ $index }}-{{ $stackedItems[$index]['custom_item_name'] ?? 'default' }}">{{ $stackedItems[$index]['custom_item_name'] ?? $item['item']['item_name'] }}</span>
+                                                        <span wire:key="item-name-{{ $index }}-{{ $stackedItems[$index]['custom_item_name'] ?? 'default' }}">
+                                                            {{ $stackedItems[$index]['custom_item_name'] ?? $item['item']['item_name'] }}
+                                                        </span>
                                                         @if(!empty($item['item']['memo']))
-                                                            <div x-show="showMemo" 
+                                                            <div x-show="showMemo"
                                                                  x-transition
-                                                                 @mouseenter="clearTimeout(hoverTimeout); showMemo = true"
-                                                                 @mouseleave="showMemo = false"
-                                                                 style="position: absolute; background: #fff; border: 1px solid #ccc; padding: 6px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000; margin-top: 2px; width: auto; max-width: 200px; max-height: 150px; overflow-y: auto; font-size: 0.8em; white-space: pre-wrap; left: 0; top: 100%; word-wrap: break-word; text-align: left; line-height: 1.4;"
+                                                                 class="memo-tooltip"
                                                                  @click.stop>
-                                                                <strong style="font-size: 0.85em; display: block; margin-bottom: 3px;">Memo:</strong>
-                                                                <div style="font-size: 0.8em; text-align: left; white-space: pre-wrap; word-wrap: break-word; line-height: 1.4;">{{ $item['item']['memo'] }}</div>
+                                                                <div class="memo-tooltip-body">{{ $item['item']['memo'] }}</div>
                                                             </div>
                                                         @endif
                                                     </div>

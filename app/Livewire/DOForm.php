@@ -165,8 +165,9 @@ class DOForm extends Component
                             'cash_price' => $doItem->item->cash_price,
                             'latest_do_price' => $this->getLatestDOPriceForItem($doItem->item->id, $this->cust_id),
                             'latest_do_date' => $this->getLatestDODateForItem($doItem->item->id, $this->cust_id),
-                        'details' => $doItem->item->details,
-                        'um' => $doItem->item->um ?? 'UNIT',
+                            'details' => $doItem->item->details,
+                            'memo' => $doItem->item->memo ?? '',
+                            'um' => $doItem->item->um ?? 'UNIT',
                         ],
                         'custom_um' => !empty(trim($doItem->custom_um ?? '')) ? trim($doItem->custom_um) : $defaultUm, // Editable, fallback to item um
                         'item_qty' => floatval($doItem->qty), // Normalize: 1.50 -> 1.5 for display (1.25 stays 1.25)
@@ -387,6 +388,7 @@ class DOForm extends Component
                     'latest_do_price' => $this->getLatestDOPriceForItem($item->id, $this->cust_id),
                     'latest_do_date' => $this->getLatestDODateForItem($item->id, $this->cust_id),
                     'details' => $item->details,
+                    'memo' => $item->memo ?? '',
                     'um' => $item->um ?? 'UNIT',
                 ],
                 'custom_um' => $item->um ?? 'UNIT', // Autofill from inventory, editable
@@ -1877,6 +1879,7 @@ class DOForm extends Component
                         'latest_do_price' => $this->getLatestDOPriceForItem($doItem->item->id, $this->cust_id),
                         'latest_do_date' => $this->getLatestDODateForItem($doItem->item->id, $this->cust_id),
                         'details' => $doItem->item->details,
+                        'memo' => $doItem->item->memo ?? '',
                         'um' => $doItem->item->um ?? 'UNIT',
                     ],
                     'custom_um' => !empty(trim($doItem->custom_um ?? '')) ? trim($doItem->custom_um) : $defaultUm,

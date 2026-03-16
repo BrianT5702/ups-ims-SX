@@ -78,6 +78,8 @@ class QuotationForm extends Component
                         'cust_price' => $qItem->item->cust_price,
                         'term_price' => $qItem->item->term_price,
                         'cash_price' => $qItem->item->cash_price,
+                        'memo' => $qItem->item->memo ?? '',
+                        'details' => $qItem->item->details ?? '',
                         // Latest previously quoted price for this customer
                         'latest_quote_price' => $this->getLatestQuotationPriceForItem($qItem->item->id, $this->cust_id),
                         'latest_quote_date' => $this->getLatestQuotationDateForItem($qItem->item->id, $this->cust_id),
@@ -205,6 +207,8 @@ class QuotationForm extends Component
                     'cust_price' => $item->cust_price,
                     'term_price' => $item->term_price,
                     'cash_price' => $item->cash_price,
+                    'memo' => $item->memo ?? '',
+                    'details' => $item->details ?? '',
                     'latest_quote_price' => $this->getLatestQuotationPriceForItem($item->id, $this->cust_id),
                     'latest_quote_date' => $this->getLatestQuotationDateForItem($item->id, $this->cust_id),
                 ],

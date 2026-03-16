@@ -168,24 +168,20 @@
                                         <tr align="center">
                                             <td>{{ $loop->iteration }}</td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->item_code }}</a></td>
-                                            <td x-data="{ 
-                                                    showMemo: false,
-                                                    hoverTimeout: null
-                                                }" 
+                                            <td x-data="{ showMemo: false, hoverTimeout: null }"
                                                 style="position: relative;"
-                                                @mouseenter="hoverTimeout = setTimeout(() => { showMemo = true }, 1000)"
+                                                @mouseenter="hoverTimeout = setTimeout(() => { showMemo = true }, 800)"
                                                 @mouseleave="clearTimeout(hoverTimeout); showMemo = false">
                                                 <a wire:navigate href="{{ route('items.edit', $item->id) }}" 
-                                                   style="cursor: pointer;">{{ $item->item_name }}</a>
+                                                   style="cursor: pointer;">
+                                                    {{ $item->item_name }}
+                                                </a>
                                                 @if(!empty($item->memo))
-                                                    <div x-show="showMemo" 
+                                                    <div x-show="showMemo"
                                                          x-transition
-                                                         @mouseenter="clearTimeout(hoverTimeout); showMemo = true"
-                                                         @mouseleave="showMemo = false"
-                                                         style="position: absolute; background: #fff; border: 1px solid #ccc; padding: 6px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000; margin-top: 2px; width: auto; max-width: 200px; max-height: 150px; overflow-y: auto; font-size: 0.8em; white-space: pre-wrap; left: 0; top: 100%; word-wrap: break-word; text-align: left; line-height: 1.4;"
+                                                         class="memo-tooltip"
                                                          @click.stop>
-                                                        <strong style="font-size: 0.85em; display: block; margin-bottom: 3px;">Memo:</strong>
-                                                        <div style="font-size: 0.8em; text-align: left; white-space: pre-wrap; word-wrap: break-word; line-height: 1.4;">{{ $item->memo }}</div>
+                                                        <div class="memo-tooltip-body">{{ $item->memo }}</div>
                                                     </div>
                                                 @endif
                                             </td>
