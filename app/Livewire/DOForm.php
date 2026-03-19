@@ -211,6 +211,13 @@ class DOForm extends Component
     public function updatedCustomerSearchTerm()
     {
         if (!$this->isView) {
+            // If user types or clears the search box, detach any previously selected customer
+            // so validation accurately reflects the current UI state.
+            if ($this->selectedCustomer && $this->customerSearchTerm !== ($this->selectedCustomer->cust_name ?? '')) {
+                $this->selectedCustomer = null;
+                $this->cust_id = null;
+            }
+
             $this->searchCustomers();
         }
     }
@@ -244,6 +251,12 @@ class DOForm extends Component
                 $this->salesman_id = $this->selectedCustomer->salesman_id;
                 $connection = session('active_db') ?: DB::getDefaultConnection();
                 $this->salesmanSearchTerm = optional(User::on($connection)->find($this->salesman_id))->name;
+
+                // Clear salesperson validation error when it has been auto-filled.
+                $this->resetErrorBag(['salesman_id']);
+                if (method_exists($this, 'resetValidation')) {
+                    $this->resetValidation(['salesman_id']);
+                }
             }
 
             // Refresh latest DO prices per item for this customer
@@ -257,6 +270,12 @@ class DOForm extends Component
                 }
             }
             $this->calculateTotalAmount();
+
+            // Clear any previous validation error on customer now that a valid one is selected.
+            $this->resetErrorBag(['cust_id']);
+            if (method_exists($this, 'resetValidation')) {
+                $this->resetValidation(['cust_id']);
+            }
         }
     }
     public function searchSalesman()
@@ -580,6 +599,87 @@ class DOForm extends Component
             $this->syncLastValidDetailsLines();
             $this->calculateTotalAmount();
         }
+    }
+
+    public function moveItemUp($index): void
+    {
+        $this->moveItemToAdjacentEmptyRow($index, -1);
+    }
+
+    public function moveItemDown($index): void
+    {
+        $this->moveItemToAdjacentEmptyRow($index, 1);
+    }
+
+    private function moveItemToAdjacentEmptyRow($index, int $direction): void
+    {
+        // Keep posted/view forms immutable.
+        if ($this->isView || $this->isPosted) {
+            return;
+        }
+
+        if (!isset($this->stackedItems[$index])) {
+            return;
+        }
+
+        [$rowToItemMap, $itemToRowMap] = $this->buildCurrentRowMaps();
+        $currentRow = $itemToRowMap[$index] ?? null;
+
+        if ($currentRow === null) {
+            return;
+        }
+
+        $targetRow = $currentRow + $direction;
+        if ($targetRow < 0 || $targetRow > 23) {
+            return;
+        }
+
+        // Only allow moving into empty rows.
+        if (isset($rowToItemMap[$targetRow])) {
+            toastr()->warning('Target row is occupied. Move is only allowed into empty rows.');
+            return;
+        }
+
+        $this->stackedItems[$index]['original_row_index'] = $targetRow;
+        $this->syncLastValidDetailsLines();
+    }
+
+    private function buildCurrentRowMaps(): array
+    {
+        $rowToItemMap = [];
+        $regularItemIndex = 0;
+
+        foreach ($this->stackedItems as $idx => $item) {
+            if (isset($item['original_row_index']) && $item['original_row_index'] !== null) {
+                $originalRow = (int) $item['original_row_index'];
+                if ($originalRow < 24) {
+                    $rowToItemMap[$originalRow] = $idx;
+                } else {
+                    while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
+                        $regularItemIndex++;
+                    }
+                    if ($regularItemIndex < 24) {
+                        $rowToItemMap[$regularItemIndex] = $idx;
+                        $regularItemIndex++;
+                    }
+                }
+            } else {
+                while (isset($rowToItemMap[$regularItemIndex]) && $regularItemIndex < 24) {
+                    $regularItemIndex++;
+                }
+                if ($regularItemIndex < 24) {
+                    $rowToItemMap[$regularItemIndex] = $idx;
+                    $regularItemIndex++;
+                }
+            }
+        }
+
+        $itemToRowMap = [];
+        foreach ($rowToItemMap as $rowIndex => $itemIndex) {
+            $itemToRowMap[$itemIndex] = (int) $rowIndex;
+        }
+
+        return [$rowToItemMap, $itemToRowMap];
     }
     
     public function removeLastItemIfExceedsPage()
@@ -1001,22 +1101,6 @@ class DOForm extends Component
 
             // Remove the row from the free-form inputs no matter which interpretation we make.
             $convertedRows[] = $rowIndex;
-
-            // Check if this text row already exists as an item (avoid duplicates)
-            $exists = false;
-            foreach ($this->stackedItems as $item) {
-                if (
-                    isset($item['is_text_only']) && $item['is_text_only'] &&
-                    isset($item['custom_item_name']) && trim((string) $item['custom_item_name']) === $textTrim
-                ) {
-                    $exists = true;
-                    break;
-                }
-            }
-
-            if ($exists) {
-                continue;
-            }
 
             // Store as a text-only DO row.
             $this->stackedItems[] = [

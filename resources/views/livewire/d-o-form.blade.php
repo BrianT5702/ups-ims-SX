@@ -253,6 +253,8 @@
                                                 $itemIndex = $rowToItemMap[$rowIndex] ?? null;
                                                 $item = $itemIndex !== null ? $stackedItems[$itemIndex] : null;
                                                 $isEmptyRow = ($itemIndex === null);
+                                                $canMoveUp = $item && $rowIndex > 0 && !isset($rowToItemMap[$rowIndex - 1]);
+                                                $canMoveDown = $item && $rowIndex < 23 && !isset($rowToItemMap[$rowIndex + 1]);
                                             @endphp
                                             <tr class="item-row">
                                                 <td style="width: 95px; vertical-align: top;">
@@ -271,6 +273,26 @@
                                                                     disabled
                                                                     style="font-size: 0.75em; padding: 0.15rem 0.25rem; background-color: #f8f9fa;">
                                                             </div>
+                                                            @if(!$isView && !$this->isPosted)
+                                                                <div class="d-flex gap-1 mt-1 justify-content-center">
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
+                                                                        wire:click="moveItemUp({{ $itemIndex }})"
+                                                                        {{ $canMoveUp ? '' : 'disabled' }}
+                                                                        title="Move to empty row above"
+                                                                        style="font-size: 0.65rem; line-height: 1;">
+                                                                        ▲
+                                                                    </button>
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
+                                                                        wire:click="moveItemDown({{ $itemIndex }})"
+                                                                        {{ $canMoveDown ? '' : 'disabled' }}
+                                                                        title="Move to empty row below"
+                                                                        style="font-size: 0.65rem; line-height: 1;">
+                                                                        ▼
+                                                                    </button>
+                                                                </div>
+                                                            @endif
                                                         @elseif((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
                                                             {{-- Text-only item: allow qty + editable UOM (or leave empty) --}}
                                                             <div class="d-flex flex-column gap-1">
@@ -290,6 +312,26 @@
                                                                     {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     style="font-size: 0.75em; padding: 0.15rem 0.25rem;">
                                                             </div>
+                                                            @if(!$isView && !$this->isPosted)
+                                                                <div class="d-flex gap-1 mt-1 justify-content-center">
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
+                                                                        wire:click="moveItemUp({{ $itemIndex }})"
+                                                                        {{ $canMoveUp ? '' : 'disabled' }}
+                                                                        title="Move to empty row above"
+                                                                        style="font-size: 0.65rem; line-height: 1;">
+                                                                        ▲
+                                                                    </button>
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
+                                                                        wire:click="moveItemDown({{ $itemIndex }})"
+                                                                        {{ $canMoveDown ? '' : 'disabled' }}
+                                                                        title="Move to empty row below"
+                                                                        style="font-size: 0.65rem; line-height: 1;">
+                                                                        ▼
+                                                                    </button>
+                                                                </div>
+                                                            @endif
                                                         @else
                                                             <div class="d-flex flex-column gap-1">
                                                                 <input type="number" 
@@ -312,6 +354,26 @@
                                                                     <div class="text-danger small">!</div>
                                                                 @enderror
                                                             </div>
+                                                            @if(!$isView && !$this->isPosted)
+                                                                <div class="d-flex gap-1 mt-1 justify-content-center">
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
+                                                                        wire:click="moveItemUp({{ $itemIndex }})"
+                                                                        {{ $canMoveUp ? '' : 'disabled' }}
+                                                                        title="Move to empty row above"
+                                                                        style="font-size: 0.65rem; line-height: 1;">
+                                                                        ▲
+                                                                    </button>
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
+                                                                        wire:click="moveItemDown({{ $itemIndex }})"
+                                                                        {{ $canMoveDown ? '' : 'disabled' }}
+                                                                        title="Move to empty row below"
+                                                                        style="font-size: 0.65rem; line-height: 1;">
+                                                                        ▼
+                                                                    </button>
+                                                                </div>
+                                                            @endif
                                                         @endif
                                                     @elseif(!$isView && $isEmptyRow)
                                                         {{-- Empty row: allow qty + UOM input for text entries (UOM can be empty) --}}
