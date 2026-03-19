@@ -72,6 +72,10 @@
                                 </div>
                         </div>
 
+                            @php
+                                $activeDb = strtolower(session('active_db') ?: config('database.default'));
+                                $showInvoiceNoField = in_array($activeDb, ['ups', 'ucs'], true);
+                            @endphp
                             <div class="row mb-3">
                                 <div class="col-md-3">
                                     <label for="ref_num">Reference Number</label>
@@ -103,6 +107,16 @@
                                     <p><b> {{ Auth::user()->name}}</b></p>
                                 </div>
                             </div>
+
+                            @if($showInvoiceNoField)
+                                <div class="row mb-3">
+                                    <div class="col-md-3" id="field-invoice_no">
+                                        <label for="invoice_no">Invoice No</label>
+                                        <input type="text" wire:model="invoice_no" id="invoice_no" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter Invoice No" autocomplete="off">
+                                        @error('invoice_no') <p class="text-danger">{{ $message }}</p> @enderror
+                                    </div>
+                                </div>
+                            @endif
 
                             <div class="do-items-table mb-3" id="field-items">
                                 <div class="d-flex justify-content-between align-items-center mb-2">

@@ -36,6 +36,7 @@ class DOForm extends Component
     public $date = null;
     public $remark;
     public $lastValidRemark = '';
+    public $invoice_no;
     public $salesmanId;
     public $salesman_id;
     public $cust_po;
@@ -89,6 +90,7 @@ class DOForm extends Component
             $this->selectedCustomer = $deliveryOrder->customer;
             $this->salesman_id = $deliveryOrder->salesman_id;
             $this->cust_po = $deliveryOrder->cust_po;
+            $this->invoice_no = $deliveryOrder->invoice_no;
             $this->remark = $deliveryOrder->remark;
             $this->lastValidRemark = $deliveryOrder->remark ?? '';
             $this->total_amount = $deliveryOrder->total_amount;
@@ -120,6 +122,7 @@ class DOForm extends Component
                         'pricing_tier' => null,
                         'more_description' => null,
                         'is_text_only' => true,
+                        'is_detail_generated' => false,
                         'details_lines' => [],
                         'original_row_index' => $doItem->row_index, // Restore row position from database
                     ];
@@ -463,7 +466,16 @@ class DOForm extends Component
             $this->stackedItems[] = $newItem;
 
             // Add each details line as its own text-only DO row (editable qty/UOM and text).
+            // Skip header lines like "CONSIS(T) OF" so we don't leave empty row gaps.
+            $detailRowOffset = 0;
             for ($i = 0; $i < $detailCount; $i++) {
+                $line = (string) ($detailLines[$i] ?? '');
+                $lineTrim = trim($line);
+
+                if ($lineTrim === '' || $this->smartLooksLikeConsistOfHeader($lineTrim)) {
+                    continue;
+                }
+
                 $this->stackedItems[] = [
                     'item' => [
                         'id' => null,
@@ -472,7 +484,7 @@ class DOForm extends Component
                         'um' => '',
                         'details' => '',
                     ],
-                    'custom_item_name' => $detailLines[$i] ?? '',
+                    'custom_item_name' => $lineTrim,
                     'custom_um' => $newItem['custom_um'] ?? '',
                     'item_qty' => 0,
                     'item_unit_price' => 0,
@@ -480,10 +492,16 @@ class DOForm extends Component
                     'pricing_tier' => '',
                     'more_description' => '',
                     'is_text_only' => true,
-                    'original_row_index' => $rowIndex + 1 + $i,
+                    'is_detail_generated' => true,
+                    'original_row_index' => $rowIndex + 1 + $detailRowOffset,
                     'details_lines' => [],
                 ];
+                $detailRowOffset++;
             }
+
+            // IMPORTANT: Details-derived rows are created as text-only rows.
+            // Run smart conversion now so lines like "1 SET OF <item name>" become real item rows immediately.
+            $this->smartConvertTextRowsToItems();
 
             $this->syncLastValidDetailsLines();
 
@@ -921,62 +939,68 @@ class DOForm extends Component
 
     private function convertFreeFormTextToItems()
     {
-        // Convert free-form text rows into stackedItems entries (text-only items)
-        // Preserve row positions by sorting by row index and inserting in order
+        // Convert user-entered free-form text rows into text-only DO rows.
+        // NOTE: Manual free-form rows must NEVER auto-convert into inventory items.
+        // Auto-conversion is only for rows generated from item details.
+
         $convertedRows = [];
-        $textItemsToAdd = [];
-        
+
         foreach ($this->freeFormTextRows as $rowIndex => $rowData) {
             // Handle both old format (string) and new format (array with 'text' and 'qty')
             $text = is_array($rowData) ? ($rowData['text'] ?? '') : $rowData;
-            $qty = is_array($rowData) ? (floatval($rowData['qty'] ?? 0)) : 0;
-            
-            if (!empty(trim($text))) {
-                // Check if this text row already exists as an item
-                $exists = false;
-                foreach ($this->stackedItems as $item) {
-                    if (isset($item['is_text_only']) && $item['is_text_only'] && 
-                        isset($item['custom_item_name']) && $item['custom_item_name'] === trim($text)) {
-                        $exists = true;
-                        break;
-                    }
-                }
-                
-                if (!$exists) {
-                    $customUm = is_array($rowData) ? ($rowData['um'] ?? '') : '';
-                    // Store item with original row index to preserve position
-                    $textItemsToAdd[$rowIndex] = [
-                        'item' => [
-                            'id' => null,
-                            'item_code' => '',
-                            'item_name' => '',
-                            'um' => '',
-                            'details' => '',
-                        ],
-                        'custom_item_name' => trim($text),
-                        'custom_um' => is_string($customUm) ? trim($customUm) : '',
-                        'item_qty' => $qty, // Use qty from freeFormTextRows
-                        'item_unit_price' => 0,
-                        'amount' => 0,
-                        'pricing_tier' => '',
-                        'more_description' => '',
-                        'is_text_only' => true, // Flag to identify text-only items
-                        'original_row_index' => $rowIndex, // Store original row position
-                    ];
-                }
-                // Mark this row as converted so we can clear it
-                $convertedRows[] = $rowIndex;
+            $textTrim = trim((string) $text);
+
+            $qtyFromRow = is_array($rowData) ? (float) ($rowData['qty'] ?? 0) : 0;
+            $umFromRow = is_array($rowData) ? ($rowData['um'] ?? '') : '';
+            $umFromRow = is_string($umFromRow) ? trim($umFromRow) : '';
+
+            if ($textTrim === '') {
+                continue;
             }
+
+            // Remove the row from the free-form inputs no matter which interpretation we make.
+            $convertedRows[] = $rowIndex;
+
+            // Check if this text row already exists as an item (avoid duplicates)
+            $exists = false;
+            foreach ($this->stackedItems as $item) {
+                if (
+                    isset($item['is_text_only']) && $item['is_text_only'] &&
+                    isset($item['custom_item_name']) && trim((string) $item['custom_item_name']) === $textTrim
+                ) {
+                    $exists = true;
+                    break;
+                }
+            }
+
+            if ($exists) {
+                continue;
+            }
+
+            // Store as a text-only DO row.
+            $this->stackedItems[] = [
+                'item' => [
+                    'id' => null,
+                    'item_code' => '',
+                    'item_name' => '',
+                    'um' => '',
+                    'details' => '',
+                ],
+                'custom_item_name' => $textTrim,
+                'custom_um' => $umFromRow,
+                'item_qty' => $qtyFromRow,
+                'item_unit_price' => 0,
+                'amount' => 0,
+                'pricing_tier' => '',
+                'more_description' => '',
+                'is_text_only' => true,
+                'is_detail_generated' => false,
+                'details_lines' => [],
+                'original_row_index' => $rowIndex,
+            ];
         }
-        
-        // Add items directly (preserves absolute row positions - no sorting needed)
-        // Items will be mapped by original_row_index during rendering
-        foreach ($textItemsToAdd as $item) {
-            $this->stackedItems[] = $item;
-        }
-        
-        // Clear converted rows from freeFormTextRows to prevent duplicates
-        // This ensures text appears as items, not in empty row inputs
+
+        // Clear converted rows from freeFormTextRows to prevent duplicates.
         foreach ($convertedRows as $rowIndex) {
             unset($this->freeFormTextRows[$rowIndex]);
         }
@@ -1029,6 +1053,438 @@ class DOForm extends Component
 
             $this->lastValidDetailsLines[$idx] = $stackedItem['details_lines'] ?? [];
         }
+    }
+
+    /**
+     * Convert user-typed "details rows" into item rows.
+     * We treat rows with `is_text_only` as editable text lines.
+     *
+     * Rules:
+     * - Remove empty lines
+     * - Ignore headers like "... CONSIST OF:"
+     * - If a line starts with "<qty> <UOM> <item text>", try to match an inventory item.
+     * - If matched, replace the text-only row into a regular item row at the same grid position.
+     */
+    private function smartConvertTextRowsToItems(): void
+    {
+        $occupiedIndexes = [];
+        foreach ($this->stackedItems as $idx => $stackedItem) {
+            $row = $stackedItem['original_row_index'] ?? null;
+            if ($row !== null) {
+                $occupiedIndexes[(int) $row] = true;
+            }
+            // keep default array index mapping separate from row_index
+        }
+
+        $indexesToRemove = [];
+
+        foreach ($this->stackedItems as $idx => $stackedItem) {
+            if (!isset($stackedItem['is_text_only']) || !$stackedItem['is_text_only']) {
+                continue;
+            }
+
+            // Only convert rows generated from item details.
+            // User-typed text rows should stay as text unless explicitly requested.
+            if (!($stackedItem['is_detail_generated'] ?? false)) {
+                continue;
+            }
+
+            $lineText = (string) ($stackedItem['custom_item_name'] ?? '');
+            $lineTextTrim = trim($lineText);
+
+            // Ignore/remove empty lines
+            if ($lineTextTrim === '') {
+                $indexesToRemove[] = $idx;
+                continue;
+            }
+
+            $parsed = $this->smartParseLeadingQtyUom($lineTextTrim);
+            if ($parsed === null) {
+                continue; // Not in "<qty> <uom> ..." format
+            }
+
+            $qty = $parsed['qty'];
+            $uom = $parsed['uom']; // can be null
+            $rest = trim($parsed['rest']);
+
+            // Ignore non-item header patterns (example: "CONSIST OF:")
+            if ($rest === '' || $this->smartLooksLikeConsistOfHeader($rest)) {
+                $indexesToRemove[] = $idx;
+                continue;
+            }
+
+            // "<qty> <uom> OF <item name>" => match only the part after OF
+            $restForMatch = $rest;
+            if (preg_match('/\bOF\b\s*[:\-]?\s*(.*)$/iu', $rest, $mOf)) {
+                $restForMatch = trim((string) ($mOf[1] ?? $rest));
+            }
+
+            $item = $this->smartFindItemByQuery($restForMatch);
+            if (!$item) {
+                continue; // Keep as text-only when we can't match an item
+            }
+
+            // Convert this row in-place into a regular item row.
+            $defaultUm = ($item->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item->um ?? 'UNIT');
+
+            $this->stackedItems[$idx] = [
+                'item' => [
+                    'id' => $item->id,
+                    'item_code' => $item->item_code,
+                    'item_name' => $item->item_name,
+                    'qty' => $item->qty,
+                    'cost' => $item->cost,
+                    'cust_price' => $item->cust_price,
+                    'term_price' => $item->term_price,
+                    'cash_price' => $item->cash_price,
+                    'latest_do_price' => $this->getLatestDOPriceForItem($item->id, $this->cust_id),
+                    'latest_do_date' => $this->getLatestDODateForItem($item->id, $this->cust_id),
+                    'details' => $item->details,
+                    'memo' => $item->memo ?? '',
+                    'um' => $item->um ?? 'UNIT',
+                ],
+                // UOM must match the inventory item's UOM, not the parsed token.
+                'custom_um' => $defaultUm,
+                'item_qty' => $qty,
+                'pricing_tier' => '',
+                'item_unit_price' => 0,
+                'amount' => 0,
+                'total_amount' => 0,
+                'more_description' => null,
+                'custom_item_name' => $item->item_name,
+                'price_manually_modified' => true,
+                'details_lines' => [],
+                'original_row_index' => $stackedItem['original_row_index'] ?? null,
+            ];
+        }
+
+        if (!empty($indexesToRemove)) {
+            // Remove from the end so indexes stay valid
+            rsort($indexesToRemove);
+            foreach ($indexesToRemove as $removeIdx) {
+                unset($this->stackedItems[$removeIdx]);
+            }
+            $this->stackedItems = array_values($this->stackedItems);
+        }
+    }
+
+    private function smartParseLeadingQtyUom(string $line): ?array
+    {
+        // Make parsing tolerant of non-breaking spaces / odd whitespace from copy-paste.
+        $line = str_replace(["\x{00A0}"], ' ', $line);
+        $line = trim($line);
+
+        if ($line === '') {
+            return null;
+        }
+
+        // Parse leading quantity (integer or decimal).
+        // Allow an arbitrary non-digit prefix before the qty (BOM, bullets, etc.).
+        if (!preg_match('/^\D*(\d+(?:\.\d+)?)/u', $line, $mQty)) {
+            return null;
+        }
+
+        $qty = (float) $mQty[1];
+        if ($qty <= 0) {
+            return null;
+        }
+
+        // Remove everything up to the qty (non-digit prefix + qty itself).
+        $afterQty = trim((string) substr($line, strlen($mQty[0])));
+        if ($afterQty === '') {
+            return null;
+        }
+
+        $uom = null;
+        $rest = $afterQty;
+
+        // Next token as UOM: allow letters/digits plus common separators.
+        // Note: PCRE2 in PHP doesn't support \u escapes; we already normalized NBSP to spaces above.
+        if (preg_match('/^([A-Za-z][A-Za-z0-9\/\\\\-]*)\s+(.*)$/u', $afterQty, $mUom)) {
+            $uom = strtoupper(trim((string) $mUom[1]));
+            $rest = (string) ($mUom[2] ?? '');
+        }
+
+        $rest = trim($rest);
+        if ($rest === '') {
+            return null;
+        }
+
+        return [
+            'qty' => $qty,
+            'uom' => $uom,
+            'rest' => $rest,
+        ];
+    }
+
+    private function smartLooksLikeConsistOfHeader(string $rest): bool
+    {
+        // Detect header lines that describe a set/composition and should NOT become DO rows.
+        // Supports common typos/variants:
+        // - "CONSIST OF:", "CONSISTS OF:", "CONSIS OF:-", "CONSIS OF", etc.
+        $restUpper = strtoupper(trim($rest));
+        if ($restUpper === '') {
+            return false;
+        }
+
+        // Normalize punctuation to spaces for matching.
+        $norm = preg_replace('/[^\w\s]/u', ' ', $restUpper) ?? $restUpper;
+        $norm = preg_replace('/\s+/u', ' ', $norm) ?? $norm;
+        $norm = trim($norm);
+
+        // CONSIS(T)(S) OF (optional)
+        if (preg_match('/\bCONSIS(T)?S?\b(?:\s+OF\b)?/u', $norm)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function smartFindItemByQuery(string $rest): ?Item
+    {
+        $restUpper = strtoupper(trim($rest));
+        if ($restUpper === '') {
+            return null;
+        }
+
+        // Normalize: strip common leading noise like "OF ..." from patterns such as:
+        // "1 SET OF 3/8\" X 0.51MM COPPER TUBING ..."
+        $restUpper = preg_replace('/^\s*(SET\s+OF|OF|CONSIS\s+OF|CONSIST\s+OF)\s*[:\-]?\s*/iu', '', $restUpper);
+        $restUpper = trim($restUpper);
+        if ($restUpper === '') {
+            return null;
+        }
+
+        // 1) Strongest match: exact item_name (case-insensitive).
+        // This is critical for cases like:
+        // "3/8\" X 0.51MM COPPER TUBING ( CH ) ( 10 COILS / BOX )"
+        // where multiple similar items exist (e.g. 1/4 vs 3/8).
+        $exact = Item::whereRaw('UPPER(item_name) = ?', [$restUpper])->first();
+        if ($exact) {
+            return $exact;
+        }
+
+        // 2) Slightly tolerant: compare normalized strings in PHP across a small candidate set.
+        $restNorm = $this->smartNormalizeComparableText($restUpper);
+
+        // Deterministic first-pass matching using known strong tokens.
+        // This avoids relying solely on fragile token extraction.
+        $fraction = null;
+        if (preg_match('/\\b(\\d+\\/\\d+)\\b/u', $restUpper, $mFrac)) {
+            $fraction = $mFrac[1];
+        }
+
+        $thickness = null;
+        if (preg_match('/\b(\d+\.\d+)\s*MM\b/iu', $restUpper, $mThick)) {
+            $thickness = $mThick[1];
+        } elseif (preg_match('/\b(\d+\.\d+)\b/', $restUpper, $mThick)) {
+            $thickness = $mThick[1];
+        }
+
+        $looksCopper = str_contains($restUpper, 'COPPER');
+        $looksTubing = str_contains($restUpper, 'TUBING');
+
+        if (($fraction || $thickness) && ($looksCopper || $looksTubing)) {
+            $q = Item::query();
+
+            if ($fraction) {
+                $q->where(function ($w) use ($fraction) {
+                    $w->where('item_name', 'like', '%' . $fraction . '%')
+                      ->orWhere('item_code', 'like', '%' . $fraction . '%');
+                });
+            }
+
+            $q->where(function ($w) use ($thickness) {
+                if ($thickness) {
+                    $w->where('item_name', 'like', '%' . $thickness . '%')
+                      ->orWhere('item_code', 'like', '%' . $thickness . '%');
+                }
+            });
+            if ($looksCopper) {
+                $q->where(function ($w) {
+                    $w->where('item_name', 'like', '%COPPER%')
+                      ->orWhere('item_code', 'like', '%COPPER%');
+                });
+            }
+            if ($looksTubing) {
+                $q->where(function ($w) {
+                    $w->where('item_name', 'like', '%TUBING%')
+                      ->orWhere('item_code', 'like', '%TUBING%');
+                });
+            }
+
+            $detCandidates = $q->limit(15)->get();
+            if (!$detCandidates->isEmpty()) {
+                // Score by simple token containment, then return best.
+                $best = null;
+                $bestScore = -1;
+                foreach ($detCandidates as $cand) {
+                    $score = 0;
+                    $code = strtoupper((string) ($cand->item_code ?? ''));
+                    $name = strtoupper((string) ($cand->item_name ?? ''));
+                    $nameNorm = $this->smartNormalizeComparableText($name);
+
+                    if ($fraction && $name !== '' && str_contains($name, (string) $fraction)) {
+                        $score += 40;
+                    } elseif ($fraction && $code !== '' && str_contains($code, (string) $fraction)) {
+                        $score += 30;
+                    }
+
+                    if ($thickness && $code !== '' && str_contains($code, (string) $thickness)) {
+                        $score += 20;
+                    }
+                    if ($thickness && $name !== '' && str_contains($name, (string) $thickness)) {
+                        $score += 15;
+                    }
+                    if ($looksCopper && $name !== '' && str_contains($name, 'COPPER')) {
+                        $score += 10;
+                    }
+                    if ($looksTubing && $name !== '' && str_contains($name, 'TUBING')) {
+                        $score += 10;
+                    }
+
+                    // Massive bonus for normalized equality (best possible match).
+                    if ($restNorm !== '' && $nameNorm !== '' && $nameNorm === $restNorm) {
+                        $score += 200;
+                    }
+
+                    if ($score > $bestScore) {
+                        $bestScore = $score;
+                        $best = $cand;
+                    }
+                }
+
+                if ($best) {
+                    return $best;
+                }
+            }
+        }
+
+        $keywords = $this->smartExtractItemSearchKeywords($restUpper);
+        if (empty($keywords)) {
+            return null;
+        }
+
+        // Build candidate list using keywords (token-based searching, avoids requiring full string match)
+        $candidates = Item::query()
+            ->where(function ($q) use ($keywords) {
+                foreach ($keywords as $kw) {
+                    $kwLike = '%' . $kw . '%';
+                    $q->orWhere('item_code', 'like', $kwLike);
+                    $q->orWhere('item_name', 'like', $kwLike);
+                }
+            })
+            ->limit(30)
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        // Scoring: prefer matches that contain more keywords (and prefer item_code hits).
+        $best = null;
+        $bestScore = -1;
+
+        foreach ($candidates as $cand) {
+            $score = 0;
+            $code = strtoupper((string) ($cand->item_code ?? ''));
+            $name = strtoupper((string) ($cand->item_name ?? ''));
+            $nameNorm = $this->smartNormalizeComparableText($name);
+
+            foreach ($keywords as $kw) {
+                if ($kw === '') continue;
+
+                if ($code !== '' && str_contains($code, $kw)) {
+                    $score += 10;
+                } elseif ($name !== '' && str_contains($name, $kw)) {
+                    $score += 5;
+                }
+            }
+
+            // Bonus for partial/full containment of the normalized rest (helps when item_name is close).
+            if ($code !== '' && str_contains($code, $restUpper)) {
+                $score += 30;
+            }
+            if ($name !== '' && str_contains($name, $restUpper)) {
+                $score += 20;
+            }
+
+            if ($restNorm !== '' && $nameNorm !== '' && $nameNorm === $restNorm) {
+                $score += 200;
+            }
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = $cand;
+            }
+        }
+
+        return $best;
+    }
+
+    private function smartNormalizeComparableText(string $s): string
+    {
+        $s = strtoupper($s);
+        // Normalize whitespace
+        $s = preg_replace('/\s+/u', ' ', $s) ?? $s;
+        $s = trim($s);
+        // Remove characters that often vary between copy/paste and DB formatting,
+        // while keeping meaningful symbols for sizes (/, ", X, digits, letters).
+        $s = preg_replace('/[^A-Z0-9\/\"(). X]/u', '', $s) ?? $s;
+        $s = preg_replace('/\s+/u', ' ', $s) ?? $s;
+        return trim($s);
+    }
+
+    private function smartExtractItemSearchKeywords(string $restUpper): array
+    {
+        $restUpper = strtoupper(trim($restUpper));
+        if ($restUpper === '') {
+            return [];
+        }
+
+        // Extract fractional tokens like "3/8"
+        preg_match_all('/\b\d+\/\d+\b/u', $restUpper, $fractionMatches);
+        $fractions = $fractionMatches[0] ?? [];
+
+        // Extract decimals / decimal+unit tokens like "0.51MM" or "0.51"
+        preg_match_all('/\b\d+\.\d+(?:[A-Z]+)?\b/u', $restUpper, $decimalMatches);
+        $decimals = $decimalMatches[0] ?? [];
+
+        // Also extract plain decimals without units (covers "0.51 MM" formatting in DB names)
+        preg_match_all('/\b\d+\.\d+\b/u', $restUpper, $plainDecimalMatches);
+        $plainDecimals = $plainDecimalMatches[0] ?? [];
+
+        // Extract 3+ length alpha tokens (keywords), keep things like "COPPER", "TUBING", "FERMOD"
+        preg_match_all('/\b[A-Z]{3,}\b/u', $restUpper, $wordMatches);
+        $words = $wordMatches[0] ?? [];
+
+        // Extract alphanum tokens (like "115MM") length >= 3
+        preg_match_all('/\b[A-Z0-9]{3,}\b/u', $restUpper, $alnumMatches);
+        $alnums = $alnumMatches[0] ?? [];
+
+        $stop = [
+            'CONSIST', 'OF', 'SET', 'SETS', 'OF:', 'BOX', // BOX often appears but may be redundant; keep if you need more recall
+        ];
+
+        $all = array_merge($fractions, $decimals, $plainDecimals, $words, $alnums);
+        $all = array_values(array_unique(array_map('trim', $all)));
+
+        $filtered = [];
+        foreach ($all as $tok) {
+            $tok = strtoupper(trim($tok));
+            if ($tok === '') continue;
+            if (in_array($tok, $stop, true)) continue;
+            if (strlen($tok) < 2) continue;
+            $filtered[] = $tok;
+        }
+
+        // Keep only the strongest few keywords to limit SQL bloat.
+        // Prefer longer tokens first (e.g. "0.51MM" > "COPPER").
+        usort($filtered, function ($a, $b) {
+            return strlen($b) <=> strlen($a);
+        });
+
+        return array_slice(array_values(array_unique($filtered)), 0, 8);
     }
 
     /**
@@ -1140,6 +1596,105 @@ class DOForm extends Component
         }
     }  
 
+    /**
+     * Smart convert a free-form row into an inventory item row.
+     * Triggered on blur of the text input so the conversion happens immediately
+     * while the user is building the DO.
+     */
+    public function smartConvertFreeFormRowToItem(int $rowIndex): void
+    {
+        if ($this->isView || $this->isPosted) {
+            return;
+        }
+
+        if (!isset($this->freeFormTextRows[$rowIndex])) {
+            return;
+        }
+
+        $rowData = $this->freeFormTextRows[$rowIndex];
+        $text = is_array($rowData) ? ($rowData['text'] ?? '') : (string) $rowData;
+        $textTrim = trim((string) $text);
+
+        if ($textTrim === '') {
+            return;
+        }
+
+        // Ignore obvious headers (these shouldn't become items)
+        if ($this->smartLooksLikeConsistOfHeader($textTrim) || str_contains(strtoupper($textTrim), 'CONSIST OF')) {
+            unset($this->freeFormTextRows[$rowIndex]);
+            return;
+        }
+
+        $parsed = $this->smartParseLeadingQtyUom($textTrim);
+
+        $qty = null;
+        $rest = null;
+        if ($parsed !== null) {
+            $qty = (float) ($parsed['qty'] ?? 0);
+            $rest = trim((string) ($parsed['rest'] ?? ''));
+        } else {
+            // Fallback: qty from start + rest remainder
+            if (preg_match('/^\D*(\d+(?:\.\d+)?)/u', $textTrim, $m)) {
+                $qty = (float) $m[1];
+                $rest = trim((string) substr($textTrim, strlen($m[0])));
+            }
+        }
+
+        if (!$qty || $qty <= 0 || $rest === null || $rest === '') {
+            return;
+        }
+
+        // If format includes "OF <item name>", only use the part after OF for matching.
+        $restForMatch = $rest;
+        if (preg_match('/\bOF\b\s*[:\-]?\s*(.*)$/iu', $rest, $mOf)) {
+            $restForMatch = trim((string) ($mOf[1] ?? $rest));
+        }
+
+        if ($restForMatch === '' || $this->smartLooksLikeConsistOfHeader($restForMatch)) {
+            return;
+        }
+
+        $item = $this->smartFindItemByQuery($restForMatch);
+        if (!$item) {
+            return; // Keep as text row when item can't be matched
+        }
+
+        $defaultUm = ($item->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item->um ?? 'UNIT');
+
+        // Replace the free-form row with a real item row at the same grid position.
+        $this->stackedItems[] = [
+            'item' => [
+                'id' => $item->id,
+                'item_code' => $item->item_code,
+                'item_name' => $item->item_name,
+                'qty' => $item->qty,
+                'cost' => $item->cost,
+                'cust_price' => $item->cust_price,
+                'term_price' => $item->term_price,
+                'cash_price' => $item->cash_price,
+                'latest_do_price' => $this->getLatestDOPriceForItem($item->id, $this->cust_id),
+                'latest_do_date' => $this->getLatestDODateForItem($item->id, $this->cust_id),
+                'details' => $item->details,
+                'memo' => $item->memo ?? '',
+                'um' => $item->um ?? 'UNIT',
+            ],
+            'custom_um' => $defaultUm,
+            'item_qty' => $qty,
+            'pricing_tier' => '',
+            'item_unit_price' => 0,
+            'amount' => 0,
+            'total_amount' => 0,
+            'more_description' => null,
+            'custom_item_name' => $item->item_name,
+            'price_manually_modified' => true,
+            'details_lines' => [],
+            'original_row_index' => $rowIndex,
+        ];
+
+        unset($this->freeFormTextRows[$rowIndex]);
+        $this->calculateTotalAmount();
+    }
+
     public function calculateTotalAmount()
     {
         $this->total_amount = 0;
@@ -1209,6 +1764,7 @@ class DOForm extends Component
             'salesman_id' => ['required', new ExistsInCurrentDatabase('users', 'id')],
             'date' => 'required|date',
             'cust_po' => 'nullable',
+            'invoice_no' => 'nullable|string|max:255',
         ];
         if (!$isNewDO) {
             $validationRules['do_num'] = ['required', new UniqueInCurrentDatabase('delivery_orders', 'do_num', $this->deliveryOrder->id)];
@@ -1232,6 +1788,7 @@ class DOForm extends Component
                 'date' => $this->date,
                 'do_num' => $this->do_num,
                 'cust_po' => $this->cust_po,
+                'invoice_no' => $this->invoice_no,
                 'stackedItems' => $this->stackedItems,
             ],
             $validationRules,
@@ -1411,6 +1968,7 @@ class DOForm extends Component
                 $this->deliveryOrder->user_id = $this->user_id;
                 $this->deliveryOrder->salesman_id = $this->salesman_id;
                 $this->deliveryOrder->cust_po = $this->cust_po;
+                $this->deliveryOrder->invoice_no = $this->invoice_no;
                 $this->deliveryOrder->remark = $this->remark ?? null;
                 $this->deliveryOrder->total_amount = $this->total_amount;
                 $this->deliveryOrder->customer_snapshot_id = $customerSnapshot->id;
@@ -1454,6 +2012,7 @@ class DOForm extends Component
                     'user_id' => auth()->id(),
                     'salesman_id' => $this->salesman_id,
                     'cust_po' => $this->cust_po,
+                    'invoice_no' => $this->invoice_no,
                     'remark' => $this->remark ?? null,
                     'total_amount' => $this->total_amount,
                     'customer_snapshot_id' => $customerSnapshot->id,
@@ -2029,8 +2588,9 @@ class DOForm extends Component
                     'amount' => 0,
                     'pricing_tier' => null,
                     'more_description' => $doItem->more_description,
-                        'details_lines' => [],
+                    'details_lines' => [],
                     'is_text_only' => true,
+                    'is_detail_generated' => false,
                     'original_row_index' => $originalRowIndex,
                 ];
             } else {

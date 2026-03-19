@@ -31,6 +31,7 @@ class DeliveryOrder extends BaseModel
         'updated_by',
         'date',
         'cust_po',
+        'invoice_no',
         'do_num',
         'total_amount',
         'remark',

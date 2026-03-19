@@ -50,6 +50,10 @@
 
 
                         <div class="do-list-wrapper" style="position: relative;">
+                            @php
+                                $activeDb = strtolower(session('active_db') ?: config('database.default'));
+                                $showInvoiceNoColumn = in_array($activeDb, ['ups', 'ucs'], true);
+                            @endphp
                             <style>
                                 /* Wrapper to separate scrollable table from fixed pagination */
                                 .do-list-wrapper {
@@ -162,54 +166,111 @@
                                     width: 130px;
                                 } /* DO Number */
                                 
-                                .table.do-list th:nth-child(2), 
-                                .table.do-list td:nth-child(2) { 
-                                    min-width: 90px;
-                                    width: 90px;
-                                } /* Date */
-                                
-                                .table.do-list th:nth-child(3), 
-                                .table.do-list td:nth-child(3) { 
-                                    min-width: 250px;
-                                    width: auto; /* Allow expansion for long customer names */
-                                } /* Customer Name - full text, no truncation */
-                                
-                                .table.do-list th:nth-child(4), 
-                                .table.do-list td:nth-child(4) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Amount */
-                                
-                                .table.do-list th:nth-child(5), 
-                                .table.do-list td:nth-child(5) { 
-                                    min-width: 100px;
-                                    width: 100px;
-                                } /* Salesman */
-                                
-                                .table.do-list th:nth-child(6), 
-                                .table.do-list td:nth-child(6) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Status */
-                                
-                                .table.do-list th:nth-child(7), 
-                                .table.do-list td:nth-child(7) { 
-                                    min-width: 90px;
-                                    width: 90px;
-                                    text-align: center;
-                                } /* Print */
-                                
-                                .table.do-list th:nth-child(8), 
-                                .table.do-list td:nth-child(8) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Created by */
-                                
-                                .table.do-list th:nth-child(9), 
-                                .table.do-list td:nth-child(9) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Last edited by */
+                                @if($showInvoiceNoColumn)
+                                    .table.do-list th:nth-child(2), 
+                                    .table.do-list td:nth-child(2) { 
+                                        min-width: 90px;
+                                        width: 90px;
+                                    } /* Date */
+                                    
+                                    .table.do-list th:nth-child(3), 
+                                    .table.do-list td:nth-child(3) { 
+                                        min-width: 250px;
+                                        width: auto; /* Allow expansion for long customer names */
+                                    } /* Customer Name - full text, no truncation */
+                                    
+                                    .table.do-list th:nth-child(4), 
+                                    .table.do-list td:nth-child(4) { 
+                                        min-width: 120px;
+                                        width: 120px;
+                                    } /* Amount */
+                                    
+                                    .table.do-list th:nth-child(5), 
+                                    .table.do-list td:nth-child(5) { 
+                                        min-width: 130px;
+                                        width: 130px;
+                                    } /* Invoice No */
+                                    
+                                    .table.do-list th:nth-child(6), 
+                                    .table.do-list td:nth-child(6) { 
+                                        min-width: 100px;
+                                        width: 100px;
+                                    } /* Salesman */
+                                    
+                                    .table.do-list th:nth-child(7), 
+                                    .table.do-list td:nth-child(7) { 
+                                        min-width: 120px;
+                                        width: 120px;
+                                    } /* Status */
+                                    
+                                    .table.do-list th:nth-child(8), 
+                                    .table.do-list td:nth-child(8) { 
+                                        min-width: 90px;
+                                        width: 90px;
+                                        text-align: center;
+                                    } /* Print */
+                                    
+                                    .table.do-list th:nth-child(9), 
+                                    .table.do-list td:nth-child(9) { 
+                                        min-width: 120px;
+                                        width: 120px;
+                                    } /* Created by */
+                                    
+                                    .table.do-list th:nth-child(10), 
+                                    .table.do-list td:nth-child(10) { 
+                                        min-width: 120px;
+                                        width: 120px;
+                                    } /* Last edited by */
+                                @else
+                                    .table.do-list th:nth-child(2), 
+                                    .table.do-list td:nth-child(2) { 
+                                        min-width: 90px;
+                                        width: 90px;
+                                    } /* Date */
+                                    
+                                    .table.do-list th:nth-child(3), 
+                                    .table.do-list td:nth-child(3) { 
+                                        min-width: 250px;
+                                        width: auto; /* Allow expansion for long customer names */
+                                    } /* Customer Name - full text, no truncation */
+                                    
+                                    .table.do-list th:nth-child(4), 
+                                    .table.do-list td:nth-child(4) { 
+                                        min-width: 120px;
+                                        width: 120px;
+                                    } /* Amount */
+                                    
+                                    .table.do-list th:nth-child(5), 
+                                    .table.do-list td:nth-child(5) { 
+                                        min-width: 100px;
+                                        width: 100px;
+                                    } /* Salesman */
+                                    
+                                    .table.do-list th:nth-child(6), 
+                                    .table.do-list td:nth-child(6) { 
+                                        min-width: 120px;
+                                        width: 120px;
+                                    } /* Status */
+                                    
+                                    .table.do-list th:nth-child(7), 
+                                    .table.do-list td:nth-child(7) { 
+                                        min-width: 90px;
+                                        width: 90px;
+                                        text-align: center;
+                                    } /* Print */
+                                    
+                                    .table.do-list th:nth-child(8), 
+                                    .table.do-list td:nth-child(8) { 
+                                        min-width: 120px;
+                                        width: 120px;
+                                    } /* Created by */
+                                    
+                                    .table.do-list th:nth-child(9), 
+                                    .table.do-list td:nth-child(9) { 
+                                        min-width: 120px;
+                                        width: 120px;
+                                    } /* Last edited by */
+                                @endif
                                 
                                 /* Ensure links don't cause wrapping */
                                 .table.do-list td a {
@@ -263,6 +324,9 @@
                                             <th>Date</th>
                                             <th>Customer Name</th>
                                             <th>Amount</th>
+                                            @if($showInvoiceNoColumn)
+                                                <th>Invoice No</th>
+                                            @endif
                                             <th>Salesman</th>
                                             <th>Status</th>
                                             <th>Print</th>
@@ -278,6 +342,9 @@
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}"> {{ $delivery_order->created_at->format('d/m/Y') }}</a></td>
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->customerSnapshot->cust_name ?? $delivery_order->customer->cust_name }}</a></td>
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->customerSnapshot->currency ?? $delivery_order->customer->currency ?? 'RM' }} {{ number_format($delivery_order->total_amount ?? 0, 2) }}</a></td>
+                                                @if($showInvoiceNoColumn)
+                                                    <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->invoice_no ?? '' }}</a></td>
+                                                @endif
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->salesman ? strtoupper($delivery_order->salesman->username) : '-' }}</a></td>
                                                 <td>
                                                     @php
@@ -299,7 +366,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="9" class="text-center">No delivery orders found.</td>
+                                                <td colspan="{{ $showInvoiceNoColumn ? 10 : 9 }}" class="text-center">No delivery orders found.</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
