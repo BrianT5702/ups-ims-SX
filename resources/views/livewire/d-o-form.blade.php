@@ -257,7 +257,21 @@
                                             <tr class="item-row">
                                                 <td style="width: 95px; vertical-align: top;">
                                                     @if($item)
-                                                        @if((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
+                                                        @if(isset($item['is_choice']) && $item['is_choice'])
+                                                            <div class="d-flex flex-column gap-1">
+                                                                <input type="number"
+                                                                    class="form-control form-control-sm"
+                                                                    value="{{ $item['choice_qty'] ?? 1 }}"
+                                                                    disabled
+                                                                    style="width: 100%; background-color: #f8f9fa;">
+                                                                <input type="text"
+                                                                    class="form-control form-control-sm"
+                                                                    value=""
+                                                                    placeholder="UOM"
+                                                                    disabled
+                                                                    style="font-size: 0.75em; padding: 0.15rem 0.25rem; background-color: #f8f9fa;">
+                                                            </div>
+                                                        @elseif((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
                                                             {{-- Text-only item: allow qty + editable UOM (or leave empty) --}}
                                                             <div class="d-flex flex-column gap-1">
                                                                 <input type="number" 
@@ -327,7 +341,32 @@
                                                 </td>
                                                 <td style="vertical-align: top; position: relative;">
                                                     @if($item)
-                                                        @if(isset($item['is_text_only']) && $item['is_text_only'])
+                                                        @if(isset($item['is_choice']) && $item['is_choice'])
+                                                            <div class="d-flex gap-2 align-items-center" style="position: relative;">
+                                                                <div style="flex: 1;">
+                                                                    <select class="form-select form-select-sm @if(empty($item['choice_selected_item_id'])) is-invalid @endif"
+                                                                            wire:change="resolveChoiceRow({{ $itemIndex }}, $event.target.value)"
+                                                                            {{ ($isView || $this->isPosted) ? 'disabled' : '' }}>
+                                                                        <option value="">Select one option...</option>
+                                                                        @foreach(($item['choice_options'] ?? []) as $opt)
+                                                                            <option value="{{ $opt['item_id'] }}">{{ $opt['item_name'] }}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                    @if(empty($item['choice_selected_item_id']))
+                                                                        <small class="text-danger">Please select one option before posting.</small>
+                                                                    @endif
+                                                                </div>
+                                                                @if(!$isView && !$this->isPosted)
+                                                                    <button type="button" 
+                                                                        class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0"
+                                                                        wire:click="removeItem({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                        title="Delete"
+                                                                        style="font-size: 0.7rem;">
+                                                                        ×
+                                                                    </button>
+                                                                @endif
+                                                            </div>
+                                                        @elseif(isset($item['is_text_only']) && $item['is_text_only'])
                                                             {{-- Text-only item: show text with delete button on the right --}}
                                                             <div class="d-flex gap-2 align-items-center" style="position: relative;">
                                                                 <div style="flex: 1;">

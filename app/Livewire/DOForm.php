@@ -465,17 +465,57 @@ class DOForm extends Component
             // Add the main item row.
             $this->stackedItems[] = $newItem;
 
-            // Add each details line as its own text-only DO row (editable qty/UOM and text).
-            // Skip header lines like "CONSIS(T) OF" so we don't leave empty row gaps.
+            // Add details lines as rows:
+            // - normal text-only rows
+            // - auto-converted item rows
+            // - OR choice rows (must be resolved by user)
             $detailRowOffset = 0;
-            for ($i = 0; $i < $detailCount; $i++) {
-                $line = (string) ($detailLines[$i] ?? '');
-                $lineTrim = trim($line);
+            $i = 0;
+            while ($i < $detailCount) {
+                $rawLine = (string) ($detailLines[$i] ?? '');
+                $lineTrim = trim($rawLine);
 
                 if ($lineTrim === '' || $this->smartLooksLikeConsistOfHeader($lineTrim)) {
+                    $i++;
                     continue;
                 }
 
+                // Try OR-group parsing starting at this line.
+                $orGroup = $this->buildOrChoiceGroupFromDetailLines($detailLines, $i);
+                if ($orGroup !== null) {
+                    $choiceOptions = $orGroup['options'] ?? [];
+                    if (count($choiceOptions) >= 2) {
+                        $this->stackedItems[] = [
+                            'item' => [
+                                'id' => null,
+                                'item_code' => '',
+                                'item_name' => '',
+                                'um' => '',
+                                'details' => '',
+                            ],
+                            'custom_item_name' => 'OR choice',
+                            'custom_um' => '',
+                            'item_qty' => 0,
+                            'item_unit_price' => 0,
+                            'amount' => 0,
+                            'pricing_tier' => '',
+                            'more_description' => '',
+                            'is_text_only' => true,
+                            'is_choice' => true,
+                            'choice_options' => $choiceOptions, // [{item_id,item_name}]
+                            'choice_qty' => $orGroup['qty'],
+                            'choice_selected_item_id' => null,
+                            'is_detail_generated' => true,
+                            'original_row_index' => $rowIndex + 1 + $detailRowOffset,
+                            'details_lines' => [],
+                        ];
+                        $detailRowOffset++;
+                        $i = $orGroup['next_index']; // Skip consumed OR lines
+                        continue;
+                    }
+                }
+
+                // Non-OR line: insert as text-only detail row (it may auto-convert below).
                 $this->stackedItems[] = [
                     'item' => [
                         'id' => null,
@@ -497,6 +537,7 @@ class DOForm extends Component
                     'details_lines' => [],
                 ];
                 $detailRowOffset++;
+                $i++;
             }
 
             // IMPORTANT: Details-derived rows are created as text-only rows.
@@ -1254,6 +1295,53 @@ class DOForm extends Component
         if ($restUpper === '') {
             return null;
         }
+        $restNorm = $this->smartNormalizeComparableText($restUpper);
+
+        // 0) Strongest match when user enters item code in details.
+        $exactCode = Item::whereRaw('UPPER(item_code) = ?', [$restUpper])->first();
+        if ($exactCode) {
+            return $exactCode;
+        }
+
+        // Tolerant-but-strict code matching: only return on near-exact normalized code match.
+        if ($restNorm !== '') {
+            $codeCandidates = Item::query()
+                ->where('item_code', 'like', '%' . $restUpper . '%')
+                ->limit(30)
+                ->get();
+
+            $bestCode = null;
+            $bestCodeScore = -1;
+            foreach ($codeCandidates as $cand) {
+                $code = strtoupper(trim((string) ($cand->item_code ?? '')));
+                if ($code === '') {
+                    continue;
+                }
+
+                $codeNorm = $this->smartNormalizeComparableText($code);
+                $score = 0;
+                if ($code === $restUpper) {
+                    $score += 1000;
+                }
+                if ($codeNorm !== '' && $codeNorm === $restNorm) {
+                    $score += 900;
+                }
+                if ($code !== '' && str_contains($code, $restUpper)) {
+                    $score += 100;
+                }
+                if ($codeNorm !== '' && str_contains($codeNorm, $restNorm)) {
+                    $score += 80;
+                }
+
+                if ($score > $bestCodeScore) {
+                    $bestCodeScore = $score;
+                    $bestCode = $cand;
+                }
+            }
+            if ($bestCode && $bestCodeScore >= 900) {
+                return $bestCode;
+            }
+        }
 
         // 1) Strongest match: exact item_name (case-insensitive).
         // This is critical for cases like:
@@ -1265,7 +1353,45 @@ class DOForm extends Component
         }
 
         // 2) Slightly tolerant: compare normalized strings in PHP across a small candidate set.
-        $restNorm = $this->smartNormalizeComparableText($restUpper);
+        $requiredStrongTokens = [];
+        if (preg_match_all('/\b\d{3,4}\/[A-Z]\b/u', $restUpper, $mModelCodes)) {
+            foreach (($mModelCodes[0] ?? []) as $tok) {
+                $requiredStrongTokens[] = strtoupper(trim((string) $tok));
+            }
+        }
+        if (preg_match_all('/\b\d{2,4}MM\b/u', $restUpper, $mMmTokens)) {
+            foreach (($mMmTokens[0] ?? []) as $tok) {
+                $requiredStrongTokens[] = strtoupper(trim((string) $tok));
+            }
+        }
+        foreach (['HANDLE', 'INTERNAL', 'EXTERNAL'] as $mustWord) {
+            if (str_contains($restUpper, $mustWord)) {
+                $requiredStrongTokens[] = $mustWord;
+            }
+        }
+        $requiredStrongTokens = array_values(array_unique(array_filter($requiredStrongTokens)));
+        $matchesRequiredStrongTokens = function (string $code, string $name) use ($requiredStrongTokens): bool {
+            if (empty($requiredStrongTokens)) {
+                return true;
+            }
+
+            $haystack = $this->smartNormalizeComparableText($code . ' ' . $name);
+            if ($haystack === '') {
+                return false;
+            }
+
+            foreach ($requiredStrongTokens as $tok) {
+                $tokNorm = $this->smartNormalizeComparableText((string) $tok);
+                if ($tokNorm === '') {
+                    continue;
+                }
+                if (!str_contains($haystack, $tokNorm)) {
+                    return false;
+                }
+            }
+
+            return true;
+        };
 
         // Deterministic first-pass matching using known strong tokens.
         // This avoids relying solely on fragile token extraction.
@@ -1323,6 +1449,9 @@ class DOForm extends Component
                     $code = strtoupper((string) ($cand->item_code ?? ''));
                     $name = strtoupper((string) ($cand->item_name ?? ''));
                     $nameNorm = $this->smartNormalizeComparableText($name);
+                    if (!$matchesRequiredStrongTokens($code, $name)) {
+                        continue;
+                    }
 
                     if ($fraction && $name !== '' && str_contains($name, (string) $fraction)) {
                         $score += 40;
@@ -1354,7 +1483,7 @@ class DOForm extends Component
                     }
                 }
 
-                if ($best) {
+                if ($best && $bestScore > 0) {
                     return $best;
                 }
             }
@@ -1390,6 +1519,9 @@ class DOForm extends Component
             $code = strtoupper((string) ($cand->item_code ?? ''));
             $name = strtoupper((string) ($cand->item_name ?? ''));
             $nameNorm = $this->smartNormalizeComparableText($name);
+            if (!$matchesRequiredStrongTokens($code, $name)) {
+                continue;
+            }
 
             foreach ($keywords as $kw) {
                 if ($kw === '') continue;
@@ -1419,7 +1551,11 @@ class DOForm extends Component
             }
         }
 
-        return $best;
+        if ($best && $bestScore > 0) {
+            return $best;
+        }
+
+        return null;
     }
 
     private function smartNormalizeComparableText(string $s): string
@@ -1433,6 +1569,111 @@ class DOForm extends Component
         $s = preg_replace('/[^A-Z0-9\/\"(). X]/u', '', $s) ?? $s;
         $s = preg_replace('/\s+/u', ' ', $s) ?? $s;
         return trim($s);
+    }
+
+    private function buildOrChoiceGroupFromDetailLines(array $detailLines, int $startIndex): ?array
+    {
+        $count = count($detailLines);
+        if ($startIndex < 0 || $startIndex >= $count) {
+            return null;
+        }
+
+        $idx = $startIndex;
+        $groupRawLines = [];
+        $sawTrailingOr = false;
+
+        while ($idx < $count) {
+            $line = trim((string) ($detailLines[$idx] ?? ''));
+            if ($line === '' || $this->smartLooksLikeConsistOfHeader($line)) {
+                break;
+            }
+
+            $hasTrailingOr = (bool) preg_match('/\bOR\s*$/iu', $line);
+            $cleanLine = trim((string) preg_replace('/\bOR\s*$/iu', '', $line));
+            if ($cleanLine === '') {
+                break;
+            }
+
+            $groupRawLines[] = $cleanLine;
+            $idx++;
+
+            if ($hasTrailingOr) {
+                $sawTrailingOr = true;
+                continue;
+            }
+            break;
+        }
+
+        // Need at least "A OR B" -> two lines and the group must have OR marker.
+        if (!$sawTrailingOr || count($groupRawLines) < 2) {
+            return null;
+        }
+
+        $matchedOptions = [];
+        $groupQty = null;
+        foreach ($groupRawLines as $line) {
+            $parsed = $this->smartParseLeadingQtyUom($line);
+            if ($parsed === null) {
+                return null; // invalid option format; don't create choice group
+            }
+
+            $qty = (float) ($parsed['qty'] ?? 0);
+            if ($qty <= 0) {
+                return null;
+            }
+            if ($groupQty === null) {
+                $groupQty = $qty;
+            } elseif (abs($groupQty - $qty) > 0.0001) {
+                return null; // mixed qty in OR group -> keep as plain text
+            }
+
+            $rest = trim((string) ($parsed['rest'] ?? ''));
+            if ($rest === '' || $this->smartLooksLikeConsistOfHeader($rest)) {
+                return null;
+            }
+
+            // "<qty> <uom> OF <item>" => match by part after OF
+            $restForMatch = $rest;
+            if (preg_match('/\bOF\b\s*[:\-]?\s*(.*)$/iu', $rest, $mOf)) {
+                $restForMatch = trim((string) ($mOf[1] ?? $rest));
+            }
+
+            $item = $this->smartFindItemByQuery($restForMatch);
+            if (!$item) {
+                return null;
+            }
+            $itemName = trim((string) ($item->item_name ?? ''));
+            if ($itemName === '' || strtoupper($itemName) === 'UNKNOWN') {
+                return null;
+            }
+
+            $matchedOptions[] = [
+                'item_id' => (int) $item->id,
+                'item_name' => $itemName,
+            ];
+        }
+
+        // Deduplicate options by item_id while preserving order
+        $seen = [];
+        $options = [];
+        foreach ($matchedOptions as $opt) {
+            $id = (int) ($opt['item_id'] ?? 0);
+            if ($id <= 0 || isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $options[] = $opt;
+        }
+
+        if (count($options) < 2) {
+            return null;
+        }
+
+        return [
+            'qty' => $groupQty ?? 1,
+            'options' => $options,
+            'next_index' => $idx,
+        ];
     }
 
     private function smartExtractItemSearchKeywords(string $restUpper): array
@@ -1596,6 +1837,71 @@ class DOForm extends Component
         }
     }  
 
+    public function resolveChoiceRow(int $index, $selectedItemId): void
+    {
+        if (!isset($this->stackedItems[$index])) {
+            return;
+        }
+
+        $row = $this->stackedItems[$index];
+        if (!($row['is_choice'] ?? false)) {
+            return;
+        }
+
+        $selectedItemId = (int) $selectedItemId;
+        if ($selectedItemId <= 0) {
+            $this->stackedItems[$index]['choice_selected_item_id'] = null;
+            return;
+        }
+
+        $validIds = collect($row['choice_options'] ?? [])->pluck('item_id')->map(fn($v) => (int) $v)->all();
+        if (!in_array($selectedItemId, $validIds, true)) {
+            return;
+        }
+
+        $item = Item::find($selectedItemId);
+        if (!$item) {
+            return;
+        }
+
+        $defaultUm = ($item->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item->um ?? 'UNIT');
+        $qty = (float) ($row['choice_qty'] ?? 1);
+        if ($qty <= 0) {
+            $qty = 1;
+        }
+
+        $this->stackedItems[$index] = [
+            'item' => [
+                'id' => $item->id,
+                'item_code' => $item->item_code,
+                'item_name' => $item->item_name,
+                'qty' => $item->qty,
+                'cost' => $item->cost,
+                'cust_price' => $item->cust_price,
+                'term_price' => $item->term_price,
+                'cash_price' => $item->cash_price,
+                'latest_do_price' => $this->getLatestDOPriceForItem($item->id, $this->cust_id),
+                'latest_do_date' => $this->getLatestDODateForItem($item->id, $this->cust_id),
+                'details' => $item->details,
+                'memo' => $item->memo ?? '',
+                'um' => $item->um ?? 'UNIT',
+            ],
+            'custom_um' => $defaultUm,
+            'item_qty' => $qty,
+            'pricing_tier' => '',
+            'item_unit_price' => 0,
+            'amount' => 0,
+            'total_amount' => 0,
+            'more_description' => null,
+            'custom_item_name' => $item->item_name,
+            'price_manually_modified' => true,
+            'details_lines' => [],
+            'original_row_index' => $row['original_row_index'] ?? null,
+        ];
+
+        $this->updatePriceLine($index);
+    }
+
     /**
      * Smart convert a free-form row into an inventory item row.
      * Triggered on blur of the text input so the conversion happens immediately
@@ -1755,6 +2061,19 @@ class DOForm extends Component
         }
 
         $connection = session('active_db') ?: DB::getDefaultConnection();
+        $isDraftRequested = ($this->saveAsDraft === true);
+
+        // OR choice rows must be resolved before posting (draft is allowed).
+        if (!$isDraftRequested) {
+            foreach ($this->stackedItems as $idx => $row) {
+                if (($row['is_choice'] ?? false) && empty($row['choice_selected_item_id'])) {
+                    toastr()->error('Please select an item for all OR options before posting.');
+                    $this->dispatch('scroll-to-first-error', ['firstKey' => 'stackedItems.' . $idx . '.choice_selected_item_id']);
+                    return;
+                }
+            }
+        }
+
         $isNewDO = !$this->deliveryOrder || !$this->deliveryOrder->id;
 
         // Only validate stackedItems if there are items
