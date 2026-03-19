@@ -125,19 +125,6 @@
                                                     $currentRowCount += $wrappedLines;
                                                 }
                                             }
-                                            
-                                            // Count item details rows
-                                            $details = $item['item']['details'] ?? '';
-                                            if (!empty($details)) {
-                                                $detailLines = explode("\n", $details);
-                                                foreach ($detailLines as $line) {
-                                                    $line = trim($line);
-                                                    if ($line === '') continue;
-                                                    $lineLength = strlen($line);
-                                                    $wrappedLines = max(1, ceil($lineLength / 60));
-                                                    $currentRowCount += $wrappedLines;
-                                                }
-                                            }
                                         }
                                         if ($hasDescLines) {
                                             $currentRowCount += 1; // Formula 1+N: extra row when any description
@@ -190,19 +177,6 @@
                                                         $totalUsedRows += $wrappedLines;
                                                     }
                                                 }
-                                                
-                                                // Count item details rows
-                                                $details = $item['item']['details'] ?? '';
-                                                if (!empty($details)) {
-                                                    $detailLines = explode("\n", $details);
-                                                    foreach ($detailLines as $line) {
-                                                        $line = trim($line);
-                                                        if ($line === '') continue;
-                                                        $lineLength = strlen($line);
-                                                        $wrappedLines = max(1, ceil($lineLength / 60));
-                                                        $totalUsedRows += $wrappedLines;
-                                                    }
-                                                }
                                             }
                                         @endphp
                                         @php
@@ -216,17 +190,6 @@
                                                     foreach ($lines as $line) {
                                                         $lineLength = strlen($line);
                                                         $totalDescriptionLines += max(1, ceil($lineLength / 60));
-                                                    }
-                                                }
-                                                // Count item details lines (deduct from bottom)
-                                                $details = $item['item']['details'] ?? '';
-                                                if (!empty($details)) {
-                                                    $detailLines = explode("\n", $details);
-                                                    foreach ($detailLines as $line) {
-                                                        $line = trim($line);
-                                                        if ($line === '') continue;
-                                                        $lineLength = strlen($line);
-                                                        $totalDetailLines += max(1, ceil($lineLength / 60));
                                                     }
                                                 }
                                             }
@@ -264,10 +227,9 @@
                                                 }
                                             }
                                             
-                                            // Deduct rows from bottom: formula 1+N for descriptions + item details lines
+                                            // Deduct rows from bottom: formula 1+N for descriptions only
                                             $rowsDeducedForDesc = $totalDescriptionLines > 0 ? (1 + $totalDescriptionLines) : 0;
-                                            $rowsDeducedForDetails = $totalDetailLines; // Each detail line deducts from available rows
-                                            $rowsDeducedTotal = $rowsDeducedForDesc + $rowsDeducedForDetails;
+                                            $rowsDeducedTotal = $rowsDeducedForDesc;
                                             $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
                                             $rowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedTotal));
                                         @endphp
@@ -355,7 +317,15 @@
                                                             {{-- Text-only item: show text with delete button on the right --}}
                                                             <div class="d-flex gap-2 align-items-center" style="position: relative;">
                                                                 <div style="flex: 1;">
-                                                                    <span>{{ $item['custom_item_name'] ?? '' }}</span>
+                                                                    @if(!$isView && !$this->isPosted)
+                                                                        <input type="text"
+                                                                            wire:model.defer="stackedItems.{{ $itemIndex }}.custom_item_name"
+                                                                            class="form-control form-control-sm"
+                                                                            placeholder="Detail/text"
+                                                                            style="font-size: 0.85em; padding: 0.15rem 0.25rem;">
+                                                                    @else
+                                                                        <span>{{ $item['custom_item_name'] ?? '' }}</span>
+                                                                    @endif
                                                                 </div>
                                                                 @if(!$isView && !$this->isPosted)
                                                                     <button type="button" 
@@ -461,15 +431,6 @@
                                                         </button>
                                                     @endif
                                                 </div>
-                                                @if(!empty($item['item']['details']))
-                                                                <div class="mt-1 ms-0 text-muted" style="font-size: 0.85em;">
-                                                        @foreach(explode("\n", $item['item']['details']) as $line)
-                                                            @if(trim($line) !== '')
-                                                                <div>• {{ $line }}</div>
-                                                            @endif
-                                                        @endforeach
-                                                    </div>
-                                                @endif
                                                             @if($isView && !empty($stackedItems[$itemIndex]['more_description']))
                                                                 <div class="ms-0 text-muted" style="font-size: 0.85em; margin-top: 14px; margin-bottom: 14px;">
                                                                     @foreach(explode("\n", $stackedItems[$itemIndex]['more_description']) as $line)

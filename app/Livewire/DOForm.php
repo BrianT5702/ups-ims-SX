@@ -53,6 +53,7 @@ class DOForm extends Component
     public $status = 'Save to Draft';
     private bool $isPreviewMode = false;
     public array $lastValidDescriptions = [];
+    public array $lastValidDetailsLines = [];
     public array $freeFormTextRows = []; // Store free-form text for empty rows
 
     // Duplicate DO modal
@@ -119,6 +120,7 @@ class DOForm extends Component
                         'pricing_tier' => null,
                         'more_description' => null,
                         'is_text_only' => true,
+                        'details_lines' => [],
                         'original_row_index' => $doItem->row_index, // Restore row position from database
                     ];
                 } else {
@@ -169,6 +171,8 @@ class DOForm extends Component
                             'memo' => $doItem->item->memo ?? '',
                             'um' => $doItem->item->um ?? 'UNIT',
                         ],
+                        // Details are represented as separate grid rows (text-only items).
+                        'details_lines' => [],
                         'custom_um' => !empty(trim($doItem->custom_um ?? '')) ? trim($doItem->custom_um) : $defaultUm, // Editable, fallback to item um
                         'item_qty' => floatval($doItem->qty), // Normalize: 1.50 -> 1.5 for display (1.25 stays 1.25)
                         'pricing_tier' => $pricingTier, // Load the saved pricing tier
@@ -181,6 +185,8 @@ class DOForm extends Component
                     ];
                 }
             }
+
+            $this->syncLastValidDetailsLines();
     
             // Set search terms for customer and salesman
             if ($deliveryOrder->customer) {
@@ -391,6 +397,8 @@ class DOForm extends Component
                     'memo' => $item->memo ?? '',
                     'um' => $item->um ?? 'UNIT',
                 ],
+                // Start with inventory details; user can edit/remove lines in the DO.
+                'details_lines' => $this->normalizeDetailsLines($item->details ?? ''),
                 'custom_um' => $item->um ?? 'UNIT', // Autofill from inventory, editable
                 'item_qty' => 1,
                 'pricing_tier' => '',
@@ -402,12 +410,82 @@ class DOForm extends Component
                 'price_manually_modified' => true
             ];
             
-            // Set original_row_index if rowIndex is provided to preserve absolute row position
-            if ($rowIndex !== null) {
-                $newItem['original_row_index'] = $rowIndex;
+            $detailLines = $newItem['details_lines'] ?? [];
+            $detailCount = count($detailLines);
+
+            // If rowIndex wasn't provided, pick the first free row position.
+            if ($rowIndex === null) {
+                $usedRowIndices = [];
+                foreach ($this->stackedItems as $existingItem) {
+                    $existingRow = $existingItem['original_row_index'] ?? null;
+                    if ($existingRow !== null && (int) $existingRow >= 0 && (int) $existingRow < 24) {
+                        $usedRowIndices[(int) $existingRow] = true;
+                    }
+                }
+                $rowIndex = 0;
+                while (isset($usedRowIndices[$rowIndex]) && $rowIndex < 24) {
+                    $rowIndex++;
+                }
+                if ($rowIndex >= 24) {
+                    toastr()->error('⚠️ PAGE LIMIT REACHED: Cannot add item. No free row positions available.');
+                    return;
+                }
             }
-            
+
+            // Validate that all detail lines fit into remaining row slots and don't collide with existing placed rows.
+            $usedRowIndices = [];
+            foreach ($this->stackedItems as $existingItem) {
+                $existingRow = $existingItem['original_row_index'] ?? null;
+                if ($existingRow !== null && (int) $existingRow >= 0 && (int) $existingRow < 24) {
+                    $usedRowIndices[(int) $existingRow] = true;
+                }
+            }
+
+            if ($rowIndex + $detailCount >= 24) {
+                toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add item details within the one-page row limit.');
+                $this->dispatch('show-limit-error', ['message' => 'Cannot add item details: would exceed one-page row limit.']);
+                return;
+            }
+
+            for ($i = 0; $i < $detailCount; $i++) {
+                $targetRow = $rowIndex + 1 + $i;
+                if (isset($usedRowIndices[$targetRow])) {
+                    toastr()->error('⚠️ LIMIT EXCEEDED: Cannot add item details rows because target rows are occupied.');
+                    $this->dispatch('show-limit-error', ['message' => 'Not enough free rows to place item details. Remove items/text rows and try again.']);
+                    return;
+                }
+            }
+
+            // Set original_row_index for absolute positioning.
+            $newItem['original_row_index'] = $rowIndex;
+
+            // Add the main item row.
             $this->stackedItems[] = $newItem;
+
+            // Add each details line as its own text-only DO row (editable qty/UOM and text).
+            for ($i = 0; $i < $detailCount; $i++) {
+                $this->stackedItems[] = [
+                    'item' => [
+                        'id' => null,
+                        'item_code' => '',
+                        'item_name' => '',
+                        'um' => '',
+                        'details' => '',
+                    ],
+                    'custom_item_name' => $detailLines[$i] ?? '',
+                    'custom_um' => $newItem['custom_um'] ?? '',
+                    'item_qty' => 0,
+                    'item_unit_price' => 0,
+                    'amount' => 0,
+                    'pricing_tier' => '',
+                    'more_description' => '',
+                    'is_text_only' => true,
+                    'original_row_index' => $rowIndex + 1 + $i,
+                    'details_lines' => [],
+                ];
+            }
+
+            $this->syncLastValidDetailsLines();
 
             $this->itemSearchTerm = '';
             $this->itemSearchResults = [];
@@ -440,6 +518,7 @@ class DOForm extends Component
         if (!$this->isView) {
             unset($this->stackedItems[$index]);
             $this->stackedItems = array_values($this->stackedItems);
+            $this->syncLastValidDetailsLines();
             $this->calculateTotalAmount();
         }
     }
@@ -450,6 +529,7 @@ class DOForm extends Component
             // Remove the last item that was added
             array_pop($this->stackedItems);
             $this->stackedItems = array_values($this->stackedItems);
+            $this->syncLastValidDetailsLines();
             $this->calculateTotalAmount();
             toastr()->error('Cannot add item: Content would exceed one page limit. Please remove items or shorten descriptions to fit on a single page.');
         }
@@ -769,6 +849,76 @@ class DOForm extends Component
         return $this->estimateTotalRows(false);
     }
 
+    public function addDetailLine(int $itemIndex): void
+    {
+        if ($this->isView || $this->isPosted) {
+            return;
+        }
+
+        if (!isset($this->stackedItems[$itemIndex])) {
+            return;
+        }
+
+        if (isset($this->stackedItems[$itemIndex]['is_text_only']) && $this->stackedItems[$itemIndex]['is_text_only']) {
+            return;
+        }
+
+        $this->stackedItems[$itemIndex]['details_lines'] = $this->stackedItems[$itemIndex]['details_lines'] ?? [];
+        $this->stackedItems[$itemIndex]['details_lines'][] = '';
+
+        $this->syncLastValidDetailsLines();
+    }
+
+    public function removeDetailLine(int $itemIndex, int $lineIndex): void
+    {
+        if ($this->isView || $this->isPosted) {
+            return;
+        }
+
+        if (!isset($this->stackedItems[$itemIndex])) {
+            return;
+        }
+
+        $lines = $this->stackedItems[$itemIndex]['details_lines'] ?? [];
+        if (!array_key_exists($lineIndex, $lines)) {
+            return;
+        }
+
+        unset($lines[$lineIndex]);
+        $this->stackedItems[$itemIndex]['details_lines'] = array_values($lines);
+
+        $this->syncLastValidDetailsLines();
+    }
+
+    public function validateDetailsLine(int $itemIndex, int $lineIndex): void
+    {
+        if ($this->isView || $this->isPosted) {
+            return;
+        }
+
+        $maxRows = $this->calculateMaxRows();
+        $estimatedRows = $this->estimateTotalRows(false);
+
+        if ($estimatedRows > $maxRows) {
+            $lastValid = $this->lastValidDetailsLines[$itemIndex][$lineIndex] ?? '';
+            $this->stackedItems[$itemIndex]['details_lines'][$lineIndex] = $lastValid;
+
+            toastr()->error(
+                '⚠️ LIMIT EXCEEDED: Cannot expand detail line. Would result in ' .
+                $estimatedRows . ' rows (max: ' . $maxRows . ' rows). Please shorten details or remove lines.'
+            );
+            $this->dispatch('show-limit-error', [
+                'message' => 'Would exceed limit (' . $estimatedRows . '/' . $maxRows . ' rows). Shorten details or remove detail lines.',
+            ]);
+
+            return;
+        }
+
+        // Commit this line as valid for future reverts.
+        $this->lastValidDetailsLines[$itemIndex][$lineIndex] =
+            $this->stackedItems[$itemIndex]['details_lines'][$lineIndex] ?? '';
+    }
+
     private function convertFreeFormTextToItems()
     {
         // Convert free-form text rows into stackedItems entries (text-only items)
@@ -832,6 +982,55 @@ class DOForm extends Component
         }
     }
 
+    private function normalizeDetailsLines(?string $text): array
+    {
+        if ($text === null) {
+            return [];
+        }
+
+        $lines = explode("\n", $text);
+        $normalized = [];
+        foreach ($lines as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+            $normalized[] = $line;
+        }
+
+        return $normalized;
+    }
+
+    private function detailsLinesToOverrideText(array $lines): ?string
+    {
+        $filtered = [];
+        foreach ($lines as $line) {
+            if (!is_string($line)) {
+                $line = (string) $line;
+            }
+
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $filtered[] = $line;
+        }
+
+        return empty($filtered) ? null : implode("\n", $filtered);
+    }
+
+    private function syncLastValidDetailsLines(): void
+    {
+        $this->lastValidDetailsLines = [];
+
+        foreach ($this->stackedItems as $idx => $stackedItem) {
+            if (isset($stackedItem['is_text_only']) && $stackedItem['is_text_only']) {
+                continue;
+            }
+
+            $this->lastValidDetailsLines[$idx] = $stackedItem['details_lines'] ?? [];
+        }
+    }
+
     /**
      * Estimate total rows needed for all items + remarks
      * Each item = 1 base row + additional rows for descriptions + additional rows for item details
@@ -868,23 +1067,6 @@ class DOForm extends Component
                 }
                 $totalRows += $totalDescRows;
             }
-
-            // Estimate details rows (item details shown as bullet list)
-            $details = $stackedItem['item']['details'] ?? '';
-            if (!empty($details)) {
-                // Split by newline and wrap each line (~60 chars per line, similar to descriptions)
-                $detailLines = explode("\n", $details);
-                $detailRows = 0;
-                foreach ($detailLines as $line) {
-                    $line = trim($line);
-                    if ($line === '') continue;
-                    $lineLength = strlen($line);
-                    $wrappedLines = max(1, ceil($lineLength / 60));
-                    $detailRows += $wrappedLines;
-                }
-                // Each detail line is an additional row (bulleted list under the item)
-                $totalRows += $detailRows;
-            }
         }
         
         // Formula 1+N: add 1 extra row when any description exists
@@ -905,17 +1087,10 @@ class DOForm extends Component
         // If including new item, add 1 base row + rows for item details (deduct available rows by detail lines)
         if ($includeNewItem && $newItem) {
             $totalRows += 1; // Base row for the item
-            $details = $newItem->details ?? '';
-            if (!empty($details)) {
-                $detailLines = explode("\n", $details);
-                foreach ($detailLines as $line) {
-                    $line = trim($line);
-                    if ($line === '') continue;
-                    $lineLength = strlen($line);
-                    $wrappedLines = max(1, ceil($lineLength / 60));
-                    $totalRows += $wrappedLines;
-                }
-            }
+
+            // Each detail line becomes its own DO grid row (text-only row)
+            $detailLines = $this->normalizeDetailsLines($newItem->details ?? '');
+            $totalRows += count($detailLines);
         }
         
         // Add rows for remarks if present
@@ -1007,6 +1182,20 @@ class DOForm extends Component
         $hasContent = !empty($this->stackedItems) || $hasFreeFormText;
         if (!$hasContent) {
             toastr()->error('Please add at least one item or enter some text before saving.');
+            return;
+        }
+
+        // Enforce one-page limit (including edited detail lines) before consuming DO number.
+        $maxRows = $this->calculateMaxRows();
+        $currentRows = $this->estimateTotalRows(false);
+        if ($currentRows > $maxRows) {
+            toastr()->error(
+                '⚠️ LIMIT EXCEEDED: Cannot save. Total would result in ' .
+                $currentRows . ' rows (max: ' . $maxRows . ' rows). Please remove items or shorten descriptions/details.'
+            );
+            $this->dispatch('show-limit-error', [
+                'message' => 'Would exceed limit (' . $currentRows . '/' . $maxRows . ' rows). Remove items or shorten content first.',
+            ]);
             return;
         }
 
@@ -1840,6 +2029,7 @@ class DOForm extends Component
                     'amount' => 0,
                     'pricing_tier' => null,
                     'more_description' => $doItem->more_description,
+                        'details_lines' => [],
                     'is_text_only' => true,
                     'original_row_index' => $originalRowIndex,
                 ];
@@ -1883,6 +2073,7 @@ class DOForm extends Component
                         'um' => $doItem->item->um ?? 'UNIT',
                     ],
                     'custom_um' => !empty(trim($doItem->custom_um ?? '')) ? trim($doItem->custom_um) : $defaultUm,
+                    'details_lines' => [],
                     'item_qty' => floatval($doItem->qty),
                     'pricing_tier' => $pricingTier,
                     'item_unit_price' => $doItem->unit_price,
@@ -1896,6 +2087,7 @@ class DOForm extends Component
         }
 
         $this->freeFormTextRows = [];
+        $this->syncLastValidDetailsLines();
         $this->calculateTotalAmount();
         $this->closeDuplicateModal();
         toastr()->success('Items and customer copied from selected Delivery Order. Please fill in date and other details.');

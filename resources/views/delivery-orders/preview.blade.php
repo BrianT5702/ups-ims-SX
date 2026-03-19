@@ -965,22 +965,12 @@
                             @php
                                 // Count total description lines - deduct that many rows from the bottom
                                 $totalDescriptionLines = 0;
-                                $totalDetailLines = 0;
                                 foreach ($deliveryOrder->items as $item) {
                                     $desc = $item->more_description ?? '';
                                     if (!empty($desc)) {
                                         $lines = explode("\n", $desc);
                                         foreach ($lines as $line) {
                                             $totalDescriptionLines += max(1, ceil(strlen($line) / 60));
-                                        }
-                                    }
-                                    // Count item details lines (deduct from bottom, same as description)
-                                    if ($item->item_id !== null && $item->item && !empty($item->item->details ?? '')) {
-                                        $detailLines = explode("\n", $item->item->details);
-                                        foreach ($detailLines as $line) {
-                                            $line = trim($line);
-                                            if ($line === '') continue;
-                                            $totalDetailLines += max(1, ceil(strlen($line) / 60));
                                         }
                                     }
                                 }
@@ -1008,11 +998,10 @@
                                         $nextAvailableRow++;
                                     }
                                 }
-                                
-                                // Deduct rows from bottom: formula 1+N for descriptions + item details lines
+
+                                // Deduct rows from bottom: formula 1+N for descriptions only
                                 $rowsDeducedForDesc = $totalDescriptionLines > 0 ? (1 + $totalDescriptionLines) : 0;
-                                $rowsDeducedForDetails = $totalDetailLines;
-                                $rowsDeducedTotal = $rowsDeducedForDesc + $rowsDeducedForDetails;
+                                $rowsDeducedTotal = $rowsDeducedForDesc;
                                 $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
                                 $itemRowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedTotal));
                                 $notesRowIndex = $itemRowsToShow; // NOTES row follows item rows
@@ -1051,15 +1040,6 @@
                                         </td>
                                         <td>
                                             {{ $item->custom_item_name ?? ($item->item_id !== null && $item->item ? $item->item->item_name : 'N/A') }}
-                                            @if($item->item_id !== null && $item->item && !empty($item->item->details))
-                                                <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
-                                                    @foreach(explode("\n", $item->item->details) as $line)
-                                                        @if(trim($line) !== '')
-                                                            <div>• {{ $line }}</div>
-                                                        @endif
-                                                    @endforeach
-                                                </div>
-                                            @endif
                                             @if(!empty($item->more_description))
                                                 <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 20px; margin-bottom: 8px;">
                                                     @foreach(explode("\n", $item->more_description) as $line)
