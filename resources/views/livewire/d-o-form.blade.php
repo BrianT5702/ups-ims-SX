@@ -256,7 +256,7 @@
                                                 $canMoveUp = $item && $rowIndex > 0 && !isset($rowToItemMap[$rowIndex - 1]);
                                                 $canMoveDown = $item && $rowIndex < 23 && !isset($rowToItemMap[$rowIndex + 1]);
                                             @endphp
-                                            <tr class="item-row">
+                                            <tr class="item-row" wire:key="do-form-row-{{ $rowIndex }}-{{ $itemIndex === null ? 'empty' : $itemIndex }}">
                                                 <td style="width: 95px; vertical-align: top;">
                                                     @if($item)
                                                         @if(isset($item['is_choice']) && $item['is_choice'])
@@ -458,7 +458,7 @@
                                                     showMemo: false,
                                                                 hoverTimeout: null,
                                                                 editingName: false,
-                                                                displayName: '{{ $stackedItems[$itemIndex]['custom_item_name'] ?? $item['item']['item_name'] }}'
+                                                                displayName: @js($stackedItems[$itemIndex]['custom_item_name'] ?? $item['item']['item_name'])
                                                 }" 
                                                 x-init="
                                                     $watch('showDescription', value => {
@@ -613,6 +613,7 @@
                                                         </div>
                                                     </div>
                                                     @endif
+                                                        </div>
                                                 @endif
                                                     @elseif(!$isView && $isEmptyRow)
                                                         {{-- Show empty row input (rows are already limited by rowsToShow calculation above) --}}

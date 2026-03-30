@@ -185,8 +185,19 @@ class UserController extends Controller
             \DB::reconnect($request->db_connection);
 
             if ($request->import_type === 'items') {
-                Excel::import(new ItemImport, $request->file('file'));
-                $message = 'Items imported successfully!';
+                $itemImporter = new ItemImport();
+                Excel::import($itemImporter, $request->file('file'));
+                $imported = $itemImporter->getSuccessCount();
+                $skipped = $itemImporter->getFailureCount();
+                if ($imported === 0 && $skipped > 0) {
+                    return back()->with(
+                        'import_error',
+                        "No items were imported ({$skipped} row(s) skipped). Common causes: empty stock code in column A, or file layout does not match the expected format (data from row 4). See the application log for details."
+                    );
+                }
+                $message = $imported > 0
+                    ? "Items imported successfully ({$imported} row(s)" . ($skipped > 0 ? ", {$skipped} skipped" : '') . ').'
+                    : 'Import finished; no data rows were processed.';
             } 
             elseif($request->import_type === 'suppliers'){
                 Excel::import(new SupplierImport, $request->file('file'));

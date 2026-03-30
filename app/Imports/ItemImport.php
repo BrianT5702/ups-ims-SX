@@ -242,72 +242,94 @@ class ItemImport implements ToModel, WithStartRow
                 'location_id' => $location?->id,
             ]);
 
-            // Find existing item by stock code on the correct connection
+            // Find existing item by stock code on the correct connection (upsert: create if missing)
             $existingItem = Item::on($this->connection)->where('item_code', $stockCode)->first();
+            $displayName = (is_string($itemName) && trim($itemName) !== '') ? trim($itemName) : $stockCode;
 
-            if (!$existingItem) {
-                Log::warning('[ItemImport] No existing item found for stock code, skipping row', [
+            if ($existingItem) {
+                $existingItem->cat_id = $category->id;
+                $existingItem->family_id = $family->id;
+                $existingItem->group_id = $group->id;
+                if (!empty($itemName)) {
+                    $existingItem->item_name = $itemName;
+                }
+                if ($hasQty) {
+                    $existingItem->qty = $qty;
+                }
+                $existingItem->cost = $cost;
+                $existingItem->cash_price = $cashPrice;
+                $existingItem->term_price = $termPrice;
+                $existingItem->cust_price = $custPrice;
+                $existingItem->sup_id = $supplier?->id ?? $existingItem->sup_id;
+                $existingItem->warehouse_id = $warehouse?->id ?? $existingItem->warehouse_id;
+                $existingItem->location_id = $location?->id ?? $existingItem->location_id;
+                $existingItem->um = $uom;
+                $existingItem->save();
+
+                Log::info('[ItemImport] Updated existing item', [
                     'rowNumber' => $this->rowNumber,
-                    'stockCode' => $stockCode,
+                    'item_id' => $existingItem->id,
+                    'item_code' => $existingItem->item_code,
+                    'qty' => $existingItem->qty,
+                    'cost' => $existingItem->cost,
+                    'cash_price' => $existingItem->cash_price,
+                    'term_price' => $existingItem->term_price,
+                    'cust_price' => $existingItem->cust_price,
+                    'um' => $existingItem->um,
                 ]);
-                $this->failureCount++;
-                return null;
+
+                $item = $existingItem;
+            } else {
+                $item = Item::on($this->connection)->create([
+                    'item_code' => $stockCode,
+                    'item_name' => $displayName,
+                    'cat_id' => $category->id,
+                    'family_id' => $family->id,
+                    'group_id' => $group->id,
+                    'qty' => $hasQty ? $qty : 0,
+                    'cost' => $cost,
+                    'cash_price' => $cashPrice,
+                    'term_price' => $termPrice,
+                    'cust_price' => $custPrice,
+                    'sup_id' => $supplier?->id,
+                    'warehouse_id' => $warehouse?->id,
+                    'location_id' => $location?->id,
+                    'um' => $uom,
+                ]);
+
+                Log::info('[ItemImport] Created new item', [
+                    'rowNumber' => $this->rowNumber,
+                    'item_id' => $item->id,
+                    'item_code' => $item->item_code,
+                    'qty' => $item->qty,
+                    'cost' => $item->cost,
+                    'cash_price' => $item->cash_price,
+                    'term_price' => $item->term_price,
+                    'cust_price' => $item->cust_price,
+                    'um' => $item->um,
+                ]);
             }
 
-            // Update existing item fields; keep current qty when no quantity was provided
-            $existingItem->cat_id = $category->id;
-            $existingItem->family_id = $family->id;
-            $existingItem->group_id = $group->id;
-            if (!empty($itemName)) {
-                $existingItem->item_name = $itemName;
-            }
-            // Do NOT change item_code; it's our identifier
-            if ($hasQty) {
-                $existingItem->qty = $qty;
-            }
-            $existingItem->cost = $cost;
-            $existingItem->cash_price = $cashPrice;
-            $existingItem->term_price = $termPrice;
-            $existingItem->cust_price = $custPrice;
-            $existingItem->sup_id = $supplier?->id ?? $existingItem->sup_id;
-            $existingItem->warehouse_id = $warehouse?->id ?? $existingItem->warehouse_id;
-            $existingItem->location_id = $location?->id ?? $existingItem->location_id;
-            $existingItem->um = $uom;  // From column K, or "UNIT" if empty
-            $existingItem->save();
-
-            Log::info('[ItemImport] Updated existing item', [
-                'rowNumber' => $this->rowNumber,
-                'item_id' => $existingItem->id,
-                'item_code' => $existingItem->item_code,
-                'qty' => $existingItem->qty,
-                'cost' => $existingItem->cost,
-                'cash_price' => $existingItem->cash_price,
-                'term_price' => $existingItem->term_price,
-                'cust_price' => $existingItem->cust_price,
-                'um' => $existingItem->um,
-            ]);
-
-            // Only create batch tracking when a quantity was actually provided
             if ($hasQty) {
                 BatchTracking::on($this->connection)->create([
                     'batch_num' => $this->batchNumber,
                     'po_id' => $this->poId,
-                    'item_id' => $existingItem->id,
+                    'item_id' => $item->id,
                     'quantity' => $qty,
                     'received_date' => now(),
-                    'received_by' => Auth::id() ?? 1, 
+                    'received_by' => Auth::id() ?? 1,
                 ]);
 
                 Log::info('[ItemImport] Created batch tracking', [
                     'rowNumber' => $this->rowNumber,
-                    'item_id' => $existingItem->id,
+                    'item_id' => $item->id,
                     'batch_num' => $this->batchNumber,
                     'quantity' => $qty,
                 ]);
             }
 
             $this->successCount++;
-            return $existingItem;
+            return $item;
 
         } catch (\Exception $e) {
             Log::error("[ItemImport] Import error", [
@@ -318,6 +340,16 @@ class ItemImport implements ToModel, WithStartRow
             $this->failureCount++;
             return null;
         }
+    }
+
+    public function getSuccessCount(): int
+    {
+        return $this->successCount;
+    }
+
+    public function getFailureCount(): int
+    {
+        return $this->failureCount;
     }
 
     public function startRow(): int
