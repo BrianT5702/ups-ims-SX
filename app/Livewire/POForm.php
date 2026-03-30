@@ -11,6 +11,7 @@ use App\Models\RestockList;
 use App\Models\Transaction;
 use App\Models\BatchTracking;
 use App\Rules\UniqueInCurrentDatabase;
+use App\Rules\ExistsInCurrentDatabase;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Title;
 use Illuminate\Support\Facades\DB;
@@ -390,7 +391,7 @@ class POForm extends Component
         }
         $this->validate( [
             'po_num' => ['required', new UniqueInCurrentDatabase('purchase_orders', 'po_num', $this->purchaseOrder?->id)],
-            'supplier_id' => $this->purchaseOrder ? 'nullable' : 'required|exists:suppliers,id', // Ignore if editing
+            'supplier_id' => $this->purchaseOrder ? 'nullable' : ['required', new ExistsInCurrentDatabase('suppliers', 'id')], // Check current session DB
             'date' => 'required|date',
             'stackedItems.*.item_qty' => 'required|integer|min:1',
             'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
@@ -411,6 +412,8 @@ class POForm extends Component
             'tax_rate.numeric' => 'Tax rate must be a number.',
             'tax_rate.min' => 'Tax rate cannot be negative.',
             'tax_rate.max' => 'Tax rate cannot exceed 100%.',
+        ], [
+            'supplier_id' => 'supplier',
         ]);
         try {
             $final_total_price = 0;
@@ -537,11 +540,13 @@ class POForm extends Component
         // Reuse same validation as addPO
         $this->validate( [
             'po_num' => ['required', new UniqueInCurrentDatabase('purchase_orders', 'po_num', $this->purchaseOrder?->id)],
-            'supplier_id' => $this->purchaseOrder ? 'nullable' : 'required|exists:suppliers,id',
+            'supplier_id' => $this->purchaseOrder ? 'nullable' : ['required', new ExistsInCurrentDatabase('suppliers', 'id')],
             'date' => 'required|date',
             'stackedItems.*.item_qty' => 'required|integer|min:1',
             'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
+        ], [], [
+            'supplier_id' => 'supplier',
         ]);
 
         try {
@@ -896,11 +901,13 @@ class POForm extends Component
             // First save any changes
             $this->validate([
                 'po_num' => ['required', new UniqueInCurrentDatabase('purchase_orders', 'po_num', $this->purchaseOrder?->id)],
-                'supplier_id' => $this->purchaseOrder ? 'nullable' : 'required|exists:suppliers,id',
+                'supplier_id' => $this->purchaseOrder ? 'nullable' : ['required', new ExistsInCurrentDatabase('suppliers', 'id')],
                 'date' => 'required|date',
                 'stackedItems.*.item_qty' => 'required|integer|min:1',
                 'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
                 'tax_rate' => 'nullable|numeric|min:0|max:100',
+            ], [], [
+                'supplier_id' => 'supplier',
             ]);
 
             // Recalculate totals
