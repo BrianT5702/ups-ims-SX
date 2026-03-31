@@ -415,7 +415,7 @@
 
         .page-counter {
             position: fixed;
-            top: 50px;
+            top: 120px;
             right: 20px;
             padding: 10px 15px;
             font-size: 14px;
