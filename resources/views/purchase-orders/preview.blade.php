@@ -357,18 +357,20 @@
             background-color: #0056b3;
         }
 
-        /* On-screen reminder for correct print formatting */
+        /* On-screen reminder for correct print formatting (match DO preview size) */
         .print-reminder {
             position: fixed;
             top: 70px;
             right: 20px;
-            padding: 6px 10px;
-            font-size: 12px;
+            padding: 4px 8px;
+            font-size: 10px;
+            line-height: 1.2;
             color: #856404;
             background: #fff3cd;
             border: 1px solid #ffeeba;
             border-radius: 4px;
             z-index: 1000;
+            max-width: 150px;
         }
 
         /* Force standard zoom detection warning */
