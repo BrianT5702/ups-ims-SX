@@ -96,34 +96,6 @@
                         </div>
 
                         <div class="row mb-3">
-                            @if(!$isView)
-                                @if(!$purchaseOrder || ($purchaseOrder && ($purchaseOrder->status === 'Rejected' || ($purchaseOrder->status === 'In Progress' && $isRevising) || $purchaseOrder->status === 'Save to Draft')))
-                                    <div class="col-md-6" x-data="{ hi: 0 }">
-                                        <label for="search">Search Items</label>
-                                        <input type="text" wire:model.debounce.100ms="itemSearchTerm" wire:input.debounce.200ms="searchItems" id="searchItem" 
-                                            class="form-control rounded" placeholder="Search by Item Code or Name" {{ $isView ? 'disabled' : ''}} autocomplete="off"
-                                            x-on:input="hi = 0"
-                                            x-on:keydown.arrow-down.prevent="(() => { const list = $refs.list; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
-                                            x-on:keydown.arrow-up.prevent="(() => { const list = $refs.list; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
-                                            x-on:keydown.enter.prevent="(() => { const list = $refs.list; const items = list ? list.querySelectorAll('li') : []; const el = items && items[hi]; if(el) el.click(); })()">
-
-                                        @if(count($itemSearchResults) > 0)
-                                            <div class="search-results mt-2">
-                                                <ul class="list-group" x-ref="list">
-                                                    @foreach($itemSearchResults as $idx => $result)
-                                                        <li class="list-group-item d-flex justify-content-between align-items-center" data-idx="{{ $idx }}"
-                                                            wire:click="addItem({{ $result->id }})"
-                                                            :class="{ 'active': hi === {{ $idx }} }"
-                                                            style="cursor: pointer;">
-                                                            <span>{{ $result->item_code }} - {{ $result->item_name }} <span class="ms-2 badge bg-warning text-dark">Qty: {{ $result->qty }}</span></span>
-                                                        </li>
-                                                    @endforeach
-                                                </ul>
-                                            </div>
-                                        @endif
-                                    </div>
-                                @endif
-                            @endif
                             <div class="col-md-6 mb-3">
                                 <label for="status">Status <span class="text-danger">*</span></label>
                                 <select wire:model.live="status" id="status" class="form-control" {{ $isView || ($purchaseOrder && $purchaseOrder->status === 'Completed') ? 'disabled' : '' }}>
@@ -376,6 +348,37 @@
                                     @endforeach
                                 </tbody>
                             </table>
+
+                            @if(!$isView)
+                                @if(!$purchaseOrder || ($purchaseOrder && ($purchaseOrder->status === 'Rejected' || ($purchaseOrder->status === 'In Progress' && $isRevising) || $purchaseOrder->status === 'Save to Draft')))
+                                    <div class="row mb-0 mt-3 pt-3 border-top">
+                                        <div class="col-md-8 col-lg-6" x-data="{ hi: 0 }">
+                                            <label for="po-search-item-bottom" class="fw-semibold">Search Items <span class="text-muted small fw-normal">(F2)</span></label>
+                                            <input type="text" wire:model.debounce.100ms="itemSearchTerm" wire:input.debounce.200ms="searchItems" id="po-search-item-bottom"
+                                                class="form-control rounded" placeholder="Search by Item Code or Name" autocomplete="off"
+                                                x-on:input="hi = 0"
+                                                x-on:keydown.arrow-down.prevent="(() => { const list = $refs.poItemListBottom; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
+                                                x-on:keydown.arrow-up.prevent="(() => { const list = $refs.poItemListBottom; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
+                                                x-on:keydown.enter.prevent="(() => { const list = $refs.poItemListBottom; const items = list ? list.querySelectorAll('li') : []; const el = items && items[hi]; if(el) el.click(); })()">
+
+                                            @if(count($itemSearchResults) > 0)
+                                                <div class="search-results mt-2">
+                                                    <ul class="list-group" x-ref="poItemListBottom">
+                                                        @foreach($itemSearchResults as $idx => $result)
+                                                            <li class="list-group-item d-flex justify-content-between align-items-center" data-idx="{{ $idx }}"
+                                                                wire:click="addItem({{ $result->id }})"
+                                                                :class="{ 'active': hi === {{ $idx }} }"
+                                                                style="cursor: pointer;">
+                                                                <span>{{ $result->item_code }} - {{ $result->item_name }} <span class="ms-2 badge bg-warning text-dark">Qty: {{ $result->qty }}</span></span>
+                                                            </li>
+                                                        @endforeach
+                                                    </ul>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
+                            @endif
 
                         </div>
                         
@@ -653,4 +656,23 @@
             white-space: nowrap;
         }
     </style>
+    <script>
+        (function () {
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== 'F2') return;
+                var form = e.target.closest('form[wire\\:submit\\.prevent="addPO"]');
+                if (!form) {
+                    form = document.querySelector('form[wire\\:submit\\.prevent="addPO"]');
+                }
+                if (!form) return;
+                var target = form.querySelector('#po-search-item-bottom');
+                if (!target || target.disabled) return;
+                e.preventDefault();
+                target.focus();
+                if (typeof target.scrollIntoView === 'function') {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        })();
+    </script>
 </div>

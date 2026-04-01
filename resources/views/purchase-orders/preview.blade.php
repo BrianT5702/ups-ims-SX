@@ -24,6 +24,15 @@
             color-adjust: exact;
         }
 
+        /*
+         * One “logical page” height for PO preview + paginatePO(). Must match getPageHeight():
+         * Letter minus @page top/bottom margins (0.5cm each), then × PAGE_HEIGHT_FACTOR.
+         */
+        :root {
+            --po-page-height-factor: 0.99;
+            --po-page-printable-height: calc((11in - (0.5cm * 2)) * var(--po-page-height-factor));
+        }
+
         body {
             font-family: Tahoma, Arial, sans-serif; /* Use Tahoma - thicker text, similar size to Arial, better letter "I" rendering */
             color: #000;
@@ -247,7 +256,7 @@
             justify-content: space-between !important;
             align-items: flex-end !important;
             border-top: 1px solid #000 !important;
-            padding: 16px 0 12px; /* Match print padding (16px 0 12px instead of 10px 0 8px) */
+            padding: 10px 0 8px;
             margin-top: auto;
             page-break-inside: avoid;
             break-inside: avoid;
@@ -447,7 +456,7 @@
         }
 
         .pages-container .print-page-footer .signature-section {
-            padding: 16px 0 12px !important;
+            padding: 10px 0 8px !important;
         }
 
         .pages-container[data-measuring="true"] .print-page {
@@ -468,7 +477,7 @@
             display: flex;
             flex-direction: column;
             position: relative;
-            min-height: calc(11in - (0.75cm * 2));
+            min-height: var(--po-page-printable-height);
             page-break-after: always;
             page-break-inside: avoid;
             break-inside: avoid;
@@ -491,6 +500,8 @@
         @media print {
             .print-page::after {
                 display: block;
+                bottom: 0.12cm !important;
+                right: 0.5cm !important;
             }
         }
 
@@ -529,7 +540,7 @@
         .print-page-body {
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 10px;
             flex: 1 1 auto;
         }
         
@@ -542,7 +553,7 @@
 
         .print-page-footer {
             margin-top: auto;
-            padding-top: 18px;
+            padding-top: 10px;
             flex: 0 0 auto;
         }
 
@@ -550,20 +561,19 @@
             display: none !important;
         }
 
+        /* @page only affects print/PDF — not the on-screen paginated preview */
         @page {
-            margin: 0.75cm;
+            margin: 0.5cm;
             size: letter;
         }
 
         @media print {
+            /* Match screen root (16px) so em/rem match preview; body stays 14px */
             html {
                 zoom: 1 !important;
-                font-size: 14px !important;
+                font-size: 16px !important;
             }
-            body {
-                font-family: Tahoma, Arial, sans-serif !important;
-            }
-            
+
             body {
                 font-family: Tahoma, Arial, sans-serif !important;
                 background-color: #fff;
@@ -574,24 +584,55 @@
                 line-height: 1.3 !important;
             }
             
-            .company-info h2, .company-info-right h2 {
+            /* Match on-screen preview typography (avoid print-only 1.2em jump) */
+            .company-info-left h2,
+            .company-info .company-info-text h2 {
                 white-space: nowrap !important;
-                font-size: 1.2em !important;
+                font-size: calc(1.1em + 1px) !important;
                 color: #000 !important;
-                line-height: 1.2 !important; /* Match screen line-height */
+                line-height: 1.2 !important;
+            }
+            .company-info-right h2 {
+                white-space: nowrap !important;
+                font-size: calc(1.0em + 1px) !important;
+                color: #000 !important;
+                line-height: 1.2 !important;
             }
             
             .company-info p, .company-info-right p {
-                line-height: 1.3 !important; /* Ensure paragraphs match print */
+                font-size: calc(0.78em + 1px) !important;
+                line-height: 1.3 !important;
             }
             
-            /* Ensure supplier-info spacing matches print */
+            /* Compact vertical rhythm so one logical preview page fits one physical sheet */
+            .pages-container .company-info {
+                padding-bottom: 2px !important;
+                margin-bottom: 6px !important;
+            }
+            .pages-container .company-logo-wrap img {
+                max-height: 58px !important;
+            }
+            .pages-container .company-info-left h2,
+            .pages-container .company-info .company-info-text h2 {
+                margin-bottom: 4px !important;
+            }
+
             .supplier-info {
-                margin-bottom: 20px !important;
+                margin-bottom: 10px !important;
             }
             
+            /*
+             * Match preview: left padding + negative first-line indent so “To:” sits left
+             * while address / contact lines align under the company name (inside the border).
+             */
             .supplier-info-frame {
-                padding: 6px !important;
+                padding: 4px 8px 4px 40px !important;
+                box-sizing: border-box !important;
+                font-size: 1.05em !important;
+                line-height: 1.22 !important;
+            }
+            .supplier-info-frame p:first-child {
+                text-indent: -40px !important;
             }
 
             .print-button, .back-button {
@@ -605,12 +646,13 @@
             }
             
             @page {
-                margin: 0.75cm;
+                margin: 0.5cm;
                 size: letter;
             }
             
             .container {
                 width: 100% !important;
+                max-width: none !important;
                 border: none !important;
                 box-shadow: none !important;
                 margin: 0 !important;
@@ -632,14 +674,33 @@
                 padding: 0 !important;
             }
             
+            /*
+             * Fit the printable area (100% of @page body). A fixed 1000px is wider than
+             * letter minus margins and caused horizontal clip → missing price/amount columns.
+             */
+            .pages-container,
+            .pages-container .print-page,
+            .pages-container .print-page-body {
+                overflow: visible !important;
+            }
+            /*
+             * Pin signature at the bottom of each printed sheet: min-height matches Letter
+             * minus @page top+bottom margins (0.5cm + 0.5cm = 1cm). Body grows; footer uses
+             * margin-top:auto. page-break-inside:avoid keeps one logical .print-page on one sheet.
+             */
             .pages-container .print-page {
                 width: 100% !important;
                 max-width: 100% !important;
-                margin: 0 !important;
-                padding: 20px !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+                padding: 12px !important;
                 box-sizing: border-box !important;
-                min-height: calc(11in - 1.5cm) !important; /* Keep min-height for page breaks, but match preview calculation */
-                height: auto !important; /* Let height grow with content, don't force fill */
+                min-height: calc(11in - 1cm) !important;
+                height: auto !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
             
             .signature-section {
@@ -647,9 +708,9 @@
                 justify-content: space-between !important;
                 align-items: flex-end !important;
                 border-top: 1px solid #000 !important;
-                padding: 16px 0 12px !important;
+                padding: 6px 0 6px !important;
                 margin: 0 !important;
-                margin-top: auto !important;
+                margin-top: 0 !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
                 page-break-after: avoid !important;
@@ -700,42 +761,53 @@
             .items-table { 
                 table-layout: fixed !important;
             }
+            /* Print-only column mix: narrower QTY, wider description (preview table stays 5/60/8/12/15) */
             .items-table th:nth-child(1), .items-table td:nth-child(1) {
-                width: 5% !important;
-                min-width: 5% !important;
-                max-width: 5% !important;
+                width: 4% !important;
             }
             .items-table th:nth-child(2), .items-table td:nth-child(2) {
-                width: 60% !important;
-                min-width: 60% !important;
-                max-width: 60% !important;
+                width: 70% !important;
                 word-wrap: break-word;
                 overflow-wrap: break-word;
             }
             .items-table th:nth-child(3), .items-table td:nth-child(3) {
-                width: 8% !important;
-                min-width: 8% !important;
-                max-width: 8% !important;
+                width: 4% !important;
                 white-space: nowrap !important;
             }
             .items-table th:nth-child(4), .items-table td:nth-child(4) {
-                width: 12% !important;
-                min-width: 12% !important;
-                max-width: 12% !important;
+                width: 14% !important;
                 white-space: nowrap !important;
             }
             .items-table th:nth-child(5), .items-table td:nth-child(5) {
-                width: 15% !important;
-                min-width: 15% !important;
-                max-width: 15% !important;
+                width: 10% !important;
                 white-space: nowrap !important;
             }
+            .items-table {
+                margin-bottom: 0px !important;
+            }
+
+            /* Print-only: roomier rows than on-screen preview */
             .items-table th {
                 font-size: 0.8em !important;
-                padding: 10px 10px 6px 10px !important;
+                padding: 7px 8px 5px 8px !important;
+                line-height: 1.3 !important;
                 white-space: nowrap !important;
                 overflow: visible !important;
                 text-overflow: unset !important;
+            }
+
+            .items-table td {
+                padding: 4px 4px !important;
+                font-size: 1.05em !important;
+                line-height: 1.2 !important;
+                vertical-align: top !important;
+            }
+
+            .pages-container .totals-section {
+                padding-top: 4px !important;
+            }
+            .pages-container .total-row {
+                padding: 4px 0 !important;
             }
 
             .print-reminder {
@@ -759,8 +831,12 @@
             .pages-container .print-page {
                 border: none !important;
                 box-shadow: none !important;
-                margin: 0 !important;
-                padding: 20px !important;
+                max-width: 100% !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+                padding: 12px !important;
                 position: relative !important;
             }
             
@@ -779,19 +855,30 @@
                 display: flex !important;
                 flex-direction: column !important;
                 flex: 1 1 auto !important;
-                gap: 14px !important;
+                min-height: 0 !important;
+                gap: 6px !important;
             }
             
             /* Reduce spacing around remark in print */
             .pages-container .print-page-body [data-page-remark] {
-                margin-top: -8px !important;
-                margin-bottom: -8px !important;
+                margin-top: -6px !important;
+                margin-bottom: -6px !important;
             }
             
             .pages-container .print-page-footer {
                 margin-top: auto !important;
                 flex: 0 0 auto !important;
-                padding-top: 18px !important;
+                padding-top: 6px !important;
+            }
+
+            .pages-container .print-page-footer .signature-section {
+                padding: 8px 0 6px !important;
+                margin-top: 0 !important;
+            }
+
+            .pages-container .print-page-footer .signature-line {
+                margin-top: 36px !important;
+                margin-bottom: 2px !important;
             }
         }
         
@@ -807,7 +894,7 @@
         }
         .items-table td {
             font-size: 1.1em;
-            line-height: 1.3;
+            line-height: 1.1;
         }
 
     </style>
@@ -1026,6 +1113,9 @@
     </script>
     <script>
         (function () {
+            /** Keep equal to :root --po-page-height-factor in the stylesheet above. */
+            var PAGE_HEIGHT_FACTOR = 0.99;
+
             var pageHeightCache = null;
             var scheduled = false;
             var building = false;
@@ -1045,13 +1135,11 @@
                 var isPrintMode = isPrintContext || (window.matchMedia && window.matchMedia('print').matches);
                 if (force || !pageHeightCache || isPrintMode) {
                     var letterPx = measurePx('11in');
-                    var marginPx = measurePx('0.75cm');
+                    var marginPx = measurePx('0.5cm');
                     var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
                     
-                    // Print engine allows more space than we calculate with hidden elements
-                    // Use minimal reduction (0.97) for preview to match print's actual available space
-                    // This accounts for the fact that print engine calculates spacing more accurately
-                    pageHeightCache = Math.round(calculatedHeight * 0.97);
+                    // Same factor as CSS --po-page-printable-height so each .print-page box matches paginatePO().
+                    pageHeightCache = Math.round(calculatedHeight * PAGE_HEIGHT_FACTOR);
                 }
                 return pageHeightCache;
         }
@@ -1148,10 +1236,10 @@
                     // The CSS page-break rules will handle actual print layout
                     var isPrintMode = false; // Force to false to use same measurements as preview
                     var pageHeight = getPageHeight(force, isPrintMode);
-                    // Increase tolerance to match print engine's more lenient spacing
-                    // Print allows slightly more content before breaking, so we need higher tolerance
-                    var tolerance = 15;
-                    var usableHeight = pageHeight;
+                    /* Off-screen measure uses min-height:auto on pages; real pages use full letter height.
+                       Tuned so ~25 compact lines + header + totals + footer stay on one logical page. */
+                    var tolerance = 34;
+                    var usableHeight = pageHeight + 72;
                     var isFirstPage = true;
                     var activePage = null;
 
@@ -1169,7 +1257,7 @@
                     pagesContainer.style.height = 'auto';
                     pagesContainer.style.pointerEvents = 'none'; // Prevent interaction
                     pagesContainer.style.zIndex = '-9999'; // Behind everything
-                    pagesContainer.style.overflow = 'hidden'; // Prevent scrollbars
+                    pagesContainer.style.overflow = 'hidden'; // Only during measurement
 
                     function ensurePage() {
                         if (!activePage) {
@@ -1277,6 +1365,34 @@
                     appendBlock(remarkSource, 'data-page-remark');
                     appendBlock(totalsSource, 'data-page-total');
 
+                    function pageHasItemRows(page) {
+                        var tbody = page.querySelector('tbody');
+                        return !!(tbody && tbody.children.length > 0);
+                    }
+
+                    /* If totals/remark were pushed alone onto a new page but all line items fit page 1, merge back. */
+                    function tryMergeTrailingExtrasOnlyPage() {
+                        var pages = pagesContainer.querySelectorAll('.print-page');
+                        if (pages.length < 2) return false;
+                        var last = pages[pages.length - 1];
+                        if (pageHasItemRows(last)) return false;
+                        var extras = Array.prototype.slice.call(
+                            last.querySelectorAll('[data-page-remark], [data-page-total]')
+                        );
+                        if (!extras.length) return false;
+                        var prev = pages[pages.length - 2];
+                        if (!pageHasItemRows(prev)) return false;
+                        var prevBody = prev.querySelector('.print-page-body');
+                        if (!prevBody) return false;
+                        extras.forEach(function (el) {
+                            prevBody.appendChild(el);
+                        });
+                        last.parentNode.removeChild(last);
+                        return true;
+                    }
+
+                    while (tryMergeTrailingExtrasOnlyPage()) { /* repeat if chain of empty trailing pages */ }
+
                     var renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
                     renderedPages.forEach(function (page) {
                         var tbody = page.querySelector('tbody');
@@ -1306,6 +1422,7 @@
                     pagesContainer.style.height = '';
                     pagesContainer.style.pointerEvents = '';
                     pagesContainer.style.zIndex = '';
+                    pagesContainer.style.overflow = '';
                     pagesContainer.style.display = 'flex';
                     pagesContainer.removeAttribute('data-measuring');
                     source.style.display = 'none';

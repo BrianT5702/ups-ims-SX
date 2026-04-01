@@ -249,9 +249,9 @@ class POForm extends Component
                 }
 
                 if (!$itemExists) {
-                    // Check if maximum items limit (15) is reached only for new items
-                    if (count($this->stackedItems) >= 15) {
-                        toastr()->error('Maximum of 15 items allowed per purchase order. Please remove some items before adding new ones.');
+                    // Check if maximum items limit (25) is reached only for new items
+                    if (count($this->stackedItems) >= 25) {
+                        toastr()->error('Maximum of 25 items allowed per purchase order. Please remove some items before adding new ones.');
                         return;
                     }
 
