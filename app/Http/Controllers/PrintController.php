@@ -72,7 +72,7 @@ class PrintController extends Controller
                     }
                     
                     $itemId = $doItem->item_id;
-                    $qty = (int) ($doItem->qty ?? 0);
+                    $qty = round((float) ($doItem->qty ?? 0), 2);
                     
                     if ($qty > 0) {
                         $this->deductFromBatchesFifo($itemId, $qty, $deliveryOrder->do_num);
@@ -97,8 +97,13 @@ class PrintController extends Controller
         }
     }
 
-    private function deductFromBatchesFifo($itemId, $deductQty, $doNum)
+    private function deductFromBatchesFifo($itemId, float $deductQty, $doNum)
     {
+        $deductQty = round($deductQty, 2);
+        if ($deductQty <= 0) {
+            return;
+        }
+
         // Get batches in FIFO order (oldest first)
         $batches = BatchTracking::where('item_id', $itemId)
             ->orderBy('received_date', 'asc')

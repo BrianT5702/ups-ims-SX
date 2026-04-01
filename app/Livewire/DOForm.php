@@ -2279,9 +2279,8 @@ class DOForm extends Component
                         // Exclude text-only items from stock calculations
                         return !(isset($item['is_text_only']) && $item['is_text_only']);
                     })
-                    ->mapWithKeys(function($item) {
-                        return [$item['item']['id'] => (int) round($item['item_qty'] ?? 0)];
-                    })
+                    ->groupBy(fn($item) => $item['item']['id'])
+                    ->map(fn($group) => round((float) $group->sum(fn($item) => $item['item_qty'] ?? 0), 2))
                     ->toArray();
 
                 // Only process stock changes if status actually changed
@@ -2299,7 +2298,7 @@ class DOForm extends Component
                             }
                             
                             $itemId = $item['item']['id'];
-                            $qty = (int) round($item['item_qty'] ?? 0);
+                            $qty = $this->normalizeDoStockQty($item['item_qty'] ?? 0);
                             
                             if ($qty > 0) {
                                 $this->restoreToBatchesFifo($itemId, $qty);
@@ -2323,7 +2322,7 @@ class DOForm extends Component
                             }
                             
                             $itemId = $item['item']['id'];
-                            $qty = (int) round($item['item_qty'] ?? 0);
+                            $qty = $this->normalizeDoStockQty($item['item_qty'] ?? 0);
                             
                             if ($qty > 0) {
                                 $this->deductFromBatchesFifo($itemId, $qty, false);
@@ -2525,7 +2524,7 @@ class DOForm extends Component
                     }
                     
                     $itemId = $item['item']['id'];
-                    $qty = (int) round($item['item_qty'] ?? 0);
+                    $qty = $this->normalizeDoStockQty($item['item_qty'] ?? 0);
 
                     if ($qty > 0) {
                         $this->deductFromBatchesFifo($itemId, $qty, false);
@@ -2637,6 +2636,14 @@ class DOForm extends Component
     }
 
     /**
+     * Normalize DO line qty for stock movements (aligned with decimal batch / transaction storage).
+     */
+    private function normalizeDoStockQty(mixed $qty): float
+    {
+        return round((float) ($qty ?? 0), 2);
+    }
+
+    /**
      * Reconcile stock based on deltas between previous DO quantities and new input.
      * Positive delta => deduct (Stock Out). Negative delta => restore (Stock In).
      */
@@ -2649,11 +2656,11 @@ class DOForm extends Component
             ->values();
 
         foreach ($allItemIds as $itemId) {
-            $prevQty = (int)($previousQtyByItem[$itemId] ?? 0);
-            $newQty = (int)($newQtyByItem[$itemId] ?? 0);
-            $delta = $newQty - $prevQty; // >0 means additional deduction needed; <0 means restore
+            $prevQty = $this->normalizeDoStockQty($previousQtyByItem[$itemId] ?? 0);
+            $newQty = $this->normalizeDoStockQty($newQtyByItem[$itemId] ?? 0);
+            $delta = round($newQty - $prevQty, 2); // >0 means additional deduction needed; <0 means restore
 
-            if ($delta === 0) {
+            if ($delta == 0.0) {
                 continue; // No change
             }
 
@@ -2676,8 +2683,13 @@ class DOForm extends Component
         }
     }
 
-    private function deductFromBatchesFifo(int $itemId, int $deductQty, bool $isDraft = false): void
+    private function deductFromBatchesFifo(int $itemId, float $deductQty, bool $isDraft = false): void
     {
+        $deductQty = $this->normalizeDoStockQty($deductQty);
+        if ($deductQty <= 0) {
+            return;
+        }
+
         // Get all batches for this item (including zero/negative quantities)
         $batches = BatchTracking::where('item_id', $itemId)
             ->orderBy('received_date', 'asc')
@@ -2761,8 +2773,13 @@ class DOForm extends Component
         }
     }
 
-    private function restoreToBatchesFifo(int $itemId, int $restoreQty): void
+    private function restoreToBatchesFifo(int $itemId, float $restoreQty): void
     {
+        $restoreQty = $this->normalizeDoStockQty($restoreQty);
+        if ($restoreQty <= 0) {
+            return;
+        }
+
         // Find the oldest batch to restore stock to
         $oldestBatch = BatchTracking::where('item_id', $itemId)
             ->orderBy('received_date', 'asc')
@@ -2789,8 +2806,13 @@ class DOForm extends Component
         }
     }
 
-    private function restoreToBatchesFromDoTransactions(int $itemId, int $restoreQty, bool $isDraft = false): void
+    private function restoreToBatchesFromDoTransactions(int $itemId, float $restoreQty, bool $isDraft = false): void
     {
+        $restoreQty = $this->normalizeDoStockQty($restoreQty);
+        if ($restoreQty <= 0) {
+            return;
+        }
+
         // First, restore based on previous transactions of this DO (most recent first)
         $transactions = Transaction::where('item_id', $itemId)
             ->where('source_type', 'DO')

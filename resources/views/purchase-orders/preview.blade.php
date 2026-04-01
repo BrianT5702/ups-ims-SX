@@ -1005,7 +1005,13 @@
                                 </div>
                             @endif
                         </td>
-                        <td>{{ $item->quantity }}</td>
+                        <td>
+                            @php
+                                $q = floatval($item->quantity);
+                                $qtyFmt = (round($q) == $q) ? number_format($q, 0) : ((round($q * 100) == round($q * 10) * 10) ? number_format($q, 1) : number_format($q, 2));
+                            @endphp
+                            {{ $qtyFmt }}
+                        </td>
                         <td>{{ $item->total_price_line_item > 0 ? number_format($item->unit_price, 2) : '' }}</td>
                         <td>{{ $item->total_price_line_item > 0 ? number_format($item->total_price_line_item, 2) : '' }}</td>
                     </tr>

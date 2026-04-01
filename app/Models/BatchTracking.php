@@ -17,6 +17,10 @@ class BatchTracking extends BaseModel
         'received_by'
     ];
 
+    protected $casts = [
+        'quantity' => 'float',
+    ];
+
     public function purchaseOrder()
     {
         return $this->belongsTo(PurchaseOrder::class, 'po_id');

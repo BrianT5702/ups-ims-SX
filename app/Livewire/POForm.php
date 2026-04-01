@@ -114,7 +114,7 @@ class POForm extends Component
                         'memo' => $poItem->item->memo ?? '',
                         'details' => $poItem->item->details ?? '',
                     ],
-                    'item_qty' => $poItem->quantity,
+                    'item_qty' => floatval($poItem->quantity),
                     'total_qty_received' => $poItem->total_qty_received,
                     'item_unit_price' => $poItem->unit_price,
                     'more_description' => $poItem->more_description,
@@ -294,8 +294,8 @@ class POForm extends Component
             return;
         }
 
-        $received = intval($this->stackedItems[$index]['total_qty_received'] ?? 0);
-        if ($received > 0) {
+        $received = floatval($this->stackedItems[$index]['total_qty_received'] ?? 0);
+        if ($received > 0.00001) {
             toastr()->error('Cannot delete item that has received quantity');
             return;
         }
@@ -340,7 +340,7 @@ class POForm extends Component
             return;
         }
         $this->validate( [
-            'stackedItems.*.item_qty' => 'required|integer|min:1',
+            'stackedItems.*.item_qty' => 'required|numeric|min:0.01',
             'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
         ]);
@@ -361,7 +361,7 @@ class POForm extends Component
             // Replace items
             PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)->delete();
             foreach ($this->stackedItems as $item) {
-                $qty = intval($item['item_qty'] ?? 0);
+                $qty = floatval($item['item_qty'] ?? 0);
                 $price = floatval($item['item_unit_price'] ?? 0);
                 $lineTotal = $qty * $price;
                 PurchaseOrderItem::create([
@@ -393,7 +393,7 @@ class POForm extends Component
             'po_num' => ['required', new UniqueInCurrentDatabase('purchase_orders', 'po_num', $this->purchaseOrder?->id)],
             'supplier_id' => $this->purchaseOrder ? 'nullable' : ['required', new ExistsInCurrentDatabase('suppliers', 'id')], // Check current session DB
             'date' => 'required|date',
-            'stackedItems.*.item_qty' => 'required|integer|min:1',
+            'stackedItems.*.item_qty' => 'required|numeric|min:0.01',
             'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
         ], [
@@ -404,8 +404,8 @@ class POForm extends Component
             'date.required' => 'The date field is required.',
             'date.date' => 'The date must be a valid date.',
             'stackedItems.*.item_qty.required' => 'The item quantity is required for each item.',
-            'stackedItems.*.item_qty.integer' => 'The item quantity must be an integer.',
-            'stackedItems.*.item_qty.min' => 'The item quantity must be at least 1.',
+            'stackedItems.*.item_qty.numeric' => 'The item quantity must be a number.',
+            'stackedItems.*.item_qty.min' => 'The item quantity must be at least 0.01.',
             'stackedItems.*.item_unit_price.required' => 'The unit price is required for each item.',
             'stackedItems.*.item_unit_price.numeric' => 'The unit price must be a number.',
             'stackedItems.*.item_unit_price.min' => 'The unit price must be at least 0.',
@@ -542,7 +542,7 @@ class POForm extends Component
             'po_num' => ['required', new UniqueInCurrentDatabase('purchase_orders', 'po_num', $this->purchaseOrder?->id)],
             'supplier_id' => $this->purchaseOrder ? 'nullable' : ['required', new ExistsInCurrentDatabase('suppliers', 'id')],
             'date' => 'required|date',
-            'stackedItems.*.item_qty' => 'required|integer|min:1',
+            'stackedItems.*.item_qty' => 'required|numeric|min:0.01',
             'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
         ], [], [
@@ -679,7 +679,7 @@ class POForm extends Component
         $validationErrors = [];
         $hasReceive = false;
         foreach ($this->stackedItems as $index => $item) {
-            $receiveQty = intval($item['receive_qty'] ?? 0);
+            $receiveQty = floatval($item['receive_qty'] ?? 0);
             $updateCost = floatval($item['update_cost'] ?? 0);
             $updateCustPrice = floatval($item['update_cust_price'] ?? 0);
             $updateTermPrice = floatval($item['update_term_price'] ?? 0);
@@ -697,10 +697,11 @@ class POForm extends Component
     
             $itemRecord = Item::find($item['item']['id']);
     
-            if ($receiveQty > 0) {
+            if ($receiveQty > 0.00001) {
                 $hasReceive = true;
-                $newTotalReceived = ($poItem->total_qty_received ?? 0) + $receiveQty;
-                if ($newTotalReceived > $poItem->quantity) {
+                $newTotalReceived = round(floatval($poItem->total_qty_received ?? 0) + $receiveQty, 4);
+                $orderedQty = round(floatval($poItem->quantity), 4);
+                if ($newTotalReceived - $orderedQty > 0.0001) {
                     $validationErrors[] = 'Total received quantity for item code ' . $item['item']['item_code'] . ' cannot exceed ordered quantity';
                     continue;
                 }
@@ -742,7 +743,7 @@ class POForm extends Component
         try {
             $hasUpdates = false;
             foreach ($this->stackedItems as $index => $item) {
-                $receiveQty = intval($item['receive_qty'] ?? 0);
+                $receiveQty = floatval($item['receive_qty'] ?? 0);
                 $updateCost = floatval($item['update_cost'] ?? 0);
                 $updateCustPrice = floatval($item['update_cust_price'] ?? 0);
                 $updateTermPrice = floatval($item['update_term_price'] ?? 0);
@@ -754,7 +755,7 @@ class POForm extends Component
     
                 $itemRecord = Item::find($item['item']['id']);
     
-                if ($receiveQty > 0) {
+                if ($receiveQty > 0.00001) {
 
                     $newBatch = BatchTracking::create([
                         'batch_num' => $batchNumber,
@@ -860,10 +861,19 @@ class POForm extends Component
             return;
         }
 
+        if (preg_match('/stackedItems\.\d+\.receive_qty/', $propertyName)) {
+            if (preg_match('/stackedItems\.(\d+)\.receive_qty/', $propertyName, $m3)) {
+                $i3 = (int)$m3[1];
+                $rq = $this->stackedItems[$i3]['receive_qty'] ?? null;
+                $this->stackedItems[$i3]['receive_qty'] = $rq === '' || $rq === null ? null : floatval($rq);
+            }
+            return;
+        }
+
         if (preg_match('/stackedItems\.\d+\.(item_qty|item_unit_price)/', $propertyName)) {
             if (preg_match('/stackedItems\.(\d+)\.item_qty/', $propertyName, $m)) {
                 $i = (int)$m[1];
-                $this->stackedItems[$i]['item_qty'] = intval($this->stackedItems[$i]['item_qty'] ?? 0);
+                $this->stackedItems[$i]['item_qty'] = floatval($this->stackedItems[$i]['item_qty'] ?? 0);
             }
             if (preg_match('/stackedItems\.(\d+)\.item_unit_price/', $propertyName, $m2)) {
                 $i2 = (int)$m2[1];
@@ -883,7 +893,7 @@ class POForm extends Component
     
         foreach ($this->stackedItems as $key => $item) {
            
-            $item_qty = intval($item['item_qty'] ?? 0);
+            $item_qty = floatval($item['item_qty'] ?? 0);
             $item_unit_price = floatval($item['item_unit_price'] ?? 0);
             
             $total_price_line_item = $item_qty * $item_unit_price;
@@ -903,7 +913,7 @@ class POForm extends Component
                 'po_num' => ['required', new UniqueInCurrentDatabase('purchase_orders', 'po_num', $this->purchaseOrder?->id)],
                 'supplier_id' => $this->purchaseOrder ? 'nullable' : ['required', new ExistsInCurrentDatabase('suppliers', 'id')],
                 'date' => 'required|date',
-                'stackedItems.*.item_qty' => 'required|integer|min:1',
+                'stackedItems.*.item_qty' => 'required|numeric|min:0.01',
                 'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
                 'tax_rate' => 'nullable|numeric|min:0|max:100',
             ], [], [

@@ -20,6 +20,13 @@ class PurchaseOrderItem extends BaseModel
         'more_description',
     ];
 
+    protected $casts = [
+        'quantity' => 'float',
+        'total_qty_received' => 'float',
+        'unit_price' => 'float',
+        'total_price_line_item' => 'float',
+    ];
+
     public function purchaseOrder()
     {
         return $this->belongsTo(PurchaseOrder::class, 'po_id');

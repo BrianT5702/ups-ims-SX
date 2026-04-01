@@ -278,12 +278,13 @@
                                                     <input type="number" 
                                                         wire:model.lazy="stackedItems.{{ $index }}.item_qty" 
                                                         class="form-control rounded @error('stackedItems.'.$index.'.item_qty') is-invalid @enderror" 
-                                                        min="1" 
+                                                        min="0.01" 
+                                                        step="0.01" 
                                                         {{ (
                                                             $isView 
                                                             || ($purchaseOrder && $purchaseOrder->status === 'In Progress' && !$isRevising)
                                                             || ($purchaseOrder && $purchaseOrder->status === 'Approved')
-                                                            || (($item['total_qty_received'] ?? 0) > 0)
+                                                            || ((float)($item['total_qty_received'] ?? 0) > 0.00001)
                                                         ) ? 'disabled' : '' }}>
                                                     @error('stackedItems.'.$index.'.item_qty')
                                                         <p class="text-danger">{{ $message }}</p>
@@ -300,7 +301,7 @@
                                                             $isView 
                                                             || ($purchaseOrder && $purchaseOrder->status === 'In Progress' && !$isRevising) 
                                                             || ($purchaseOrder && $purchaseOrder->status === 'Approved')
-                                                            || (($item['total_qty_received'] ?? 0) > 0)
+                                                            || ((float)($item['total_qty_received'] ?? 0) > 0.00001)
                                                         ) ? 'disabled' : '' }}>
                                                     @error('stackedItems.'.$index.'.item_unit_price')
                                                         <p class="text-danger">{{ $message }}</p>
@@ -313,17 +314,17 @@
                                                     <td>{{ $item['total_qty_received'] ?? 0 }}</td>
                                                     @if(!$isView)
                                                         <td class="col-actions">
-                                                        <input type="number" step="1"
+                                                        <input type="number" step="0.01"
                                                             wire:model="stackedItems.{{ $index }}.receive_qty"
                                                             class="form-control form-control-sm rounded"
-                                                            min="0" max="{{ (($item['total_qty_received'] ?? 0) != 0) ? ($item['item_qty'] - ($item['total_qty_received'] ?? 0)) : $item['item_qty'] }}" {{ ($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Rejected' || (($item['total_qty_received'] ?? 0) == $item['item_qty'])) ? 'disabled' : '' }}>
+                                                            min="0" max="{{ max(0, round((float)($item['item_qty'] ?? 0) - (float)($item['total_qty_received'] ?? 0), 4)) }}" {{ ($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Rejected' || (abs((float)($item['item_qty'] ?? 0) - (float)($item['total_qty_received'] ?? 0)) < 0.00001)) ? 'disabled' : '' }}>
                                                         </td>
                                                         @if($isRevising)
                                                             <td>
                                                                 <button type="button" class="btn btn-danger btn-sm"
                                                                     wire:click="removeItem({{ $index }})"
                                                                     title="Delete" aria-label="Delete"
-                                                                    {{ ($item['total_qty_received'] ?? 0) > 0 ? 'disabled' : '' }}>
+                                                                    {{ ((float)($item['total_qty_received'] ?? 0) > 0.00001) ? 'disabled' : '' }}>
                                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                                                                         <path d="M5.5 5.5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m5 0a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5M2.5 3a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h2.5a1 1 0 0 1 0 2H2.5a1 1 0 0 1 0-2M3.5 4l1 10.5A2 2 0 0 0 6.49 16h3.02a2 2 0 0 0 1.99-1.5L12.5 4z"/>
                                                                     </svg>
