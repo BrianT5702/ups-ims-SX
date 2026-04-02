@@ -67,6 +67,44 @@ class POForm extends Component
             ->first();
     }
 
+    /**
+     * Rebuild the editable `stackedItems` from the persisted PO records.
+     * This ensures when users enter "Revise" we start from the current saved qty/price.
+     */
+    private function syncStackedItemsFromPurchaseOrder(): void
+    {
+        if (!$this->purchaseOrder?->id) {
+            return;
+        }
+
+        $this->purchaseOrder->loadMissing(['items.item']);
+
+        $this->stackedItems = [];
+        foreach ($this->purchaseOrder->items as $poItem) {
+            $this->stackedItems[] = [
+                'po_item_id' => $poItem->id,
+                'item' => [
+                    'id' => $poItem->item->id,
+                    'item_code' => $poItem->item->item_code,
+                    'item_name' => $poItem->item->item_name,
+                    'qty' => $poItem->item->qty,
+                    'cost' => $poItem->item->cost,
+                    'cust_price' => $poItem->item->cust_price,
+                    'term_price' => $poItem->item->term_price,
+                    'cash_price' => $poItem->item->cash_price,
+                    'memo' => $poItem->item->memo ?? '',
+                    'details' => $poItem->item->details ?? '',
+                ],
+                'item_qty' => floatval($poItem->quantity),
+                'total_qty_received' => floatval($poItem->total_qty_received ?? 0),
+                'item_unit_price' => $poItem->unit_price,
+                'more_description' => $poItem->more_description,
+                'total_price_line_item' => $poItem->total_price_line_item,
+                'custom_item_name' => $poItem->custom_item_name ?? $poItem->item->item_name,
+            ];
+        }
+    }
+
     private function generateBatchNumber()
     {
         $date = now()->format('Ymd');
@@ -137,6 +175,37 @@ class POForm extends Component
                     'custom_item_name' => $poItem->custom_item_name ?? $poItem->item->item_name,
                 ];
             }
+
+                // NEW WORKFLOW:
+                // If a PO is Completed and the user navigates to the Edit route,
+                // reopen it for further receiving (so they can add more lines and
+                // click Update Item again).
+                //
+                // BUT: if the user is specifically entering "Update Cost/Price" mode
+                // (via ?update_cost=1), keep the PO status as Completed and don't
+                // auto-enter revise mode.
+                $wantsUpdateCost = (bool) request()->query('update_cost');
+                if ($wantsUpdateCost) {
+                    $this->isRevising = false;
+                }
+
+                if (!$wantsUpdateCost && $this->isEdit && $this->purchaseOrder && $this->purchaseOrder->status === 'Completed') {
+                    $this->purchaseOrder->status = 'In Progress';
+                    $this->purchaseOrder->updated_by = auth()->id();
+                    $this->purchaseOrder->save();
+                    $this->status = 'In Progress';
+
+                    // Auto-enter revise mode on first edit after completion so the user
+                    // doesn't need to click "Revise" twice.
+                    // Re-sync editable values from DB so current qty/received qty match.
+                    $this->tax_rate = $this->purchaseOrder->tax_rate ?? 0;
+                    $this->syncStackedItemsFromPurchaseOrder();
+                    $this->calculateTotalPrice();
+
+                    $this->backupStackedItems = $this->stackedItems;
+                    $this->backupTaxRate = $this->tax_rate;
+                    $this->isRevising = true;
+                }
         } else {
             $this->date = now()->toDateString();
             $this->po_num = 'PO' . time();
@@ -304,13 +373,14 @@ class POForm extends Component
             return;
         }
 
-        // In Progress: only allow remove while revising AND when nothing received yet
-        if ($this->status === 'In Progress' && !$this->isRevising) {
+        // In Progress: only allow remove while revising AND when nothing received yet.
+        // Use $purchaseOrder->status as the source of truth (UI reads from purchaseOrder->status).
+        if (($this->purchaseOrder?->status ?? null) === 'In Progress' && !$this->isRevising) {
             return;
         }
 
         $received = floatval($this->stackedItems[$index]['total_qty_received'] ?? 0);
-        if ($received > 0.00001) {
+        if ($received > 0.00001 && !$this->isRevising) {
             toastr()->error('Cannot delete item that has received quantity');
             return;
         }
@@ -322,9 +392,13 @@ class POForm extends Component
 
     public function toggleRevise()
     {
-        if ($this->purchaseOrder && $this->status === 'In Progress') {
+        if ($this->purchaseOrder && $this->purchaseOrder->status === 'In Progress') {
             if (!$this->isRevising) {
                 // Entering revise mode: snapshot current values
+                // Ensure the editable values reflect the latest saved PO.
+                $this->tax_rate = $this->purchaseOrder->tax_rate ?? 0;
+                $this->syncStackedItemsFromPurchaseOrder();
+                $this->calculateTotalPrice();
                 $this->backupStackedItems = $this->stackedItems;
                 $this->backupTaxRate = $this->tax_rate;
                 $this->isRevising = true;
@@ -347,11 +421,7 @@ class POForm extends Component
 
     public function saveRevision()
     {
-        if (!($this->purchaseOrder && $this->status === 'In Progress' && $this->isRevising)) {
-            return;
-        }
-        if (empty($this->stackedItems)) {
-            toastr()->error('At least one item is required to save the revision');
+        if (!($this->purchaseOrder && $this->purchaseOrder->status === 'In Progress' && $this->isRevising)) {
             return;
         }
         $this->validate( [
@@ -361,6 +431,87 @@ class POForm extends Component
         ]);
 
         try {
+            DB::beginTransaction();
+
+            // Reconcile inventory when user deletes PO lines during revise.
+            // If a previously-received line is removed from the PO, we must rollback
+            // the received quantity back into inventory.
+            $previousByItemId = [];
+            foreach ($this->backupStackedItems as $row) {
+                $itemId = (int)($row['item']['id'] ?? 0);
+                if ($itemId <= 0) {
+                    continue;
+                }
+                $previousByItemId[$itemId] = floatval($row['total_qty_received'] ?? 0);
+            }
+
+            $currentItemIds = [];
+            foreach ($this->stackedItems as $row) {
+                $itemId = (int)($row['item']['id'] ?? 0);
+                if ($itemId > 0) {
+                    $currentItemIds[$itemId] = true;
+                }
+            }
+
+            foreach ($previousByItemId as $itemId => $receivedQty) {
+                $receivedQty = floatval($receivedQty);
+                if ($receivedQty <= 0.00001) {
+                    continue;
+                }
+                // Only rollback if the line was removed from the PO during revise.
+                if (!empty($currentItemIds[$itemId])) {
+                    continue;
+                }
+
+                $itemRecord = Item::find($itemId);
+                if (!$itemRecord) {
+                    continue;
+                }
+
+                $qtyBefore = floatval($itemRecord->qty ?? 0);
+
+                $batches = BatchTracking::where('po_id', $this->purchaseOrder->id)
+                    ->where('item_id', $itemId)
+                    ->orderBy('received_date', 'desc')
+                    ->get();
+
+                $remainingToRollback = $receivedQty;
+                foreach ($batches as $batch) {
+                    if ($remainingToRollback <= 0.00001) {
+                        break;
+                    }
+                    $batchQty = floatval($batch->quantity ?? 0);
+                    if ($batchQty <= 0) {
+                        continue;
+                    }
+                    $take = min($batchQty, $remainingToRollback);
+                    $batch->quantity = $batchQty - $take;
+                    $batch->save();
+                    $remainingToRollback = round($remainingToRollback - $take, 4);
+                }
+
+                // Recalculate item qty from batches
+                $qtyAfter = floatval(BatchTracking::where('item_id', $itemId)->sum('quantity'));
+                $itemRecord->qty = $qtyAfter;
+                $itemRecord->save();
+
+                $actualRolledBack = $receivedQty - $remainingToRollback;
+                if ($actualRolledBack > 0.00001) {
+                    Transaction::create([
+                        'item_id' => $itemId,
+                        'qty_on_hand' => $qtyAfter,
+                        'qty_before' => $qtyBefore,
+                        'qty_after' => $qtyAfter,
+                        'transaction_qty' => $actualRolledBack,
+                        'transaction_type' => 'Stock Out',
+                        'user_id' => auth()->id(),
+                        'source_type' => 'PO Reversal',
+                        'source_doc_num' => $this->po_num,
+                        'batch_id' => $batches->last()?->id,
+                    ]);
+                }
+            }
+
             $this->calculateTotalPrice();
 
             // Update PO totals
@@ -375,11 +526,34 @@ class POForm extends Component
 
             // Replace items (keep received qty per line; cap if order qty was reduced)
             PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)->delete();
+
+            // When saving a revision, always keep received qty from the revise snapshot
+            // (backupStackedItems) if available. This prevents accidental resets to 0
+            // due to transient UI state.
+            $receivedByPoItemId = [];
+            foreach ($this->backupStackedItems as $row) {
+                $poItemId = (int)($row['po_item_id'] ?? 0);
+                if ($poItemId <= 0) {
+                    continue;
+                }
+                $receivedByPoItemId[$poItemId] = floatval($row['total_qty_received'] ?? 0);
+            }
+
             foreach ($this->stackedItems as $idx => $item) {
                 $qty = floatval($item['item_qty'] ?? 0);
                 $price = floatval($item['item_unit_price'] ?? 0);
                 $lineTotal = $qty * $price;
-                $received = min(floatval($item['total_qty_received'] ?? 0), $qty);
+                $poItemId = (int)($item['po_item_id'] ?? 0);
+                $receivedFromBackup = $poItemId > 0 && array_key_exists($poItemId, $receivedByPoItemId)
+                    ? floatval($receivedByPoItemId[$poItemId])
+                    : floatval($item['total_qty_received'] ?? 0);
+                // IMPORTANT:
+                // Do NOT cap received qty to new ordered qty during saveRevision.
+                // Inventory has not changed yet, so received qty should remain the
+                // actual received amount. If ordered qty is reduced, the line can
+                // temporarily be over-received until the user clicks "Update Item"
+                // again (which will only post remaining qty).
+                $received = $receivedFromBackup;
                 $created = PurchaseOrderItem::create([
                     'po_id' => $this->purchaseOrder->id,
                     'item_id' => $item['item']['id'],
@@ -399,7 +573,10 @@ class POForm extends Component
             $this->backupStackedItems = [];
             $this->backupTaxRate = null;
             toastr()->success('Revision saved');
+
+            DB::commit();
         } catch (\Exception $e) {
+            DB::rollBack();
             toastr()->error('Failed to save revision: ' . $e->getMessage());
         }
     }
@@ -803,7 +980,9 @@ class POForm extends Component
 
                 $orderedQty = round(floatval($poItem->quantity), 4);
                 $alreadyReceived = round(floatval($poItem->total_qty_received ?? 0), 4);
-                $receiveQty = max(0, round($orderedQty - $alreadyReceived, 4));
+                $deltaQty = round($orderedQty - $alreadyReceived, 4);
+                $receiveQty = $deltaQty > 0 ? $deltaQty : 0;
+                $rollbackQty = $deltaQty < 0 ? abs($deltaQty) : 0;
                 // LEGACY: $receiveQty = floatval($item['receive_qty'] ?? 0);
     
                 if ($receiveQty > 0.00001) {
@@ -844,6 +1023,63 @@ class POForm extends Component
                         'batch_id' => $newBatch->id,
                     ]);
     
+                    $hasUpdates = true;
+                }
+
+                // If user reduced PO ordered qty below already received qty,
+                // rollback the excess stock from this PO's batches.
+                if ($rollbackQty > 0.00001) {
+                    $qtyOnHandBefore = round(floatval($itemRecord->qty), 4);
+
+                    $batches = BatchTracking::where('po_id', $this->purchaseOrder->id)
+                        ->where('item_id', $item['item']['id'])
+                        ->orderBy('received_date', 'desc')
+                        ->get();
+
+                    $remainingRollback = $rollbackQty;
+                    $lastTouchedBatchId = null;
+
+                    foreach ($batches as $batch) {
+                        if ($remainingRollback <= 0.00001) {
+                            break;
+                        }
+
+                        $batchQty = floatval($batch->quantity ?? 0);
+                        if ($batchQty <= 0) {
+                            continue;
+                        }
+
+                        $take = min($batchQty, $remainingRollback);
+                        $batch->quantity = $batchQty - $take;
+                        $batch->save();
+
+                        $remainingRollback = round($remainingRollback - $take, 4);
+                        $lastTouchedBatchId = $batch->id;
+                    }
+
+                    // Recalculate on-hand after rollback
+                    $itemRecord->qty = BatchTracking::where('item_id', $itemRecord->id)->sum('quantity');
+                    $qtyOnHandAfter = round(floatval($itemRecord->qty), 4);
+
+                    $poItem->total_qty_received = $orderedQty;
+                    $poItem->save();
+
+                    $this->stackedItems[$index]['total_qty_received'] = $orderedQty;
+                    $this->stackedItems[$index]['item']['qty'] = $qtyOnHandAfter;
+
+                    Transaction::create([
+                        'item_id' => $itemRecord->id,
+                        'qty_on_hand' => $qtyOnHandAfter,
+                        'qty_before' => $qtyOnHandBefore,
+                        'qty_after' => $qtyOnHandAfter,
+                        'transaction_qty' => $rollbackQty,
+                        'transaction_type' => 'Stock Out',
+                        'user_id' => auth()->id(),
+                        'source_type' => 'PO Reversal',
+                        'source_doc_num' => $this->po_num,
+                        'batch_id' => $lastTouchedBatchId,
+                    ]);
+
                     $hasUpdates = true;
                 }
     
@@ -887,8 +1123,13 @@ class POForm extends Component
             $allItemsReceived = PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)
                 ->where('quantity', '>', DB::raw('COALESCE(total_qty_received, 0)'))
                 ->count() === 0;
-    
+
+            // NEW WORKFLOW: after "Update Item" we keep the PO editable (In Progress)
+            // so users can add more items later and receive them.
+            //
+            // LEGACY: mark as Completed when everything was received.
             if ($allItemsReceived) {
+                // LEGACY: mark as Completed when everything was received.
                 $this->purchaseOrder->status = 'Completed';
                 $this->purchaseOrder->updated_by = auth()->id();
                 $this->purchaseOrder->save();
@@ -896,7 +1137,13 @@ class POForm extends Component
             }
     
             DB::commit();
-            // Stay on this PO edit page
+            // NEW WORKFLOW:
+            // - After Update Item completes the PO, keep it in Completed view-only mode.
+            // - When user clicks Edit later, mount() will reopen it as In Progress for further receiving.
+            if (($this->purchaseOrder && $this->purchaseOrder->status === 'Completed')) {
+                return redirect()->to("/purchase-orders/{$this->purchaseOrder->id}/view");
+            }
+            // Stay on this PO edit page when it's not fully received yet.
             return redirect()->to("/purchase-orders/{$this->purchaseOrder->id}/edit");
         } catch (\Exception $e) {
             DB::rollBack();

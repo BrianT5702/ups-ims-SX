@@ -229,15 +229,7 @@
                                                         </button>
                                                     @endif
                                                 </div>
-                                                @if(!empty($item['item']['details']))
-                                                    <div class="mt-1 ms-3 text-muted" style="font-size: 0.85em;">
-                                                        @foreach(explode("\n", $item['item']['details']) as $line)
-                                                            @if(trim($line) !== '')
-                                                                <div>• {{ $line }}</div>
-                                                            @endif
-                                                        @endforeach
-                                                    </div>
-                                                @endif
+                                                {{-- Hide item master details in PO form UI (preview/print still uses item->details + more_description). --}}
                                                 @if($isView && !empty($stackedItems[$index]['more_description']))
                                                     <div class="mt-1 ms-3 text-muted" style="font-size: 0.85em;">
                                                         @foreach(explode("\n", $stackedItems[$index]['more_description']) as $line)
@@ -281,9 +273,14 @@
                                             @if($purchaseOrder && $purchaseOrder->status === 'Completed')
                                                 <td>
                                                     {{ $item['item_qty'] }}
+                                                    @php
+                                                        $currentOnHand = (float) \App\Models\BatchTracking::where('item_id', $item['item']['id'])->sum('quantity');
+                                                        $receivedQty = (float) ($item['total_qty_received'] ?? 0);
+                                                        $qtyOnHandBeforeThisPO = $currentOnHand - $receivedQty;
+                                                        $currentForDisplay = $isRevising ? $qtyOnHandBeforeThisPO : $currentOnHand;
+                                                    @endphp
                                                     <div class="text-muted small mt-1">
-                                                    Current:{{ \App\Models\BatchTracking::where('item_id', $item['item']['id'])->sum('quantity') }}
-
+                                                        Current:{{ number_format((float)$currentForDisplay, 2, '.', '') }}
                                                     </div>
                                                 </td>
                                                 <td>{{ number_format((float)($item['item_unit_price'] ?? 0), 2) }}</td> <!-- Display Unit Price from model -->
@@ -293,8 +290,14 @@
                                                 @else
 
                                             
-                                                <td>{{ \App\Models\BatchTracking::where('item_id', $item['item']['id'])->sum('quantity') }}
-                                                </td>
+                                                @php
+                                                    $currentOnHand = (float) \App\Models\BatchTracking::where('item_id', $item['item']['id'])->sum('quantity');
+                                                    $receivedQty = (float) ($item['total_qty_received'] ?? 0);
+                                                    // Show "qty on hand before this PO's received quantity" so users can revise order qty
+                                                    // without being confused by the stock that was already posted.
+                                                    $qtyOnHandBeforeThisPO = $currentOnHand - $receivedQty;
+                                                @endphp
+                                                <td>{{ number_format($qtyOnHandBeforeThisPO, 2, '.', '') }}</td>
                                                 <td>
                                                     <input type="number" 
                                                         wire:model.lazy="stackedItems.{{ $index }}.item_qty" 
@@ -303,9 +306,8 @@
                                                         step="0.01" 
                                                         {{ (
                                                             $isView 
-                                                            || ($purchaseOrder && $purchaseOrder->status === 'In Progress' && !$isRevising)
                                                             || ($purchaseOrder && $purchaseOrder->status === 'Approved')
-                                                            || ((float)($item['total_qty_received'] ?? 0) > 0.00001)
+                                                            || (((float)($item['total_qty_received'] ?? 0) > 0.00001) && !$isRevising)
                                                         ) ? 'disabled' : '' }}>
                                                     @error('stackedItems.'.$index.'.item_qty')
                                                         <p class="text-danger">{{ $message }}</p>
@@ -320,9 +322,8 @@
                                                         min="0" 
                                                         {{ (
                                                             $isView 
-                                                            || ($purchaseOrder && $purchaseOrder->status === 'In Progress' && !$isRevising) 
                                                             || ($purchaseOrder && $purchaseOrder->status === 'Approved')
-                                                            || ((float)($item['total_qty_received'] ?? 0) > 0.00001)
+                                                            || (((float)($item['total_qty_received'] ?? 0) > 0.00001) && !$isRevising)
                                                         ) ? 'disabled' : '' }}>
                                                     @error('stackedItems.'.$index.'.item_unit_price')
                                                         <p class="text-danger">{{ $message }}</p>
@@ -347,7 +348,8 @@
                                                                 <button type="button" class="btn btn-danger btn-sm"
                                                                     wire:click="removeItem({{ $index }})"
                                                                     title="Delete" aria-label="Delete"
-                                                                    {{ ((float)($item['total_qty_received'] ?? 0) > 0.00001) ? 'disabled' : '' }}>
+                                                                    {{-- allow deletion during revise mode --}}
+                                                                    >
                                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                                                                         <path d="M5.5 5.5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m5 0a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5M2.5 3a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h2.5a1 1 0 0 1 0 2H2.5a1 1 0 0 1 0-2M3.5 4l1 10.5A2 2 0 0 0 6.49 16h3.02a2 2 0 0 0 1.99-1.5L12.5 4z"/>
                                                                     </svg>
@@ -374,7 +376,12 @@
                             </table>
 
                             @if(!$isView)
-                                @if(!$purchaseOrder || ($purchaseOrder && ($purchaseOrder->status === 'Rejected' || ($purchaseOrder->status === 'In Progress' && $isRevising) || $purchaseOrder->status === 'Save to Draft')))
+                                @if(
+                                    !$purchaseOrder
+                                    || ($purchaseOrder && ($purchaseOrder->status === 'Rejected'))
+                                    || ($purchaseOrder && ($purchaseOrder->status === 'Save to Draft'))
+                                    || ($purchaseOrder && ($purchaseOrder->status === 'In Progress' && $isRevising))
+                                )
                                     <div class="row mb-0 mt-3 pt-3 border-top">
                                         <div class="col-md-8 col-lg-6" x-data="{ hi: 0 }">
                                             <label for="po-search-item-bottom" class="fw-semibold">Search Items <span class="text-muted small fw-normal">(F2)</span></label>
@@ -527,6 +534,11 @@
                                     <a href="{{ route('purchase-orders') }}" class="btn btn-secondary">Back</a>
                                 </div>
                                 <div class="text-end">
+                                    @if($purchaseOrder->status === 'Completed')
+                                        <a href="{{ route('purchase-orders.edit', $purchaseOrder->id) }}?update_cost=1" class="btn btn-success me-2">
+                                            Update Cost/Price
+                                        </a>
+                                    @endif
                                     <a href="{{ route('purchase-orders.edit', $purchaseOrder->id) }}" class="btn btn-primary me-2">Edit</a>
                                     <a href="{{ route('print.purchase-order.preview', $purchaseOrder->id) }}" class="btn btn-info">Preview</a>
                                 </div>
@@ -567,10 +579,13 @@
                                 @endif
 
                                 @if(!$isView && $purchaseOrder && ($status === 'In Progress' || $status === 'Completed'))
-                                    <button type="button" class="btn btn-success me-2" 
-                                            wire:click="receiveItems">
-                                        {{ $status === 'Completed' ? 'Update Cost/Price' : 'Update Item' }}
-                                    </button>
+                                    {{-- Hide "Update Item" while the user is revising to avoid confusion. --}}
+                                    @if($status === 'Completed' || !$isRevising)
+                                        <button type="button" class="btn btn-success me-2" 
+                                                wire:click="receiveItems">
+                                            {{ $status === 'Completed' ? 'Update Cost/Price' : 'Update Item' }}
+                                        </button>
+                                    @endif
                                     @if($status === 'In Progress')
                                         <button type="button" class="btn btn-warning me-2" wire:click="toggleRevise">
                                             {{ $isRevising ? 'Cancel Revise' : 'Revise' }}
