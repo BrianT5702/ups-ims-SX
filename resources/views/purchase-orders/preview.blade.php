@@ -25,8 +25,8 @@
         }
 
         /*
-         * One “logical page” height for PO preview + paginatePO(). Must match getPageHeight():
-         * Letter minus @page top/bottom margins (0.5cm each), then × PAGE_HEIGHT_FACTOR.
+         * Minimum visual height per printed sheet (paginatePO uses row count; this keeps page boxes tall enough).
+         * Letter minus @page top/bottom margins (0.5cm each), then × factor.
          */
         :root {
             --po-page-height-factor: 0.99;
@@ -206,12 +206,12 @@
         }
 
         .items-table td {
-            padding: 4px 8px;
+            padding: 3px 7px;
             text-align: left;
             vertical-align: top;
             border-bottom: none;
-            font-size: 1.1em;
-            line-height: 1.3;
+            font-size: 1.0 em;
+            line-height: 1.2;
         }
 
         /* Fixed column widths (favoring readability and totals) */
@@ -223,6 +223,16 @@
 
 
         .items-table tbody tr:last-child td { border-bottom: none; }
+
+        /* Continuation rows: one table row per description line (grouped via data-po-line-group) */
+        .items-table tr.items-table__desc-row td:nth-child(1) {
+            border-bottom: none;
+        }
+        .items-table tr.items-table__desc-row td:nth-child(2) {
+            padding-left: 15px;
+            font-size: 1.0em;
+            color: #000;
+        }
 
         /* Totals Section Styles - only TOTAL, no subtotal/tax */
         .totals-section {
@@ -543,12 +553,27 @@
             gap: 10px;
             flex: 1 1 auto;
         }
+
+        /* Last page only: pin remark + total to bottom of body, directly above signature footer */
+        .print-page-extras-above-signature {
+            margin-top: auto;
+            flex: 0 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .print-page-extras-above-signature [data-page-remark] {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
         
-        /* Reduce spacing around remark - negative margins to counteract flex gap */
-        .print-page-body [data-page-remark],
-        .pages-container .print-page-body [data-page-remark] {
-            margin-top: -8px !important; /* Reduce top gap from 14px to 6px (14 - 8 = 6) */
-            margin-bottom: -8px !important; /* Reduce bottom gap from 14px to 6px (14 - 8 = 6) */
+        /* Reduce spacing around remark when not in bottom bundle (should not occur on paginated output) */
+        .print-page-body > [data-page-remark],
+        .pages-container .print-page-body > [data-page-remark] {
+            margin-top: -8px !important;
+            margin-bottom: -8px !important;
         }
 
         .print-page-footer {
@@ -790,7 +815,7 @@
             .items-table th {
                 font-size: 0.8em !important;
                 padding: 7px 8px 5px 8px !important;
-                line-height: 1.3 !important;
+                line-height: 1.4 !important;
                 white-space: nowrap !important;
                 overflow: visible !important;
                 text-overflow: unset !important;
@@ -798,16 +823,16 @@
 
             .items-table td {
                 padding: 4px 4px !important;
-                font-size: 1.05em !important;
+                font-size: 1.0em !important;
                 line-height: 1.2 !important;
                 vertical-align: top !important;
             }
 
             .pages-container .totals-section {
-                padding-top: 4px !important;
+                padding-top: -2px !important;
             }
             .pages-container .total-row {
-                padding: 4px 0 !important;
+                padding: 2px 0 !important;
             }
 
             .print-reminder {
@@ -859,8 +884,18 @@
                 gap: 6px !important;
             }
             
-            /* Reduce spacing around remark in print */
-            .pages-container .print-page-body [data-page-remark] {
+            .pages-container .print-page-extras-above-signature {
+                margin-top: auto !important;
+                gap: 2px !important;
+            }
+
+            .pages-container .print-page-extras-above-signature [data-page-remark] {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+            }
+
+            /* Reduce spacing around remark when direct child of body (legacy) */
+            .pages-container .print-page-body > [data-page-remark] {
                 margin-top: -6px !important;
                 margin-bottom: -6px !important;
             }
@@ -982,29 +1017,26 @@
                 </thead>
                 <tbody>
                     @foreach ($purchaseOrder->items as $index => $item)
-                    <tr>
+                    @php
+                        $poDescLines = [];
+                        if ($item->item && !empty($item->item->details)) {
+                            foreach (explode("\n", $item->item->details) as $line) {
+                                if (trim($line) !== '') {
+                                    $poDescLines[] = trim($line);
+                                }
+                            }
+                        }
+                        if (!empty($item->more_description)) {
+                            foreach (explode("\n", $item->more_description) as $line) {
+                                if (trim($line) !== '') {
+                                    $poDescLines[] = trim($line);
+                                }
+                            }
+                        }
+                    @endphp
+                    <tr data-po-line-group="{{ $index }}">
                         <td>{{ $index + 1 }}</td>
-                        <td>
-                            {{ $item->custom_item_name ?? ($item->item->item_name ?? 'N/A') }}
-                            @if(!empty($item->item->details))
-                                <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
-                                    @foreach(explode("\n", $item->item->details) as $line)
-                                        @if(trim($line) !== '')
-                                            <div>• {{ $line }}</div>
-                                        @endif
-                                    @endforeach
-                                </div>
-                            @endif
-                            @if(!empty($item->more_description))
-                                <div style="padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 5px;">
-                                    @foreach(explode("\n", $item->more_description) as $line)
-                                        @if(trim($line) !== '')
-                                            <div>• {{ $line }}</div>
-                                        @endif
-                                    @endforeach
-                                </div>
-                            @endif
-                        </td>
+                        <td>{{ $item->custom_item_name ?? ($item->item->item_name ?? 'N/A') }}</td>
                         <td>
                             @php
                                 $q = floatval($item->quantity);
@@ -1015,6 +1047,15 @@
                         <td>{{ $item->total_price_line_item > 0 ? number_format($item->unit_price, 2) : '' }}</td>
                         <td>{{ $item->total_price_line_item > 0 ? number_format($item->total_price_line_item, 2) : '' }}</td>
                     </tr>
+                    @foreach ($poDescLines as $descLine)
+                    <tr data-po-line-group="{{ $index }}" class="items-table__desc-row">
+                        <td></td>
+                        <td>• {{ $descLine }}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    @endforeach
                     @endforeach
                 </tbody>
             </table>
@@ -1119,36 +1160,11 @@
     </script>
     <script>
         (function () {
-            /** Keep equal to :root --po-page-height-factor in the stylesheet above. */
-            var PAGE_HEIGHT_FACTOR = 0.99;
+            /** Max tbody <tr> rows per page (main line + each description line each count as one). */
+            var MAX_ROWS_PER_PAGE = 25;
 
-            var pageHeightCache = null;
             var scheduled = false;
             var building = false;
-
-        function measurePx(value) {
-            var probe = document.createElement('div');
-            probe.style.position = 'absolute';
-            probe.style.visibility = 'hidden';
-            probe.style.height = value;
-            document.body.appendChild(probe);
-            var px = probe.offsetHeight;
-            document.body.removeChild(probe);
-            return px;
-        }
-
-            function getPageHeight(force, isPrintContext) {
-                var isPrintMode = isPrintContext || (window.matchMedia && window.matchMedia('print').matches);
-                if (force || !pageHeightCache || isPrintMode) {
-                    var letterPx = measurePx('11in');
-                    var marginPx = measurePx('0.5cm');
-                    var calculatedHeight = Math.max(1, Math.round(letterPx - (marginPx * 2)));
-                    
-                    // Same factor as CSS --po-page-printable-height so each .print-page box matches paginatePO().
-                    pageHeightCache = Math.round(calculatedHeight * PAGE_HEIGHT_FACTOR);
-                }
-                return pageHeightCache;
-        }
 
             function removeIds(node) {
                 if (!node) {
@@ -1219,7 +1235,7 @@
                 }
                 building = true;
 
-            try {
+                try {
                     var source = document.getElementById('print-source');
                     var pagesContainer = document.getElementById('pages-container');
                     var signatureTemplate = document.getElementById('signature-template');
@@ -1236,34 +1252,49 @@
                     }
 
                     var rows = Array.from(itemsTable.querySelectorAll('tbody tr'));
+
+                    function buildPoRowGroups(tbodyRows) {
+                        var groups = [];
+                        var i = 0;
+                        while (i < tbodyRows.length) {
+                            var row = tbodyRows[i];
+                            var key = row.getAttribute('data-po-line-group');
+                            if (key === null || key === '') {
+                                groups.push([row]);
+                                i += 1;
+                                continue;
+                            }
+                            var g = [row];
+                            i += 1;
+                            while (i < tbodyRows.length && tbodyRows[i].getAttribute('data-po-line-group') === key) {
+                                g.push(tbodyRows[i]);
+                                i += 1;
+                            }
+                            groups.push(g);
+                        }
+                        return groups;
+                    }
+
+                    var rowGroups = buildPoRowGroups(rows);
                     var remarkSource = document.getElementById('remark-source');
                     var totalsSource = document.getElementById('totals-source');
-                    // Always use preview measurements for pagination - this ensures preview and print match
-                    // The CSS page-break rules will handle actual print layout
-                    var isPrintMode = false; // Force to false to use same measurements as preview
-                    var pageHeight = getPageHeight(force, isPrintMode);
-                    /* Off-screen measure uses min-height:auto on pages; real pages use full letter height.
-                       Tuned so ~25 compact lines + header + totals + footer stay on one logical page. */
-                    var tolerance = 34;
-                    var usableHeight = pageHeight + 72;
+
                     var isFirstPage = true;
                     var activePage = null;
+                    var lastPageWithContent = null;
 
                     pagesContainer.innerHTML = '';
                     pagesContainer.style.display = 'flex';
-                    pagesContainer.setAttribute('data-measuring', 'true');
-                    // Make it visible but off-screen for accurate measurement
-                    // opacity: 0 still allows accurate offsetHeight measurements
-                    // but position it off-screen so it's not visible
-                    pagesContainer.style.opacity = '1'; // Make visible for accurate measurement
-                    pagesContainer.style.position = 'fixed';
-                    pagesContainer.style.top = '-9999px'; // Off-screen
-                    pagesContainer.style.left = '0';
-                    pagesContainer.style.width = '1000px'; // Match print page width  
-                    pagesContainer.style.height = 'auto';
-                    pagesContainer.style.pointerEvents = 'none'; // Prevent interaction
-                    pagesContainer.style.zIndex = '-9999'; // Behind everything
-                    pagesContainer.style.overflow = 'hidden'; // Only during measurement
+                    pagesContainer.removeAttribute('data-measuring');
+                    pagesContainer.style.opacity = '';
+                    pagesContainer.style.position = '';
+                    pagesContainer.style.top = '';
+                    pagesContainer.style.left = '';
+                    pagesContainer.style.width = '';
+                    pagesContainer.style.height = '';
+                    pagesContainer.style.pointerEvents = '';
+                    pagesContainer.style.zIndex = '';
+                    pagesContainer.style.overflow = '';
 
                     function ensurePage() {
                         if (!activePage) {
@@ -1272,37 +1303,12 @@
                         }
                     }
 
-                    rows.forEach(function (row) {
-                        var clone = row.cloneNode(true);
-                        ensurePage();
-                        activePage.tbody.appendChild(clone);
-                        
-                        // Force layout recalculation for accurate measurement
-                        activePage.page.getBoundingClientRect();
-                        
-                        // Use the SAME measurement method as appendBlock for consistency
-                        var bodyHeight = activePage.body ? (activePage.body.offsetHeight || 0) : 0;
-                        var footerHeight = activePage.footer ? (activePage.footer.offsetHeight || 0) : 0;
-                        var pagePadding = 40;
-                        var calculatedHeight = bodyHeight + footerHeight + pagePadding;
-                        var pageActualHeight = activePage.page.offsetHeight;
-                        var totalContentHeight = Math.min(calculatedHeight, pageActualHeight);
-
-                        if (totalContentHeight > (usableHeight - tolerance)) {
-                            activePage.tbody.removeChild(clone);
-                            activePage = null;
-                            ensurePage();
-                            activePage.tbody.appendChild(clone);
-                            activePage.page.getBoundingClientRect();
-                        }
-                    });
-
-                    if (rows.length === 0) {
-                        ensurePage();
+                    function tbodyRowCount(tbody) {
+                        return tbody ? tbody.children.length : 0;
                     }
 
-                    function appendBlock(sourceNode, attr) {
-                        if (!sourceNode) {
+                    function appendExtraBlock(targetBody, sourceNode, attr) {
+                        if (!sourceNode || !targetBody) {
                             return;
                         }
                         var clone = sourceNode.cloneNode(true);
@@ -1310,94 +1316,94 @@
                         if (attr) {
                             clone.setAttribute(attr, '');
                         }
-                        ensurePage();
-                        activePage.body.appendChild(clone);
-                        
-                        // Don't apply margin-top: auto yet - measure first without it
-                        // Then apply it only if content fits
-                        if (attr === 'data-page-total') {
-                            // Temporarily set margin-top to 0 to measure actual content height
-                            clone.style.marginTop = '0';
-                        }
-                        
-                        // Force layout recalculation
-                        activePage.page.getBoundingClientRect();
-                        
-                        // Measure the actual page content height directly
-                        // This is the most accurate - it's what the print engine sees
-                        // The page's offsetHeight gives us the total height including padding
-                        // But we need content height, so measure body + footer + account for layout
-                        var bodyHeight = activePage.body ? (activePage.body.offsetHeight || 0) : 0;
-                        var footerHeight = activePage.footer ? (activePage.footer.offsetHeight || 0) : 0;
-                        
-                        // The page has padding 20px top + 20px bottom
-                        // body and footer measurements are their content heights within the padded area
-                        // So total = body + footer + padding
-                        // BUT - if footer has margin-top: auto, there's flex spacing that's not content
-                        // Since we set margin-top to 0 during measurement, spacing is 0, so this is accurate
-                        var pagePadding = 40;
-                        var totalContentHeight = bodyHeight + footerHeight + pagePadding;
-                        
-                        // Alternative: use page's clientHeight which excludes padding but includes content
-                        // Actually, let's try using the page's offsetHeight directly since it should include everything
-                        var pageActualHeight = activePage.page.offsetHeight;
-                        // Use the smaller of the two for more accurate fitting check
-                        totalContentHeight = Math.min(totalContentHeight, pageActualHeight);
-                        
-                        // Now apply margin-top: auto if it's totals and content fits
-                        if (attr === 'data-page-total') {
-                            if (totalContentHeight <= usableHeight) {
-                                // Content fits, apply auto margin (creates space but doesn't change total height)
-                                clone.style.marginTop = 'auto';
-                                activePage.page.getBoundingClientRect();
-                            } else {
-                                // Content doesn't fit even without auto margin, keep margin 0 for accurate measurement
-                            }
-                        }
-                        
-                        // Check if it fits - use the content height we calculated
-                        if (totalContentHeight > (usableHeight - tolerance)) {
-                            activePage.body.removeChild(clone);
-                            activePage = null;
-                            ensurePage();
-                            activePage.body.appendChild(clone);
-                            if (attr === 'data-page-total') {
-                                clone.style.marginTop = 'auto';
-                            }
-                            activePage.page.getBoundingClientRect();
-                        }
+                        targetBody.appendChild(clone);
                     }
 
-                    appendBlock(remarkSource, 'data-page-remark');
-                    appendBlock(totalsSource, 'data-page-total');
-
-                    function pageHasItemRows(page) {
-                        var tbody = page.querySelector('tbody');
-                        return !!(tbody && tbody.children.length > 0);
-                    }
-
-                    /* If totals/remark were pushed alone onto a new page but all line items fit page 1, merge back. */
-                    function tryMergeTrailingExtrasOnlyPage() {
-                        var pages = pagesContainer.querySelectorAll('.print-page');
-                        if (pages.length < 2) return false;
-                        var last = pages[pages.length - 1];
-                        if (pageHasItemRows(last)) return false;
-                        var extras = Array.prototype.slice.call(
-                            last.querySelectorAll('[data-page-remark], [data-page-total]')
-                        );
-                        if (!extras.length) return false;
-                        var prev = pages[pages.length - 2];
-                        if (!pageHasItemRows(prev)) return false;
-                        var prevBody = prev.querySelector('.print-page-body');
-                        if (!prevBody) return false;
-                        extras.forEach(function (el) {
-                            prevBody.appendChild(el);
+                    rowGroups.forEach(function (groupRows) {
+                        var clones = groupRows.map(function (r) {
+                            var c = r.cloneNode(true);
+                            removeIds(c);
+                            return c;
                         });
-                        last.parentNode.removeChild(last);
-                        return true;
+                        // Keep a PO line + all its continuation description rows together
+                        // when possible. Only split if the group itself exceeds the per-page max.
+                        if (clones.length <= MAX_ROWS_PER_PAGE) {
+                            ensurePage();
+                            var space = MAX_ROWS_PER_PAGE - tbodyRowCount(activePage.tbody);
+                            if (space <= 0 || clones.length > space) {
+                                activePage = null;
+                                ensurePage();
+                            }
+                            clones.forEach(function (c) {
+                                activePage.tbody.appendChild(c);
+                            });
+                            lastPageWithContent = activePage;
+                            if (tbodyRowCount(activePage.tbody) >= MAX_ROWS_PER_PAGE) {
+                                activePage = null;
+                            }
+                        } else {
+                            // LEGACY split fallback: a single PO line (with very long description) can
+                            // be longer than MAX_ROWS_PER_PAGE, so we split it across pages.
+                            var gi = 0;
+                            while (gi < clones.length) {
+                                ensurePage();
+                                var space = MAX_ROWS_PER_PAGE - tbodyRowCount(activePage.tbody);
+                                if (space <= 0) {
+                                    activePage = null;
+                                    ensurePage();
+                                    space = MAX_ROWS_PER_PAGE;
+                                }
+                                var take = Math.min(space, clones.length - gi);
+                                for (var t = 0; t < take; t++) {
+                                    activePage.tbody.appendChild(clones[gi + t]);
+                                }
+                                gi += take;
+                                lastPageWithContent = activePage;
+                                if (tbodyRowCount(activePage.tbody) >= MAX_ROWS_PER_PAGE) {
+                                    activePage = null;
+                                }
+                            }
+                        }
+                    });
+
+                    if (rows.length === 0) {
+                        ensurePage();
+                        lastPageWithContent = activePage;
                     }
 
-                    while (tryMergeTrailingExtrasOnlyPage()) { /* repeat if chain of empty trailing pages */ }
+                    if (!lastPageWithContent) {
+                        ensurePage();
+                        lastPageWithContent = activePage;
+                    }
+
+                    // Extras page placement rules:
+                    // - Totals WITHOUT remark: totals can stay on the last item page even if it already has MAX_ROWS_PER_PAGE.
+                    // - With remark: estimate "remark + total" space as (remarkLines + 2).
+                    //   If (itemRowsOnLastPage + (remarkLines + 2)) > MAX_ROWS_PER_PAGE, move remark+total to a new page.
+                    var extrasTarget = lastPageWithContent;
+
+                    var hasRemark = !!remarkSource;
+                    var remarkLineCount = 0;
+                    if (hasRemark) {
+                        // remark uses nl2br() so each newline becomes <br>. Each segment => one visual "row".
+                        // Example: 1 remark line => brCount=0 => remarkLineCount=1
+                        var brCount = remarkSource.querySelectorAll('br').length;
+                        remarkLineCount = brCount + 1;
+                    }
+
+                    var extrasRowsNeeded = hasRemark ? (remarkLineCount + 2) : 0;
+                    var lastRowsUsed = tbodyRowCount(extrasTarget.tbody);
+                    if (extrasRowsNeeded > 0 && (lastRowsUsed + extrasRowsNeeded) > MAX_ROWS_PER_PAGE) {
+                        activePage = null;
+                        ensurePage();
+                        extrasTarget = activePage;
+                    }
+
+                    var extrasWrap = document.createElement('div');
+                    extrasWrap.className = 'print-page-extras-above-signature';
+                    appendExtraBlock(extrasWrap, remarkSource, 'data-page-remark');
+                    appendExtraBlock(extrasWrap, totalsSource, 'data-page-total');
+                    extrasTarget.body.appendChild(extrasWrap);
 
                     var renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
                     renderedPages.forEach(function (page) {
@@ -1420,17 +1426,6 @@
                         renderedPages[renderedPages.length - 1].classList.add('print-page--last');
                     }
 
-                    pagesContainer.style.opacity = '';
-                    pagesContainer.style.position = '';
-                    pagesContainer.style.top = '';
-                    pagesContainer.style.left = '';
-                    pagesContainer.style.width = '';
-                    pagesContainer.style.height = '';
-                    pagesContainer.style.pointerEvents = '';
-                    pagesContainer.style.zIndex = '';
-                    pagesContainer.style.overflow = '';
-                    pagesContainer.style.display = 'flex';
-                    pagesContainer.removeAttribute('data-measuring');
                     source.style.display = 'none';
 
                     var pageCounter = document.getElementById('page-counter');
@@ -1446,7 +1441,7 @@
                 } finally {
                     building = false;
                 }
-        }
+            }
 
             function schedulePaginate() {
                 if (scheduled) {
@@ -1492,15 +1487,13 @@
             }
 
             window.addEventListener('beforeprint', function () {
-                pageHeightCache = null;
-                setTimeout(function() {
+                setTimeout(function () {
                     paginatePO(true);
                 }, 10);
             });
-            
+
             window.addEventListener('afterprint', function () {
-                pageHeightCache = null;
-                setTimeout(function() {
+                setTimeout(function () {
                     paginatePO(true);
                 }, 10);
             });

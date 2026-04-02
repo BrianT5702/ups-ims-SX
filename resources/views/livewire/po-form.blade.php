@@ -95,11 +95,22 @@
                             </div>
                         </div>
 
+                        @if($purchaseOrder)
                         <div class="row mb-3">
                             <div class="col-md-6 mb-3">
                                 <label for="status">Status <span class="text-danger">*</span></label>
                                 <select wire:model.live="status" id="status" class="form-control" {{ $isView || ($purchaseOrder && $purchaseOrder->status === 'Completed') ? 'disabled' : '' }}>
                                     <option value="" disabled>Select a status</option>
+                                    @if($status === 'Save to Draft' || $status === 'Pending Approval')
+                                        <option value="Save to Draft" {{ $status === 'Save to Draft' ? 'selected' : '' }}>Save to Draft</option>
+                                    @endif
+                                    @if($purchaseOrder && $status !== 'Completed')
+                                        <option value="In Progress" {{ $status === 'In Progress' ? 'selected' : '' }}>In Progress</option>
+                                    @endif
+                                    @if($purchaseOrder && ($status === 'Completed'))
+                                    <option value="Completed" {{ $status === 'Completed' ? 'selected' : '' }}>Completed</option>
+                                    @endif
+                                    {{-- LEGACY approval workflow (keep options only for existing rows still in these states)
                                     @if(!$purchaseOrder || $status === 'Pending Approval' || $status === 'Save to Draft')
                                         <option value="Pending Approval" {{ $status === 'Pending Approval' ? 'selected' : '' }}>Pending Approval</option>
                                         <option value="Save to Draft" {{ $status === 'Save to Draft' ? 'selected' : '' }}>Save to Draft</option>
@@ -107,8 +118,15 @@
                                     @if($purchaseOrder && ($status === 'Approved'||$status === 'In Progress'))
                                         <option value="In Progress" {{ $status === 'In Progress' ? 'selected' : '' }}>In Progress</option>
                                     @endif
-                                    @if($purchaseOrder && ($status === 'Completed'))
-                                    <option value="Completed" {{ $status === 'Completed' ? 'selected' : '' }}>Completed</option>
+                                    @if($purchaseOrder && $status === 'Approved')
+                                        <option value="Approved" {{ $status === 'Approved' ? 'selected' : '' }}>Approved</option>
+                                    @endif
+                                    @if($purchaseOrder && $status === 'Rejected')
+                                        <option value="Rejected" {{ $status === 'Rejected' ? 'selected' : '' }}>Rejected</option>
+                                    @endif
+                                    --}}
+                                    @if($purchaseOrder && $status === 'Pending Approval')
+                                        <option value="Pending Approval" {{ $status === 'Pending Approval' ? 'selected' : '' }}>Pending Approval</option>
                                     @endif
                                     @if($purchaseOrder && $status === 'Approved')
                                         <option value="Approved" {{ $status === 'Approved' ? 'selected' : '' }}>Approved</option>
@@ -120,6 +138,7 @@
                             </div>
  
                         </div>
+                        @endif
 
                         <div class="selected-items mb-3">
                             <h6>Selected Items for PO:</h6>
@@ -144,10 +163,12 @@
                                                 <th>Amount</th>
                                                 
                                             @endif
-                                            @if($status === 'In Progress')
+                                            @if($purchaseOrder && $purchaseOrder->status === 'In Progress')
                                                 <th>Total Received</th>
                                                 @if(!$isView)
+                                                    {{-- LEGACY: per-line partial receipt input
                                                     <th>Receive Qty</th>
+                                                    --}}
                                                     @if($isRevising)
                                                         <th>Actions</th>
                                                     @endif
@@ -311,14 +332,16 @@
                                                 
                                                 @endif
                                                 @if($purchaseOrder && $purchaseOrder->status === 'In Progress')
-                                                    <td>{{ $item['total_qty_received'] ?? 0 }}</td>
+                                                    <td>{{ number_format((float)($item['item_qty'] ?? 0), 2, '.', '') }}</td>
                                                     @if(!$isView)
+                                                        {{-- LEGACY: Receive Qty column (receiveItems used this; now full remainder is applied on Update Item)
                                                         <td class="col-actions">
                                                         <input type="number" step="0.01"
                                                             wire:model="stackedItems.{{ $index }}.receive_qty"
                                                             class="form-control form-control-sm rounded"
                                                             min="0" max="{{ max(0, round((float)($item['item_qty'] ?? 0) - (float)($item['total_qty_received'] ?? 0), 4)) }}" {{ ($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Rejected' || (abs((float)($item['item_qty'] ?? 0) - (float)($item['total_qty_received'] ?? 0)) < 0.00001)) ? 'disabled' : '' }}>
                                                         </td>
+                                                        --}}
                                                         @if($isRevising)
                                                             <td>
                                                                 <button type="button" class="btn btn-danger btn-sm"
@@ -479,11 +502,12 @@
                                                 <button type="submit" class="btn btn-success me-2" 
                                                         @if(empty($stackedItems)) disabled @endif>
                                                     {{ $purchaseOrder ? 
-                                                        ($purchaseOrder->status === 'Rejected' ? 'Resubmit for Approval' : 
+                                                        ($purchaseOrder->status === 'Rejected' ? 'Save' : 
                                                             ($purchaseOrder->status !== 'Approved' ? 'Update Item' : '')) 
-                                                        : 'Send for Approval' 
+                                                        : 'Save' 
                                                     }}
                                                 </button>
+                                                {{-- LEGACY top-bar labels: "Send for Approval" (new), "Resubmit for Approval" (rejected) --}}
                                                 @if(!$purchaseOrder)
                                                     <button type="button" class="btn btn-secondary me-2" wire:click="saveDraft" @if(empty($stackedItems)) disabled @endif>
                                                         Save Draft
@@ -515,11 +539,18 @@
                                 <a href="{{ route('purchase-orders') }}" class="btn btn-secondary">Back</a>
                             </div>
                             <div class="text-end">
+                                {{-- LEGACY: approval step (uncomment to restore manager Approve/Reject for Pending Approval POs)
                                 @if($purchaseOrder && $status == "Pending Approval")
                                     @can('Approve PO')
                                         <button wire:click="changeStatus('Approved')" class="btn btn-success me-2">Approve</button>
                                         <button wire:click="changeStatus('Rejected')" class="btn btn-danger me-2">Reject</button>
                                     @endcan
+                                    <button type="button" class="btn btn-info" wire:click="preview" {{ empty($stackedItems) ? 'disabled' : '' }}>
+                                        Preview
+                                    </button>
+                                @endif
+                                --}}
+                                @if($purchaseOrder && $status == "Pending Approval")
                                     <button type="button" class="btn btn-info" wire:click="preview" {{ empty($stackedItems) ? 'disabled' : '' }}>
                                         Preview
                                     </button>
@@ -558,9 +589,10 @@
                                     <button type="button" class="btn btn-secondary me-2" wire:click="saveDraft" @if(empty($stackedItems)) disabled @endif>
                                         Save Draft
                                     </button>
-                                    <button type="button" class="btn btn-primary" wire:click="changeStatus('Pending Approval')" @if(empty($stackedItems)) disabled @endif>
-                                        Send for Approval
+                                    <button type="button" class="btn btn-primary" wire:click="changeStatus('In Progress')" @if(empty($stackedItems)) disabled @endif>
+                                        Continue (In Progress)
                                     </button>
+                                    {{-- LEGACY: wire:click="changeStatus('Pending Approval')">Send for Approval --}}
                                 @endif
                             </div>
                         </div>
@@ -637,10 +669,10 @@
         .table th:nth-child(4), .table td:nth-child(4) { width: 8%; } /* Qty On Hand */
         .table th:nth-child(5), .table td:nth-child(5) { width: 8%; } /* Order Qty */
         .table th:nth-child(6), .table td:nth-child(6) { width: 10%; } /* Unit Price */
-        .table th:nth-child(7), .table td:nth-child(7) { width: 10%; } /* Amount */
-        .table th:nth-child(7), .table td:nth-child(7) { width: 8%; } /* Total Received */
-        .table th:nth-child(8), .table td:nth-child(8) { width: 8%; } /* Receive Qty */
-        .table th:nth-child(9), .table td:nth-child(9) { width: 5%; } /* Actions */
+        .table th:nth-child(7), .table td:nth-child(7) { width: 10%; } /* Amount / Total Received (layout varies by row) */
+        /* LEGACY Receive Qty column: .table th:nth-child(8), .table td:nth-child(8) { width: 8%; } */
+        .table th:nth-child(8), .table td:nth-child(8) { width: 5%; } /* Actions */
+        .table th:nth-child(9), .table td:nth-child(9) { width: 5%; } /* Actions when extra column */
 
         /* Input fields in table */
         .table input[type="text"],

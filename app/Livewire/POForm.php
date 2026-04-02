@@ -32,7 +32,8 @@ class POForm extends Component
     public $selectedSupplier;
     public $date;
     public $remark;
-    public $status = 'Pending Approval';
+    /** Default for new POs (no approval step). Legacy default was Pending Approval. */
+    public $status = 'In Progress';
     public $itemSearchTerm = '';
     public $itemSearchResults = [];
     public $itemHighlightIndex = -1;
@@ -52,6 +53,19 @@ class POForm extends Component
     public $backupStackedItems = [];
     public $backupTaxRate = null;
     private bool $isPreviewMode = false;
+
+    private function resolvePurchaseOrderItemForStackRow(array $item): ?PurchaseOrderItem
+    {
+        if (!empty($item['po_item_id'])) {
+            return PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)
+                ->whereKey($item['po_item_id'])
+                ->first();
+        }
+
+        return PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)
+            ->where('item_id', $item['item']['id'])
+            ->first();
+    }
 
     private function generateBatchNumber()
     {
@@ -102,6 +116,7 @@ class POForm extends Component
             // Load purchase order items
             foreach ($purchaseOrder->items as $poItem) {
                 $this->stackedItems[] = [
+                    'po_item_id' => $poItem->id,
                     'item' => [
                         'id' => $poItem->item->id,
                         'item_code' => $poItem->item->item_code,
@@ -115,7 +130,7 @@ class POForm extends Component
                         'details' => $poItem->item->details ?? '',
                     ],
                     'item_qty' => floatval($poItem->quantity),
-                    'total_qty_received' => $poItem->total_qty_received,
+                    'total_qty_received' => floatval($poItem->total_qty_received ?? 0),
                     'item_unit_price' => $poItem->unit_price,
                     'more_description' => $poItem->more_description,
                     'total_price_line_item' => $poItem->total_price_line_item,
@@ -358,20 +373,25 @@ class POForm extends Component
             $this->purchaseOrder->updated_by = auth()->id();
             $this->purchaseOrder->save();
 
-            // Replace items
+            // Replace items (keep received qty per line; cap if order qty was reduced)
             PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)->delete();
-            foreach ($this->stackedItems as $item) {
+            foreach ($this->stackedItems as $idx => $item) {
                 $qty = floatval($item['item_qty'] ?? 0);
                 $price = floatval($item['item_unit_price'] ?? 0);
                 $lineTotal = $qty * $price;
-                PurchaseOrderItem::create([
+                $received = min(floatval($item['total_qty_received'] ?? 0), $qty);
+                $created = PurchaseOrderItem::create([
                     'po_id' => $this->purchaseOrder->id,
                     'item_id' => $item['item']['id'],
                     'custom_item_name' => $item['custom_item_name'] ?? null,
                     'quantity' => $qty,
                     'unit_price' => $price,
+                    'more_description' => $item['more_description'] ?? null,
                     'total_price_line_item' => $lineTotal,
+                    'total_qty_received' => $received,
                 ]);
+                $this->stackedItems[$idx]['po_item_id'] = $created->id;
+                $this->stackedItems[$idx]['total_qty_received'] = $received;
             }
 
             $this->isRevising = false;
@@ -440,9 +460,15 @@ class POForm extends Component
                 $this->purchaseOrder->tax_rate = $this->tax_rate ?? null;
                 $this->purchaseOrder->tax_amount = $this->tax_amount ?? null;
                 $this->purchaseOrder->grand_total = $this->grand_total ?? null;
-                if ($this->purchaseOrder->status === 'Rejected') {
-                    $this->purchaseOrder->status = 'Pending Approval';
-                    $this->status = 'Pending Approval';
+                // LEGACY: resubmit sent PO back to Pending Approval for manager approval.
+                // if ($this->purchaseOrder->status === 'Rejected') {
+                //     $this->purchaseOrder->status = 'Pending Approval';
+                //     $this->status = 'Pending Approval';
+                // }
+                // New workflow: editing/resubmitting an active PO keeps it In Progress (never Completed via this path).
+                if ($this->purchaseOrder->status !== 'Completed') {
+                    $this->purchaseOrder->status = 'In Progress';
+                    $this->status = 'In Progress';
                 }
                 $this->purchaseOrder->updated_by = auth()->id();
                 $this->purchaseOrder->save();
@@ -450,12 +476,14 @@ class POForm extends Component
                 // Delete existing items
                 PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)->delete();
 
-                // Create new items
-                foreach ($this->stackedItems as $item) {
+                // Create new items (preserve received qty where applicable, e.g. rejected resubmit)
+                foreach ($this->stackedItems as $idx => $item) {
                     $item['item_qty'] = $item['item_qty'] ?? 0;
                     $item['item_unit_price'] = $item['item_unit_price'] ?? 0;
                     $total_price_line_item = $item['item_qty'] * $item['item_unit_price'];
-                    PurchaseOrderItem::create([
+                    $qty = floatval($item['item_qty']);
+                    $received = min(floatval($item['total_qty_received'] ?? 0), $qty);
+                    $created = PurchaseOrderItem::create([
                         'po_id' => $this->purchaseOrder->id,
                         'item_id' => $item['item']['id'],
                         'custom_item_name' => $item['custom_item_name'] ?? null,
@@ -463,7 +491,10 @@ class POForm extends Component
                         'unit_price' => $item['item_unit_price'],
                         'more_description' => $item['more_description'] ?? null,
                         'total_price_line_item' => $total_price_line_item,
+                        'total_qty_received' => $received,
                     ]);
+                    $this->stackedItems[$idx]['po_item_id'] = $created->id;
+                    $this->stackedItems[$idx]['total_qty_received'] = $received;
                 }
 
                 toastr()->success('PO updated successfully');
@@ -488,7 +519,8 @@ class POForm extends Component
                     'currency' => $supplier->currency,
                 ]);
 
-                // Create new Purchase Order
+                // New workflow: first save skips approval and opens the PO In Progress for "Update Item".
+                // LEGACY: 'status' => $this->status (often Pending Approval).
                 $this->purchaseOrder = PurchaseOrder::create([
                     'po_num' => $this->po_num,
                     'ref_num' => $this->ref_num,
@@ -500,15 +532,16 @@ class POForm extends Component
                     'tax_rate' => $this->tax_rate ?? null,
                     'tax_amount' => $this->tax_amount ?? null,
                     'grand_total' => $this->grand_total ?? null,
-                    'status' => $this->status,
+                    'status' => 'In Progress',
                     'supplier_snapshot_id' => $supplierSnapshot->id,
                 ]);
+                $this->status = 'In Progress';
 
-                foreach ($this->stackedItems as $item) {
+                foreach ($this->stackedItems as $idx => $item) {
                     $item['item_qty'] = $item['item_qty'] ?? 0;
                     $item['item_unit_price'] = $item['item_unit_price'] ?? 0;
                     $total_price_line_item = $item['item_qty'] * $item['item_unit_price'];
-                    PurchaseOrderItem::create([
+                    $created = PurchaseOrderItem::create([
                         'po_id' => $this->purchaseOrder->id,
                         'item_id' => $item['item']['id'],
                         'custom_item_name' => $item['custom_item_name'] ?? null,
@@ -517,6 +550,8 @@ class POForm extends Component
                         'more_description' => $item['more_description'] ?? null,
                         'total_price_line_item' => $total_price_line_item,
                     ]);
+                    $this->stackedItems[$idx]['po_item_id'] = $created->id;
+                    $this->stackedItems[$idx]['total_qty_received'] = 0.0;
                 }
 
                 toastr()->success('PO created successfully');
@@ -572,13 +607,15 @@ class POForm extends Component
                 $this->purchaseOrder->updated_by = auth()->id();
                 $this->purchaseOrder->save();
 
-                // Sync items
+                // Sync items (keep received qty when re-saving a draft that had receipts)
                 PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)->delete();
-                foreach ($this->stackedItems as $item) {
+                foreach ($this->stackedItems as $idx => $item) {
                     $item['item_qty'] = $item['item_qty'] ?? 0;
                     $item['item_unit_price'] = $item['item_unit_price'] ?? 0;
                     $total_price_line_item = $item['item_qty'] * $item['item_unit_price'];
-                    PurchaseOrderItem::create([
+                    $qty = floatval($item['item_qty']);
+                    $received = min(floatval($item['total_qty_received'] ?? 0), $qty);
+                    $created = PurchaseOrderItem::create([
                         'po_id' => $this->purchaseOrder->id,
                         'item_id' => $item['item']['id'],
                         'custom_item_name' => $item['custom_item_name'] ?? null,
@@ -586,7 +623,10 @@ class POForm extends Component
                         'unit_price' => $item['item_unit_price'],
                         'more_description' => $item['more_description'] ?? null,
                         'total_price_line_item' => $total_price_line_item,
+                        'total_qty_received' => $received,
                     ]);
+                    $this->stackedItems[$idx]['po_item_id'] = $created->id;
+                    $this->stackedItems[$idx]['total_qty_received'] = $received;
                 }
 
                 if (!$this->isPreviewMode) {
@@ -679,28 +719,30 @@ class POForm extends Component
         $validationErrors = [];
         $hasReceive = false;
         foreach ($this->stackedItems as $index => $item) {
-            $receiveQty = floatval($item['receive_qty'] ?? 0);
             $updateCost = floatval($item['update_cost'] ?? 0);
             $updateCustPrice = floatval($item['update_cust_price'] ?? 0);
             $updateTermPrice = floatval($item['update_term_price'] ?? 0);
             $updateCashPrice = floatval($item['update_cash_price'] ?? 0);
     
-            // Get the PO item
-            $poItem = PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)
-                ->where('item_id', $item['item']['id'])
-                ->first();
-    
+            $poItem = $this->resolvePurchaseOrderItemForStackRow($item);
+
             if (!$poItem) {
                 $validationErrors[] = 'Purchase order item not found for item code: ' . $item['item']['item_code'];
                 continue;
             }
+
+            $orderedQty = round(floatval($poItem->quantity), 4);
+            $alreadyReceived = round(floatval($poItem->total_qty_received ?? 0), 4);
+            // New workflow: receive the full remaining ordered quantity (no per-line receive_qty input).
+            $receiveQty = max(0, round($orderedQty - $alreadyReceived, 4));
+            // LEGACY: partial receipts from stackedItems[].receive_qty form field.
+            // $receiveQty = floatval($item['receive_qty'] ?? 0);
     
             $itemRecord = Item::find($item['item']['id']);
     
             if ($receiveQty > 0.00001) {
                 $hasReceive = true;
-                $newTotalReceived = round(floatval($poItem->total_qty_received ?? 0) + $receiveQty, 4);
-                $orderedQty = round(floatval($poItem->quantity), 4);
+                $newTotalReceived = round($alreadyReceived + $receiveQty, 4);
                 if ($newTotalReceived - $orderedQty > 0.0001) {
                     $validationErrors[] = 'Total received quantity for item code ' . $item['item']['item_code'] . ' cannot exceed ordered quantity';
                     continue;
@@ -743,19 +785,29 @@ class POForm extends Component
         try {
             $hasUpdates = false;
             foreach ($this->stackedItems as $index => $item) {
-                $receiveQty = floatval($item['receive_qty'] ?? 0);
                 $updateCost = floatval($item['update_cost'] ?? 0);
                 $updateCustPrice = floatval($item['update_cust_price'] ?? 0);
                 $updateTermPrice = floatval($item['update_term_price'] ?? 0);
                 $updateCashPrice = floatval($item['update_cash_price'] ?? 0);
     
-                $poItem = PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)
-                    ->where('item_id', $item['item']['id'])
-                    ->first();
-    
+                $poItem = $this->resolvePurchaseOrderItemForStackRow($item);
+
+                if (!$poItem) {
+                    throw new \RuntimeException('Purchase order line not found during receive (item '.$item['item']['item_code'].').');
+                }
+
                 $itemRecord = Item::find($item['item']['id']);
+                if (!$itemRecord) {
+                    throw new \RuntimeException('Item not found: '.$item['item']['item_code']);
+                }
+
+                $orderedQty = round(floatval($poItem->quantity), 4);
+                $alreadyReceived = round(floatval($poItem->total_qty_received ?? 0), 4);
+                $receiveQty = max(0, round($orderedQty - $alreadyReceived, 4));
+                // LEGACY: $receiveQty = floatval($item['receive_qty'] ?? 0);
     
                 if ($receiveQty > 0.00001) {
+                    $qtyOnHandBefore = round(floatval($itemRecord->qty), 4);
 
                     $newBatch = BatchTracking::create([
                         'batch_num' => $batchNumber,
@@ -766,26 +818,24 @@ class POForm extends Component
                         'received_by' => Auth::id()
                     ]);
 
-            $qtyBefore = 0;
+                    $newTotalReceived = round($alreadyReceived + $receiveQty, 4);
 
-            $qtyAfter = $receiveQty;
+                    $itemRecord->qty = BatchTracking::where('item_id', $itemRecord->id)->sum('quantity');
+                    $qtyOnHandAfter = round(floatval($itemRecord->qty), 4);
 
-            $newTotalReceived = ($poItem->total_qty_received ?? 0) + $receiveQty;
-            $newQtyOnHand = $itemRecord->qty + $receiveQty;
+                    $poItem->total_qty_received = $newTotalReceived;
+                    $poItem->save();
 
-            $itemRecord->qty = BatchTracking::where('item_id', $itemRecord->id)->sum('quantity');
-            $poItem->total_qty_received = $newTotalReceived;
-            $poItem->save();
-
-            $this->stackedItems[$index]['total_qty_received'] = $newTotalReceived;
-            $this->stackedItems[$index]['item']['qty'] = BatchTracking::where('item_id', $itemRecord->id)->sum('quantity');
-            $this->stackedItems[$index]['receive_qty'] = null;
+                    $this->stackedItems[$index]['total_qty_received'] = $newTotalReceived;
+                    $this->stackedItems[$index]['item']['qty'] = $qtyOnHandAfter;
+                    // LEGACY: cleared per-line receive input.
+                    // $this->stackedItems[$index]['receive_qty'] = null;
     
                     Transaction::create([
                         'item_id' => $itemRecord->id,
-                        'qty_on_hand' => BatchTracking::where('item_id', $itemRecord->id)->sum('quantity'),
-                        'qty_before' => $itemRecord->qty,
-                        'qty_after' => $itemRecord->qty + $receiveQty,
+                        'qty_on_hand' => $qtyOnHandAfter,
+                        'qty_before' => $qtyOnHandBefore,
+                        'qty_after' => $qtyOnHandAfter,
                         'transaction_qty' => $receiveQty,
                         'transaction_type' => 'Stock In',
                         'user_id' => auth()->id(),
@@ -861,14 +911,15 @@ class POForm extends Component
             return;
         }
 
-        if (preg_match('/stackedItems\.\d+\.receive_qty/', $propertyName)) {
-            if (preg_match('/stackedItems\.(\d+)\.receive_qty/', $propertyName, $m3)) {
-                $i3 = (int)$m3[1];
-                $rq = $this->stackedItems[$i3]['receive_qty'] ?? null;
-                $this->stackedItems[$i3]['receive_qty'] = $rq === '' || $rq === null ? null : floatval($rq);
-            }
-            return;
-        }
+        // LEGACY: Receive Qty column used stackedItems[].receive_qty.
+        // if (preg_match('/stackedItems\.\d+\.receive_qty/', $propertyName)) {
+        //     if (preg_match('/stackedItems\.(\d+)\.receive_qty/', $propertyName, $m3)) {
+        //         $i3 = (int)$m3[1];
+        //         $rq = $this->stackedItems[$i3]['receive_qty'] ?? null;
+        //         $this->stackedItems[$i3]['receive_qty'] = $rq === '' || $rq === null ? null : floatval($rq);
+        //     }
+        //     return;
+        // }
 
         if (preg_match('/stackedItems\.\d+\.(item_qty|item_unit_price)/', $propertyName)) {
             if (preg_match('/stackedItems\.(\d+)\.item_qty/', $propertyName, $m)) {
@@ -938,7 +989,7 @@ class POForm extends Component
                 $purchaseOrder->tax_amount = $this->tax_amount ?? null;
                 $purchaseOrder->grand_total = $this->grand_total ?? null;
 
-                // Update status
+                // Update status (Approved → In Progress is legacy approval workflow; draft may call In Progress directly now).
                 if ($newStatus === 'Approved') {
                     $purchaseOrder->status = 'In Progress';
                     $this->status = 'In Progress';
@@ -956,6 +1007,8 @@ class POForm extends Component
                     $item['item_qty'] = $item['item_qty'] ?? 0;
                     $item['item_unit_price'] = $item['item_unit_price'] ?? 0;
                     $total_price_line_item = $item['item_qty'] * $item['item_unit_price'];
+                    $qty = floatval($item['item_qty']);
+                    $received = min(floatval($item['total_qty_received'] ?? 0), $qty);
                     PurchaseOrderItem::create([
                         'po_id' => $this->purchaseOrder->id,
                         'item_id' => $item['item']['id'],
@@ -965,6 +1018,7 @@ class POForm extends Component
                         'remark' => $item['remark'] ?? null,
                         'more_description' => $item['more_description'] ?? null,
                         'total_price_line_item' => $total_price_line_item,
+                        'total_qty_received' => $received,
                     ]);
                 }
 
@@ -987,6 +1041,12 @@ class POForm extends Component
     public function updatedStatus($value)
     {
         try {
+            if (!$this->purchaseOrder?->id) {
+                $this->status = $value;
+
+                return;
+            }
+
             // Allow changing to Save to Draft from any status
             if ($value === 'Save to Draft') {
                 $this->purchaseOrder->status = $value;
