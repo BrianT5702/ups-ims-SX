@@ -1,14 +1,17 @@
-<div class="container-fluid my-3">
-    <div class="row">
-        <div class="col-md-11 m-auto">
-            <div class="card shadow-sm">
+<div>
+<div class="container-fluid my-3 px-2 px-md-3">
+    <div class="do-form-page">
+        <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold fs-5">{{ $isView ? 'View' : ($quotation ? 'Edit' : 'Add') }} Quotation</h5>
                 </div>
                 <div class="card-body">
                     <form wire:submit.prevent="addQuotation">
-                        <div class="row mb-3">
-                            <div class="col-md-4" x-data="{ hi: 0 }">
+                        <div class="compact-form-typography">
+                        <div class="do-header-fields">
+                        {{-- Left: customer + snapshot + created by | Middle: date, salesperson, search items | Right: quotation no, ref, remark --}}
+                        <div class="row mb-3 align-items-start g-3 do-header-three-col">
+                            <div class="col-xl-4 col-lg-12 d-flex flex-column" id="field-cust_id" x-data="{ hi: 0 }">
                                 @if(!$quotation || !$isView)
                                     <label for="customer">Customer <span class="text-danger">*</span></label>
                                     <input type="text" wire:model.debounce.100ms="customerSearchTerm" wire:input.debounce.200ms="searchCustomers" id="searchCustomer" class="form-control rounded" placeholder="Search Customer" {{ $isView ? 'disabled' : '' }} autocomplete="off" x-on:input="hi = 0"
@@ -32,86 +35,86 @@
                                 @endif
 
                                 @if($isView || ($quotation && $quotation->customer))
-                                    <div>
-                                        <p class="fw-bold mb-2">{{ $quotation->customerSnapshot->cust_name ?? $quotation->customer->cust_name }}</p>
-                                        <p class="mb-1"><strong>Currency:</strong> {{ $quotation->customerSnapshot->currency ?? $quotation->customer->currency ?? 'RM' }}</p>
-                                        <p class="mb-1">{{ $quotation->customerSnapshot->address_line1 ?? $quotation->customer->address_line1 }}</p>
-                                        <p class="mb-1">{{ $quotation->customerSnapshot->address_line2 ?? $quotation->customer->address_line2 }}</p>
+                                    <div class="do-customer-detail mt-2">
+                                        @if($isView)
+                                            <p class="fw-bold mb-1 do-customer-detail-title">{{ $quotation->customerSnapshot->cust_name ?? $quotation->customer->cust_name }}</p>
+                                        @endif
+                                        <p class="mb-0"><span class="text-muted">Currency:</span> {{ $quotation->customerSnapshot->currency ?? $quotation->customer->currency ?? 'RM' }}</p>
+                                        <p class="mb-0">{{ $quotation->customerSnapshot->address_line1 ?? $quotation->customer->address_line1 }}</p>
+                                        <p class="mb-0">{{ $quotation->customerSnapshot->address_line2 ?? $quotation->customer->address_line2 }}</p>
                                         @if($quotation->customerSnapshot->address_line3 ?? $quotation->customer->address_line3)
-                                            <p class="mb-1">{{ $quotation->customerSnapshot->address_line3 ?? $quotation->customer->address_line3 }}</p>
+                                            <p class="mb-0">{{ $quotation->customerSnapshot->address_line3 ?? $quotation->customer->address_line3 }}</p>
                                         @endif
                                         @if($quotation->customerSnapshot->address_line4 ?? $quotation->customer->address_line4)
-                                            <p class="mb-1">{{ $quotation->customerSnapshot->address_line4 ?? $quotation->customer->address_line4 }}</p>
+                                            <p class="mb-0">{{ $quotation->customerSnapshot->address_line4 ?? $quotation->customer->address_line4 }}</p>
                                         @endif
                                     </div>
                                 @endif
+
+                                <div class="do-created-by mt-3 pt-2 border-top do-created-by-sep">
+                                    <label for="created_by">Created By</label>
+                                    <p class="mb-0"><b>{{ Auth::user()->name }}</b></p>
+                                </div>
                             </div>
 
-                            <div class="col-md-4">
-                                <label for="date">Date <span class="text-danger">*</span></label>
-                                <input type="date" wire:model="date" id="date" class="form-control rounded" placeholder="dd/mm/yyyy" {{ $isView ? 'disabled' : '' }}>
-                                @error('date') <p class="text-danger">{{ $message }}</p> @enderror
-                            </div>
-                            <div class="col-md-4">
-                                <label for="quotation_num">Quotation Number <span class="text-danger">*</span></label>
-                                <input type="text" wire:model="quotation_num" id="quotation_num" class="form-control rounded" {{ $isView ? 'disabled' : '' }} placeholder="Enter Quotation Number">
-                                @error('quotation_num') <p class="text-danger">{{ $message }}</p> @enderror
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-3">
-                                <label for="ref_num">Reference Number</label>
-                                <input type="text" wire:model="ref_num" id="ref_num" class="form-control rounded" {{ $isView ? 'disabled' : '' }} placeholder="Enter Reference Number">
-                                @error('ref_num') <p class="text-danger">{{ $message }}</p> @enderror
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="remark">Remark</label>
-                                <textarea wire:model="remark" id="remark" class="form-control rounded" rows="3" {{ $isView ? 'disabled' : '' }} placeholder="Enter Remark"></textarea>
-                                @error('remark') <p class="text-danger">{{ $message }}</p> @enderror
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            @if(!$isView)
-                            <div class="col-md-6" x-data="{ hi: 0 }">
-                                <label for="search">Search Items</label>
-                                <input type="text" wire:model.debounce.100ms="itemSearchTerm" wire:input.debounce.200ms="searchItems" id="searchItem" class="form-control rounded" placeholder="Search by Item Code or Name" {{ $isView ? 'disabled' : ''}} autocomplete="off" x-on:input="hi = 0"
-                                        x-on:keydown.arrow-down.prevent="(() => { const list = $refs.itemList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
-                                        x-on:keydown.arrow-up.prevent="(() => { const list = $refs.itemList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
-                                        x-on:keydown.enter.prevent="(() => { const list = $refs.itemList; const items = list ? list.querySelectorAll('li') : []; const el = items && items[hi]; if(el) el.click(); })()">
-                                @if(count($itemSearchResults) > 0)
-                                    <div class="search-results mt-2">
-                                        <ul class="list-group" x-ref="itemList">
-                                            @foreach($itemSearchResults as $idx => $result)
-                                                <li class="list-group-item d-flex justify-content-between align-items-center" wire:click="addItem({{ $result->id }})" :class="{ 'active': hi === {{ $idx }} }" style="cursor: pointer;">
-                                                    <span>{{ $result->item_code }} - {{ $result->item_name }} <span class="ms-2 badge bg-warning text-dark">Qty: {{ $result->qty }}</span></span>
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
+                            <div class="col-xl-4 col-lg-6 do-header-stack">
+                                <div id="field-date">
+                                    <label for="date">Date <span class="text-danger">*</span></label>
+                                    <input type="date" wire:model="date" id="date" class="form-control rounded" placeholder="dd/mm/yyyy" {{ $isView ? 'disabled' : '' }}>
+                                    @error('date') <p class="text-danger">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="mt-2" id="field-salesman_id">
+                                    <label for="salesman">Salesperson <span class="text-danger">*</span></label>
+                                    <select id="salesman" class="form-select rounded" wire:model.live="salesman_id" {{ ($isView || empty($cust_id)) ? 'disabled' : '' }}>
+                                        <option value="">{{ empty($cust_id) ? 'Select a customer first' : 'Select Salesperson' }}</option>
+                                        @foreach($salesmen as $sm)
+                                            <option value="{{ $sm->id }}">{{ $sm->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('salesman_id')
+                                        <p class="text-danger">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                @if(!$isView)
+                                <div class="mt-2" id="field-item-search" x-data="{ hi: 0 }">
+                                    <label for="search">Search Items</label>
+                                    <input type="text" wire:model.debounce.100ms="itemSearchTerm" wire:input.debounce.200ms="searchItems" id="searchItem" class="form-control rounded" placeholder="Search by Item Code or Name" {{ $isView ? 'disabled' : ''}} autocomplete="off" x-on:input="hi = 0"
+                                            x-on:keydown.arrow-down.prevent="(() => { const list = $refs.itemList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
+                                            x-on:keydown.arrow-up.prevent="(() => { const list = $refs.itemList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
+                                            x-on:keydown.enter.prevent="(() => { const list = $refs.itemList; const items = list ? list.querySelectorAll('li') : []; const el = items && items[hi]; if(el) el.click(); })()">
+                                    @if(count($itemSearchResults) > 0)
+                                        <div class="search-results mt-2">
+                                            <ul class="list-group" x-ref="itemList">
+                                                @foreach($itemSearchResults as $idx => $result)
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center" wire:click="addItem({{ $result->id }})" :class="{ 'active': hi === {{ $idx }} }" style="cursor: pointer;">
+                                                        <span>{{ $result->item_code }} - {{ $result->item_name }} <span class="ms-2 badge bg-warning text-dark">Qty: {{ $result->qty }}</span></span>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endif
+                                </div>
                                 @endif
                             </div>
-                            @endif
-                            
-                            <div class="col-md-3">
-                                <label for="salesman">Salesperson <span class="text-danger">*</span></label>
-                                <select id="salesman" class="form-select rounded" wire:model.live="salesman_id" {{ ($isView || empty($cust_id)) ? 'disabled' : '' }}>
-                                    <option value="">{{ empty($cust_id) ? 'Select a customer first' : 'Select Salesperson' }}</option>
-                                    @foreach($salesmen as $sm)
-                                        <option value="{{ $sm->id }}">{{ $sm->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('salesman_id')
-                                    <p class="text-danger">{{ $message }}</p>
-                                @enderror
-                            </div>
 
-                            <div class="col-md-3 pt-3">
-                                <label for="created_by">Created By</label>
-                                <p><b> {{ Auth::user()->name}}</b></p>
+                            <div class="col-xl-4 col-lg-6 do-header-stack">
+                                <div id="field-quotation_num">
+                                    <label for="quotation_num">Quotation Number <span class="text-danger">*</span></label>
+                                    <input type="text" wire:model="quotation_num" id="quotation_num" class="form-control rounded" {{ $isView ? 'disabled' : '' }} placeholder="Enter Quotation Number">
+                                    @error('quotation_num') <p class="text-danger">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="mt-2">
+                                    <label for="ref_num">Reference Number</label>
+                                    <input type="text" wire:model="ref_num" id="ref_num" class="form-control rounded" {{ $isView ? 'disabled' : '' }} placeholder="Enter Reference Number">
+                                    @error('ref_num') <p class="text-danger">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="mt-2">
+                                    <label for="remark">Remark</label>
+                                    <textarea wire:model="remark" id="remark" class="form-control rounded" rows="3" {{ $isView ? 'disabled' : '' }} placeholder="Enter Remark"></textarea>
+                                    @error('remark') <p class="text-danger">{{ $message }}</p> @enderror
+                                </div>
                             </div>
+                        </div>
                         </div>
 
                         <div class="selected-items mb-3">
@@ -143,8 +146,8 @@
                                         <th>Item Name</th>
                                         <th>Qty on Hand</th>
                                         <th>Order Quantity</th>
-                                        <th>Unit Price</th>
-                                        <th>Amount</th>
+                                        <th class="text-center">Unit Price</th>
+                                        <th class="text-center">Amount</th>
                                         @if(!$isView)
                                             <th class="col-actions">Actions</th>
                                         @endif
@@ -415,12 +418,76 @@
                             </div>
                         </div>
                         @endif
+                        </div>
                     </form>
                 </div>
-            </div>
         </div>
     </div>
+</div>
     <style>
+    .do-form-page {
+        max-width: 1080px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .compact-form-typography label {
+        font-size: 0.82em;
+        margin-bottom: 0.2rem;
+    }
+    .compact-form-typography .form-control,
+    .compact-form-typography .form-select,
+    .compact-form-typography textarea,
+    .compact-form-typography input {
+        font-size: 0.86em;
+    }
+    .compact-form-typography p,
+    .compact-form-typography b,
+    .compact-form-typography span,
+    .compact-form-typography small {
+        font-size: 0.85em;
+    }
+    .compact-form-typography .table th,
+    .compact-form-typography .table td {
+        font-size: 0.82em;
+    }
+
+    .do-header-fields label {
+        font-size: 0.8em;
+        margin-bottom: 0.1rem;
+    }
+    .do-header-fields .form-control,
+    .do-header-fields .form-select {
+        font-size: 0.8em;
+    }
+    .do-header-fields p,
+    .do-header-fields b {
+        font-size: 1.0em;
+    }
+    .do-customer-detail {
+        margin-top: 0.4rem;
+        padding: 0.35rem 0.5rem 0.35rem 0.65rem;
+        border-left: 3px solid #c5d4e8;
+        background: #f8fafc;
+        border-radius: 0 4px 4px 0;
+        font-size: 0.78em;
+        line-height: 1.35;
+    }
+    .do-customer-detail-title {
+        font-size: 0.95em;
+    }
+    .do-created-by p {
+        padding-top: 0.12rem;
+    }
+    .do-created-by-sep {
+        border-color: #dee2e6 !important;
+    }
+    @media (min-width: 1200px) {
+        .do-header-three-col .do-header-stack {
+            min-height: 100%;
+        }
+    }
+
     .search-results {
         position: relative;
     }

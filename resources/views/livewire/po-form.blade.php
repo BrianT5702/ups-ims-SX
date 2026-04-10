@@ -1,151 +1,156 @@
-<div class="container-fluid my-3">
-    <div class="row">
-        <div class="col-md-11 m-auto">
-            <div class="card shadow-sm">
+<div>
+<div class="container-fluid my-3 px-2 px-md-3">
+    <div class="do-form-page">
+        <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold fs-5">{{ $isView ? 'View' : ($purchaseOrder ? 'Edit': 'Add' )}} Purchase Order </h5>
                 </div>
                 <div class="card-body">
                     <form wire:submit.prevent="addPO">
-                        <div class="row mb-3">
-                        @if(!$isView)
-                        @if(!$purchaseOrder || ($purchaseOrder && (!$purchaseOrder->status === 'Pending Approval' || !$purchaseOrder->status === 'Rejected')))
-                        <div class="col-md-4" x-data="{ hi: 0 }">
-                            <label for="supplier">Supplier <span class="text-danger">*</span></label>
-                                <input type="text" wire:model.debounce.100ms="supplierSearchTerm" wire:input.debounce.200ms="searchSuppliers" id="searchSupplier" 
-                                    class="form-control  rounded" placeholder="Search Supplier" {{ $isView ? 'disabled' : ''}} autocomplete="off"
-                                    x-on:keydown.arrow-down.prevent="(() => { const list = $refs.supList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
-                                    x-on:keydown.arrow-up.prevent="(() => { const list = $refs.supList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
-                                    x-on:keydown.enter.prevent="(() => { const list = $refs.supList; const items = list ? list.querySelectorAll('li') : []; const el = items && items[hi]; if(el) el.click(); })()">
+                        <div class="compact-form-typography">
+                        <div class="do-header-fields">
+                        {{-- Left: status (existing PO), supplier + snapshot + created by | Middle: date, remark | Right: PO no, ref --}}
+                        <div class="row mb-3 align-items-start g-3 do-header-three-col">
+                            <div class="col-xl-4 col-lg-12 d-flex flex-column" id="field-supplier_id" x-data="{ hi: 0 }">
+                                @if($purchaseOrder)
+                                    <div id="field-status">
+                                        <label for="status">Status <span class="text-danger">*</span></label>
+                                        <select wire:model.live="status" id="status" class="form-control" {{ $isView || ($purchaseOrder && $purchaseOrder->status === 'Completed') ? 'disabled' : '' }}>
+                                            <option value="" disabled>Select a status</option>
+                                            @if($status === 'Save to Draft' || $status === 'Pending Approval')
+                                                <option value="Save to Draft" {{ $status === 'Save to Draft' ? 'selected' : '' }}>Save to Draft</option>
+                                            @endif
+                                            @if($purchaseOrder && $status !== 'Completed')
+                                                <option value="In Progress" {{ $status === 'In Progress' ? 'selected' : '' }}>In Progress</option>
+                                            @endif
+                                            @if($purchaseOrder && ($status === 'Completed'))
+                                            <option value="Completed" {{ $status === 'Completed' ? 'selected' : '' }}>Completed</option>
+                                            @endif
+                                            {{-- LEGACY approval workflow (keep options only for existing rows still in these states)
+                                            @if(!$purchaseOrder || $status === 'Pending Approval' || $status === 'Save to Draft')
+                                                <option value="Pending Approval" {{ $status === 'Pending Approval' ? 'selected' : '' }}>Pending Approval</option>
+                                                <option value="Save to Draft" {{ $status === 'Save to Draft' ? 'selected' : '' }}>Save to Draft</option>
+                                            @endif
+                                            @if($purchaseOrder && ($status === 'Approved'||$status === 'In Progress'))
+                                                <option value="In Progress" {{ $status === 'In Progress' ? 'selected' : '' }}>In Progress</option>
+                                            @endif
+                                            @if($purchaseOrder && $status === 'Approved')
+                                                <option value="Approved" {{ $status === 'Approved' ? 'selected' : '' }}>Approved</option>
+                                            @endif
+                                            @if($purchaseOrder && $status === 'Rejected')
+                                                <option value="Rejected" {{ $status === 'Rejected' ? 'selected' : '' }}>Rejected</option>
+                                            @endif
+                                            --}}
+                                            @if($purchaseOrder && $status === 'Pending Approval')
+                                                <option value="Pending Approval" {{ $status === 'Pending Approval' ? 'selected' : '' }}>Pending Approval</option>
+                                            @endif
+                                            @if($purchaseOrder && $status === 'Approved')
+                                                <option value="Approved" {{ $status === 'Approved' ? 'selected' : '' }}>Approved</option>
+                                            @endif
+                                            @if($purchaseOrder && $status === 'Rejected')
+                                                <option value="Rejected" {{ $status === 'Rejected' ? 'selected' : '' }}>Rejected</option>
+                                            @endif
+                                        </select>
+                                    </div>
+                                @endif
+
+                                @if(!$isView)
+                                @if(!$purchaseOrder || ($purchaseOrder && (!$purchaseOrder->status === 'Pending Approval' || !$purchaseOrder->status === 'Rejected')))
+                                    <div class="{{ $purchaseOrder ? 'mt-2' : '' }}">
+                                    <label for="supplier">Supplier <span class="text-danger">*</span></label>
+                                    <input type="text" wire:model.debounce.100ms="supplierSearchTerm" wire:input.debounce.200ms="searchSuppliers" id="searchSupplier"
+                                        class="form-control rounded" placeholder="Search Supplier" {{ $isView ? 'disabled' : ''}} autocomplete="off"
+                                        x-on:keydown.arrow-down.prevent="(() => { const list = $refs.supList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
+                                        x-on:keydown.arrow-up.prevent="(() => { const list = $refs.supList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
+                                        x-on:keydown.enter.prevent="(() => { const list = $refs.supList; const items = list ? list.querySelectorAll('li') : []; const el = items && items[hi]; if(el) el.click(); })()">
                                     @error('supplier_id')
                                         <p class="text-danger">{{ $message }}</p>
                                     @enderror
-                                @if(count($supplierSearchResults) > 0)
-                                    <div class="search-results mt-2">
-                                        <ul class="list-group" x-ref="supList">  
-                                            @foreach($supplierSearchResults as $idx => $supResult)
-                                                <li class="list-group-item d-flex justify-content-between align-items-center"
-                                                    wire:click="selectSupplier({{ $supResult->id }})"
-                                                    :class="{ 'active': hi === {{ $idx }} }">
-                                                    <span>{{ $supResult->account }} - {{ $supResult->sup_name }}</span>
-                                                </li>
-                                            @endforeach
-                                        </ul>
+                                    @if(count($supplierSearchResults) > 0)
+                                        <div class="search-results mt-2">
+                                            <ul class="list-group" x-ref="supList">
+                                                @foreach($supplierSearchResults as $idx => $supResult)
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center"
+                                                        wire:click="selectSupplier({{ $supResult->id }})"
+                                                        :class="{ 'active': hi === {{ $idx }} }">
+                                                        <span>{{ $supResult->account }} - {{ $supResult->sup_name }}</span>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endif
                                     </div>
                                 @endif
-                            </div>
-                            @endif
-                            @endif
+                                @endif
 
-                            @if($isView || $purchaseOrder)
-                                <div class="col-md-4">
-                                    <div>
-                                        <p class="fw-bold mb-2">{{ $purchaseOrder->supplierSnapshot->sup_name ?? $purchaseOrder->supplier->sup_name }}</p>
-                                        <p class="mb-1"><strong>Currency:</strong> {{ $purchaseOrder->supplierSnapshot->currency ?? $purchaseOrder->supplier->currency ?? 'RM' }}</p>
-                                        <p class="mb-1">{{ $purchaseOrder->supplierSnapshot->address_line1 ?? $purchaseOrder->supplier->address_line1 }}</p>
-                                        <p class="mb-1">{{ $purchaseOrder->supplierSnapshot->address_line2 ?? $purchaseOrder->supplier->address_line2 }}</p>
+                                @if($isView || $purchaseOrder)
+                                    <div class="do-customer-detail mt-2">
+                                        @if($isView)
+                                            <p class="fw-bold mb-1 do-customer-detail-title">{{ $purchaseOrder->supplierSnapshot->sup_name ?? $purchaseOrder->supplier->sup_name }}</p>
+                                        @endif
+                                        <p class="mb-0"><span class="text-muted">Currency:</span> {{ $purchaseOrder->supplierSnapshot->currency ?? $purchaseOrder->supplier->currency ?? 'RM' }}</p>
+                                        <p class="mb-0">{{ $purchaseOrder->supplierSnapshot->address_line1 ?? $purchaseOrder->supplier->address_line1 }}</p>
+                                        <p class="mb-0">{{ $purchaseOrder->supplierSnapshot->address_line2 ?? $purchaseOrder->supplier->address_line2 }}</p>
                                         @if($purchaseOrder->supplierSnapshot->address_line3 ?? $purchaseOrder->supplier->address_line3)
-                                            <p class="mb-1">{{ $purchaseOrder->supplierSnapshot->address_line3 ?? $purchaseOrder->supplier->address_line3 }}</p>
+                                            <p class="mb-0">{{ $purchaseOrder->supplierSnapshot->address_line3 ?? $purchaseOrder->supplier->address_line3 }}</p>
                                         @endif
                                         @if($purchaseOrder->supplierSnapshot->address_line4 ?? $purchaseOrder->supplier->address_line4)
-                                            <p class="mb-1">{{ $purchaseOrder->supplierSnapshot->address_line4 ?? $purchaseOrder->supplier->address_line4 }}</p>
+                                            <p class="mb-0">{{ $purchaseOrder->supplierSnapshot->address_line4 ?? $purchaseOrder->supplier->address_line4 }}</p>
                                         @endif
                                     </div>
+                                @endif
+
+                                <div class="do-created-by mt-3 pt-2 border-top do-created-by-sep">
+                                    <label for="created_by">Created By</label>
+                                    <p class="mb-0"><b>{{ Auth::user()->name }}</b></p>
                                 </div>
-                            @endif
-                            
-    
-                            <div class="col-md-4">
-                            <label for="date">Date <span class="text-danger">*</span></label>
-                            <input type="date" 
-                                wire:model="date" 
-                                id="date" 
-                                class="form-control rounded" 
-                                placeholder="dd/mm/yyyy"
-                                {{ $purchaseOrder && ($purchaseOrder->status === 'In Progress' || $purchaseOrder->status === 'Completed') ? 'disabled' : '' }}>
-                            @error('date')
-                                <p class="text-danger">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="po_num">PO Number <span class="text-danger">*</span></label>
-                            <input type="text" 
-                                wire:model="po_num" 
-                                id="po_num" 
-                                class="form-control rounded" 
-                                {{ $purchaseOrder && ($purchaseOrder->status === 'In Progress' || $purchaseOrder->status === 'Completed') ? 'disabled' : '' }}>
-                            @error('po_num')
-                                <p class="text-danger">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-
-
-
-                        <div class="row mb-3 pt-3">
-                            <div class="col-md-6">
-                                <label for="ref_num">Reference Number</label>
-                                <input type="text" wire:model="ref_num" id="ref_num" class="form-control rounded" placeholder="Enter Reference Number" {{ $isView || ($purchaseOrder && (($purchaseOrder->status === 'Completed') || ($purchaseOrder->status === 'In Progress' && !$isRevising)))   ? 'disabled' : ''}}>
                             </div>
 
-                            <div class="col-md-6">
-                                <label for="remark">Remark</label>
-                                <textarea wire:model="remark" id="remark" class="form-control rounded" rows="3" placeholder="Enter Remark (e.g., delivery address)" {{ $isView || ($purchaseOrder && (($purchaseOrder->status === 'Completed') || ($purchaseOrder->status === 'In Progress' && !$isRevising))) ? 'disabled' : ''}}></textarea>
+                            <div class="col-xl-4 col-lg-6 do-header-stack">
+                                <div id="field-date">
+                                    <label for="date">Date <span class="text-danger">*</span></label>
+                                    <input type="date"
+                                        wire:model="date"
+                                        id="date"
+                                        class="form-control rounded"
+                                        placeholder="dd/mm/yyyy"
+                                        {{ $purchaseOrder && ($purchaseOrder->status === 'In Progress' || $purchaseOrder->status === 'Completed') ? 'disabled' : '' }}>
+                                    @error('date')
+                                        <p class="text-danger">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div class="mt-2">
+                                    <label for="remark">Remark</label>
+                                    <textarea wire:model="remark" id="remark" class="form-control rounded" rows="3" placeholder="Enter Remark (e.g., delivery address)" {{ $isView || ($purchaseOrder && (($purchaseOrder->status === 'Completed') || ($purchaseOrder->status === 'In Progress' && !$isRevising))) ? 'disabled' : ''}}></textarea>
+                                </div>
                             </div>
-                        </div>
 
-                        @if($purchaseOrder)
-                        <div class="row mb-3">
-                            <div class="col-md-6 mb-3">
-                                <label for="status">Status <span class="text-danger">*</span></label>
-                                <select wire:model.live="status" id="status" class="form-control" {{ $isView || ($purchaseOrder && $purchaseOrder->status === 'Completed') ? 'disabled' : '' }}>
-                                    <option value="" disabled>Select a status</option>
-                                    @if($status === 'Save to Draft' || $status === 'Pending Approval')
-                                        <option value="Save to Draft" {{ $status === 'Save to Draft' ? 'selected' : '' }}>Save to Draft</option>
-                                    @endif
-                                    @if($purchaseOrder && $status !== 'Completed')
-                                        <option value="In Progress" {{ $status === 'In Progress' ? 'selected' : '' }}>In Progress</option>
-                                    @endif
-                                    @if($purchaseOrder && ($status === 'Completed'))
-                                    <option value="Completed" {{ $status === 'Completed' ? 'selected' : '' }}>Completed</option>
-                                    @endif
-                                    {{-- LEGACY approval workflow (keep options only for existing rows still in these states)
-                                    @if(!$purchaseOrder || $status === 'Pending Approval' || $status === 'Save to Draft')
-                                        <option value="Pending Approval" {{ $status === 'Pending Approval' ? 'selected' : '' }}>Pending Approval</option>
-                                        <option value="Save to Draft" {{ $status === 'Save to Draft' ? 'selected' : '' }}>Save to Draft</option>
-                                    @endif
-                                    @if($purchaseOrder && ($status === 'Approved'||$status === 'In Progress'))
-                                        <option value="In Progress" {{ $status === 'In Progress' ? 'selected' : '' }}>In Progress</option>
-                                    @endif
-                                    @if($purchaseOrder && $status === 'Approved')
-                                        <option value="Approved" {{ $status === 'Approved' ? 'selected' : '' }}>Approved</option>
-                                    @endif
-                                    @if($purchaseOrder && $status === 'Rejected')
-                                        <option value="Rejected" {{ $status === 'Rejected' ? 'selected' : '' }}>Rejected</option>
-                                    @endif
-                                    --}}
-                                    @if($purchaseOrder && $status === 'Pending Approval')
-                                        <option value="Pending Approval" {{ $status === 'Pending Approval' ? 'selected' : '' }}>Pending Approval</option>
-                                    @endif
-                                    @if($purchaseOrder && $status === 'Approved')
-                                        <option value="Approved" {{ $status === 'Approved' ? 'selected' : '' }}>Approved</option>
-                                    @endif
-                                    @if($purchaseOrder && $status === 'Rejected')
-                                        <option value="Rejected" {{ $status === 'Rejected' ? 'selected' : '' }}>Rejected</option>
-                                    @endif
-                                </select>
+                            <div class="col-xl-4 col-lg-6 do-header-stack">
+                                <div id="field-po_num">
+                                    <label for="po_num">PO Number <span class="text-danger">*</span></label>
+                                    <input type="text"
+                                        wire:model="po_num"
+                                        id="po_num"
+                                        class="form-control rounded"
+                                        {{ $purchaseOrder && ($purchaseOrder->status === 'In Progress' || $purchaseOrder->status === 'Completed') ? 'disabled' : '' }}>
+                                    @error('po_num')
+                                        <p class="text-danger">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div class="mt-2">
+                                    <label for="ref_num">Reference Number</label>
+                                    <input type="text" wire:model="ref_num" id="ref_num" class="form-control rounded" placeholder="Enter Reference Number" {{ $isView || ($purchaseOrder && (($purchaseOrder->status === 'Completed') || ($purchaseOrder->status === 'In Progress' && !$isRevising)))   ? 'disabled' : ''}}>
+                                </div>
                             </div>
- 
                         </div>
-                        @endif
+                        </div>
 
                         <div class="selected-items mb-3">
                             <h6>Selected Items for PO:</h6>
                             @error('stackedItems')
                                 <p class="text-danger">{{ $message }}</p>
                             @enderror
-                            <table class="table table-bordered">
+                            <table class="table table-bordered po-line-items-table {{ $purchaseOrder && $purchaseOrder->status === 'Completed' ? 'po-cols-completed' : '' }}">
                                 <thead>
                                     <tr>
                                         <th>#</th>
@@ -153,14 +158,14 @@
                                         <th>Item Name</th>
                                         @if($purchaseOrder && $purchaseOrder->status === 'Completed')
                                             <th>Order Quantity</th>
-                                            <th>Unit Price</th>
-                                            <th>Amount</th>
+                                            <th class="text-center">Unit Price</th>
+                                            <th class="text-center">Amount</th>
                                         @else
                                             <th>Qty on Hand</th>
                                             <th>Order Quantity</th>
                                             @if(!($isEdit && ($purchaseOrder && $purchaseOrder->status === 'In Progress')) || ($purchaseOrder && $purchaseOrder->status === 'In Progress'))
-                                                <th>Unit Price</th>
-                                                <th>Amount</th>
+                                                <th class="text-center">Unit Price</th>
+                                                <th class="text-center">Amount</th>
                                                 
                                             @endif
                                             @if($purchaseOrder && $purchaseOrder->status === 'In Progress')
@@ -612,6 +617,7 @@
                             </div>
                         </div>
                         @endif
+                        </div>
                     </form>
                 </div>
 
@@ -630,11 +636,134 @@
             </div>
         </div>
     </div>
-            </div>
         </div>
     </div>
+</div>
 
     <style>
+        .do-form-page {
+            max-width: 1080px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .compact-form-typography label {
+            font-size: 0.82em;
+            margin-bottom: 0.2rem;
+        }
+        .compact-form-typography .form-control,
+        .compact-form-typography .form-select,
+        .compact-form-typography textarea,
+        .compact-form-typography input {
+            font-size: 0.86em;
+        }
+        .compact-form-typography p,
+        .compact-form-typography b,
+        .compact-form-typography span,
+        .compact-form-typography small {
+            font-size: 0.85em;
+        }
+        .compact-form-typography .table th,
+        .compact-form-typography .table td {
+            font-size: 0.82em;
+        }
+        /* Match DO items grid typography (do-fixed-table) for PO line items */
+        .compact-form-typography .po-line-items-table th,
+        .compact-form-typography .po-line-items-table td {
+            font-size: 0.82em;
+            padding: 4px 6px;
+            vertical-align: middle;
+        }
+        .compact-form-typography .po-line-items-table th {
+            font-size: 0.85em;
+            line-height: 1.2;
+            height: auto;
+            min-height: 0;
+        }
+        /* Item name is wrapped in <span>; global .compact-form-typography span uses 0.85em */
+        .compact-form-typography .po-line-items-table td:nth-child(3) span {
+            font-size: inherit;
+        }
+        .compact-form-typography .po-line-items-table input[type="text"],
+        .compact-form-typography .po-line-items-table input[type="number"],
+        .compact-form-typography .po-line-items-table textarea {
+            font-size: 0.8em;
+            padding: 0.12rem 0.22rem;
+        }
+        .compact-form-typography .po-line-items-table .form-control,
+        .compact-form-typography .po-line-items-table .form-control-sm,
+        .compact-form-typography .po-line-items-table .form-select,
+        .compact-form-typography .po-line-items-table .form-select-sm {
+            font-size: 0.8em;
+        }
+        .compact-form-typography .po-line-items-table .btn-sm {
+            font-size: 0.8em;
+        }
+
+        /* Wider Item Code, narrower Amount; diff moved from Amount → Item Code (vs default 10% / 10%) */
+        .compact-form-typography .po-line-items-table:not(.po-cols-completed) th:nth-child(2),
+        .compact-form-typography .po-line-items-table:not(.po-cols-completed) td:nth-child(2) {
+            width: 13%;
+        }
+        .compact-form-typography .po-line-items-table:not(.po-cols-completed) th:nth-child(7),
+        .compact-form-typography .po-line-items-table:not(.po-cols-completed) td:nth-child(7) {
+            width: 7%;
+        }
+        .compact-form-typography .po-line-items-table.po-cols-completed th:nth-child(2),
+        .compact-form-typography .po-line-items-table.po-cols-completed td:nth-child(2) {
+            width: 13%;
+        }
+        .compact-form-typography .po-line-items-table.po-cols-completed th:nth-child(6),
+        .compact-form-typography .po-line-items-table.po-cols-completed td:nth-child(6) {
+            width: 7%;
+        }
+
+        /* Narrow # column; move freed width to Item Name (always cols 1 and 3) */
+        .compact-form-typography .po-line-items-table th:nth-child(1),
+        .compact-form-typography .po-line-items-table td:nth-child(1) {
+            width: 2%;
+        }
+        .compact-form-typography .po-line-items-table th:nth-child(3),
+        .compact-form-typography .po-line-items-table td:nth-child(3) {
+            width: 31%;
+        }
+
+        .do-header-fields label {
+            font-size: 0.8em;
+            margin-bottom: 0.1rem;
+        }
+        .do-header-fields .form-control,
+        .do-header-fields .form-select {
+            font-size: 0.8em;
+        }
+        .do-header-fields p,
+        .do-header-fields b {
+            font-size: 1.0em;
+        }
+        .do-customer-detail {
+            margin-top: 0.4rem;
+            padding: 0.35rem 0.5rem 0.35rem 0.65rem;
+            border-left: 3px solid #c5d4e8;
+            background: #f8fafc;
+            border-radius: 0 4px 4px 0;
+            font-size: 0.78em;
+            line-height: 1.35;
+        }
+        .do-customer-detail-title {
+            font-size: 0.95em;
+        }
+        .do-created-by p {
+            padding-top: 0.12rem;
+        }
+        .do-created-by-sep {
+            border-color: #dee2e6 !important;
+        }
+        @media (min-width: 1200px) {
+            .do-header-three-col .do-header-stack {
+                min-height: 100%;
+            }
+        }
+
         .search-results {
             position: relative;
         }

@@ -68,7 +68,7 @@ class ItemForm extends Component
     #[Validate('required', message: 'Item name is required')]
     public $item_name = '';
 
-    #[Validate('required|integer', message: 'Quantity must be an integer')]
+    #[Validate('required|numeric', message: 'Quantity must be a valid number')]
     public $qty = 0;
 
     #[Validate('required|numeric|min:0', message: 'Customer price must be a non-negative number')]
@@ -105,6 +105,8 @@ class ItemForm extends Component
     public $activePageNumber = 1;
 
     public $batchTrackings = [];
+
+    #[Validate('nullable|numeric|min:0', message: 'Initial quantity must be a valid non-negative number')]
     public $initialQuantity = 0;
 
     // New batch form fields
@@ -510,9 +512,9 @@ class ItemForm extends Component
             // For UPS + DERVET SLIDING DOOR: use direct qty edit, create transaction for audit
             $activeDb = session('active_db', DB::getDefaultConnection());
             if ($activeDb === 'ups' && $this->item_code === 'DERVET SLIDING DOOR' && $this->item) {
-                $qtyBefore = $this->item->qty;
-                $qtyAfter = (int) $this->qty;
-                if ($qtyBefore !== $qtyAfter) {
+                $qtyBefore = (float) $this->item->qty;
+                $qtyAfter = round((float) $this->qty, 4);
+                if (abs($qtyBefore - $qtyAfter) > 0.00001) {
                     Transaction::create([
                         'item_id' => $this->item->id,
                         'batch_id' => null,

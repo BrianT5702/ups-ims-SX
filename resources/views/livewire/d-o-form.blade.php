@@ -1,15 +1,21 @@
 <div>
-    <div class="container-fluid my-3">
-        <div class="row">
-            <div class="col-md-11 m-auto">
-                <div class="card shadow-sm">
+    <div class="container-fluid my-3 px-2 px-md-3">
+        <div class="do-form-page">
+            <div class="card shadow-sm">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="fw-bold fs-5">Delivery Order</h5>
                     </div>
                     <div class="card-body">
                         <form wire:submit.prevent="addDO">
-                        <div class="row mb-3">
-                            <div class="col-md-4" id="field-cust_id" x-data="{ hi: 0 }">
+                        @php
+                            $activeDb = strtolower(session('active_db') ?: config('database.default'));
+                            $showInvoiceNoField = in_array($activeDb, ['ups', 'ucs'], true);
+                        @endphp
+                        <div class="do-header-fields">
+                        {{-- One row: left = customer + currency/address + created by | middle = date, salesperson, cust PO | right = DO, ref, invoice --}}
+                        <div class="row mb-3 align-items-start g-3 do-header-three-col">
+                            {{-- LEFT --}}
+                            <div class="col-xl-4 col-lg-12 d-flex flex-column" id="field-cust_id" x-data="{ hi: 0 }">
                                 @if(!$deliveryOrder || !$isView)
                                     <label for="customer">Customer <span class="text-danger">*</span></label>
                                     <input type="text" wire:model.debounce.100ms="customerSearchTerm" 
@@ -41,55 +47,38 @@
                                 @endif
 
                                 @if($isView || ($deliveryOrder && $deliveryOrder->customer))
-                                    <div>
-                                        <p class="fw-bold mb-2">{{ $deliveryOrder->customerSnapshot->cust_name ?? $deliveryOrder->customer->cust_name }}</p>
-                                        <p class="mb-1"><strong>Currency:</strong> {{ $deliveryOrder->customerSnapshot->currency ?? $deliveryOrder->customer->currency ?? 'RM' }}</p>
-                                        <p class="mb-1">{{ $deliveryOrder->customerSnapshot->address_line1 ?? $deliveryOrder->customer->address_line1 }}</p>
-                                        <p class="mb-1">{{ $deliveryOrder->customerSnapshot->address_line2 ?? $deliveryOrder->customer->address_line2 }}</p>
+                                    <div class="do-customer-detail mt-2">
+                                        @if($isView)
+                                            <p class="fw-bold mb-1 do-customer-detail-title">{{ $deliveryOrder->customerSnapshot->cust_name ?? $deliveryOrder->customer->cust_name }}</p>
+                                        @endif
+                                        <p class="mb-0"><span class="text-muted">Currency:</span> {{ $deliveryOrder->customerSnapshot->currency ?? $deliveryOrder->customer->currency ?? 'RM' }}</p>
+                                        <p class="mb-0">{{ $deliveryOrder->customerSnapshot->address_line1 ?? $deliveryOrder->customer->address_line1 }}</p>
+                                        <p class="mb-0">{{ $deliveryOrder->customerSnapshot->address_line2 ?? $deliveryOrder->customer->address_line2 }}</p>
                                         @if($deliveryOrder->customerSnapshot->address_line3 ?? $deliveryOrder->customer->address_line3)
-                                            <p class="mb-1">{{ $deliveryOrder->customerSnapshot->address_line3 ?? $deliveryOrder->customer->address_line3 }}</p>
+                                            <p class="mb-0">{{ $deliveryOrder->customerSnapshot->address_line3 ?? $deliveryOrder->customer->address_line3 }}</p>
                                         @endif
                                         @if($deliveryOrder->customerSnapshot->address_line4 ?? $deliveryOrder->customer->address_line4)
-                                            <p class="mb-1">{{ $deliveryOrder->customerSnapshot->address_line4 ?? $deliveryOrder->customer->address_line4 }}</p>
+                                            <p class="mb-0">{{ $deliveryOrder->customerSnapshot->address_line4 ?? $deliveryOrder->customer->address_line4 }}</p>
                                         @endif
                                     </div>
                                 @endif
+
+                                <div class="do-created-by mt-3 pt-2 border-top do-created-by-sep">
+                                    <label for="created_by">Created By</label>
+                                    <p class="mb-0"><b>{{ Auth::user()->name }}</b></p>
+                                </div>
                             </div>
 
-
-
-                            <div class="col-md-4" id="field-date">
-                                <label for="date">Date <span class="text-danger">*</span></label>
-                                <input type="date" wire:model="date" id="date" class="form-control rounded" 
-                                    placeholder="dd/mm/yyyy"
-                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}>
-                                @error('date') <p class="text-danger">{{ $message }}</p> @enderror
-                            </div>
-                            <div class="col-md-4" id="field-do_num">
-                                    <label for="do_num">DO Number <span class="text-danger">*</span></label>
-                                    <input type="text" wire:model="do_num" id="do_num" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter DO Number">
-                                    @error('do_num') <p class="text-danger">{{ $message }}</p> @enderror
+                            {{-- MIDDLE --}}
+                            <div class="col-xl-4 col-lg-6 do-header-stack">
+                                <div id="field-date">
+                                    <label for="date">Date <span class="text-danger">*</span></label>
+                                    <input type="date" wire:model="date" id="date" class="form-control rounded" 
+                                        placeholder="dd/mm/yyyy"
+                                        {{ ($isView || $this->isPosted) ? 'disabled' : '' }}>
+                                    @error('date') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
-                        </div>
-
-                            @php
-                                $activeDb = strtolower(session('active_db') ?: config('database.default'));
-                                $showInvoiceNoField = in_array($activeDb, ['ups', 'ucs'], true);
-                            @endphp
-                            <div class="row mb-3">
-                                <div class="col-md-3">
-                                    <label for="ref_num">Reference Number</label>
-                                    <input type="text" wire:model="ref_num" id="ref_num" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter Reference Number">
-                                    @error('ref_num') <p class="text-danger">{{ $message }}</p> @enderror
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label for="cust_po">Customer PO Number</label>
-                                    <input type="text" wire:model="cust_po" id="cust_po" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter Cust PO Number" autocomplete="off">
-                                    @error('cust_po') <p class="text-danger">{{ $message }}</p> @enderror
-                                </div>
-
-                                <div class="col-md-3" id="field-salesman_id">
+                                <div class="mt-2" id="field-salesman_id">
                                     <label for="salesman">Salesperson <span class="text-danger">*</span></label>
                                     <select id="salesman" class="form-select rounded" wire:model.live="salesman_id" {{ ($isView || $this->isPosted || empty($cust_id)) ? 'disabled' : '' }}>
                                         <option value="">{{ empty($cust_id) ? 'Select a customer first' : 'Select Salesperson' }}</option>
@@ -101,22 +90,35 @@
                                         <p class="text-danger">{{ $message }}</p>
                                     @enderror
                                 </div>
-
-                                <div class="col-md-3 pt-3">
-                                    <label for="created_by">Created By</label>
-                                    <p><b> {{ Auth::user()->name}}</b></p>
+                                <div class="mt-2">
+                                    <label for="cust_po">Customer PO Number</label>
+                                    <input type="text" wire:model="cust_po" id="cust_po" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter Cust PO Number" autocomplete="off">
+                                    @error('cust_po') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
                             </div>
 
-                            @if($showInvoiceNoField)
-                                <div class="row mb-3">
-                                    <div class="col-md-3" id="field-invoice_no">
+                            {{-- RIGHT --}}
+                            <div class="col-xl-4 col-lg-6 do-header-stack">
+                                <div id="field-do_num">
+                                    <label for="do_num">DO Number <span class="text-danger">*</span></label>
+                                    <input type="text" wire:model="do_num" id="do_num" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter DO Number">
+                                    @error('do_num') <p class="text-danger">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="mt-2">
+                                    <label for="ref_num">Reference Number</label>
+                                    <input type="text" wire:model="ref_num" id="ref_num" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter Reference Number">
+                                    @error('ref_num') <p class="text-danger">{{ $message }}</p> @enderror
+                                </div>
+                                @if($showInvoiceNoField)
+                                    <div class="mt-2" id="field-invoice_no">
                                         <label for="invoice_no">Invoice No</label>
                                         <input type="text" wire:model="invoice_no" id="invoice_no" class="form-control rounded" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} placeholder="Enter Invoice No" autocomplete="off">
                                         @error('invoice_no') <p class="text-danger">{{ $message }}</p> @enderror
                                     </div>
-                                </div>
-                            @endif
+                                @endif
+                            </div>
+                        </div>
+                        </div>
 
                             <div class="do-items-table mb-3" id="field-items">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -153,10 +155,13 @@
                                 @error('stackedItems')
                                     <p class="text-danger">{{ $message }}</p>
                                 @enderror
+                                <div class="do-table-shell">
                                 <table class="table table-bordered do-fixed-table">
                                     <thead>
                                         <tr>
-                                            <th style="width: 95px;">QTY</th>
+                                            <th style="width: 30px;" class="text-center">#</th>
+                                            <th style="width: 90px;">QTY</th>
+                                            <th style="width: 90px;">UNIT</th>
                                             <th>
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span>Description</span>
@@ -171,6 +176,8 @@
                                                     @endif
                                                 </div>
                                             </th>
+                                            <th style="width: 150px;" class="text-center">Price</th>
+                                            <th style="width: 150px;" class="text-center">Amount</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -257,147 +264,94 @@
                                                 $canMoveDown = $item && $rowIndex < 23 && !isset($rowToItemMap[$rowIndex + 1]);
                                             @endphp
                                             <tr class="item-row" wire:key="do-form-row-{{ $rowIndex }}-{{ $itemIndex === null ? 'empty' : $itemIndex }}">
-                                                <td style="width: 95px; vertical-align: top;">
+                                                <td class="text-center text-muted do-row-number-cell" style="width: 30px; vertical-align: top; font-size: 0.65em;">
+                                                    {{ $rowIndex + 1 }}
+                                                </td>
+                                                <td style="width: 62px; vertical-align: top;">
                                                     @if($item)
                                                         @if(isset($item['is_choice']) && $item['is_choice'])
-                                                            <div class="d-flex flex-column gap-1">
-                                                                <input type="number"
-                                                                    class="form-control form-control-sm"
-                                                                    value="{{ $item['choice_qty'] ?? 1 }}"
-                                                                    disabled
-                                                                    style="width: 100%; background-color: #f8f9fa;">
-                                                                <input type="text"
-                                                                    class="form-control form-control-sm"
-                                                                    value=""
-                                                                    placeholder="UOM"
-                                                                    disabled
-                                                                    style="font-size: 0.75em; padding: 0.15rem 0.25rem; background-color: #f8f9fa;">
-                                                            </div>
-                                                            @if(!$isView && !$this->isPosted)
-                                                                <div class="d-flex gap-1 mt-1 justify-content-center">
-                                                                    <button type="button"
-                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
-                                                                        wire:click="moveItemUp({{ $itemIndex }})"
-                                                                        {{ $canMoveUp ? '' : 'disabled' }}
-                                                                        title="Move to empty row above"
-                                                                        style="font-size: 0.65rem; line-height: 1;">
-                                                                        ▲
-                                                                    </button>
-                                                                    <button type="button"
-                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
-                                                                        wire:click="moveItemDown({{ $itemIndex }})"
-                                                                        {{ $canMoveDown ? '' : 'disabled' }}
-                                                                        title="Move to empty row below"
-                                                                        style="font-size: 0.65rem; line-height: 1;">
-                                                                        ▼
-                                                                    </button>
-                                                                </div>
-                                                            @endif
+                                                            @php
+                                                                $choiceOptQtys = [];
+                                                                foreach (($item['choice_options'] ?? []) as $_co) {
+                                                                    $choiceOptQtys[] = (float) ($_co['qty'] ?? 1);
+                                                                }
+                                                                $choiceQtySeen = [];
+                                                                $choiceQtyUnique = [];
+                                                                foreach ($choiceOptQtys as $_q) {
+                                                                    $k = round($_q, 6);
+                                                                    if (isset($choiceQtySeen[$k])) {
+                                                                        continue;
+                                                                    }
+                                                                    $choiceQtySeen[$k] = true;
+                                                                    $choiceQtyUnique[] = $_q;
+                                                                }
+                                                                $choiceQtyLabel = count($choiceQtyUnique) === 1
+                                                                    ? (string) $choiceQtyUnique[0]
+                                                                    : implode(' / ', $choiceQtyUnique);
+                                                            @endphp
+                                                            <input type="text"
+                                                                class="form-control form-control-sm"
+                                                                value="{{ $choiceQtyLabel }}"
+                                                                disabled
+                                                                title="Quantity for each OR option (applies after you pick one)"
+                                                                style="max-width: 72px; background-color: #f8f9fa;">
                                                         @elseif((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
-                                                            {{-- Text-only item: allow qty + editable UOM (or leave empty) --}}
-                                                            <div class="d-flex flex-column gap-1">
-                                                                <input type="number" 
-                                                                    wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
-                                                                    class="form-control form-control-sm" 
-                                                                    min="0" 
-                                                                    step="0.01"
-                                                                    inputmode="decimal"
-                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                    style="width: 100%;"
-                                                                    data-do-role="qty">
-                                                                <input type="text" 
-                                                                    wire:model="stackedItems.{{ $itemIndex }}.custom_um" 
-                                                                    class="form-control form-control-sm" 
-                                                                    placeholder="UOM" 
-                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                    style="font-size: 0.75em; padding: 0.15rem 0.25rem;">
-                                                            </div>
-                                                            @if(!$isView && !$this->isPosted)
-                                                                <div class="d-flex gap-1 mt-1 justify-content-center">
-                                                                    <button type="button"
-                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
-                                                                        wire:click="moveItemUp({{ $itemIndex }})"
-                                                                        {{ $canMoveUp ? '' : 'disabled' }}
-                                                                        title="Move to empty row above"
-                                                                        style="font-size: 0.65rem; line-height: 1;">
-                                                                        ▲
-                                                                    </button>
-                                                                    <button type="button"
-                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
-                                                                        wire:click="moveItemDown({{ $itemIndex }})"
-                                                                        {{ $canMoveDown ? '' : 'disabled' }}
-                                                                        title="Move to empty row below"
-                                                                        style="font-size: 0.65rem; line-height: 1;">
-                                                                        ▼
-                                                                    </button>
-                                                                </div>
-                                                            @endif
+                                                            <input type="number" 
+                                                                wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
+                                                                class="form-control form-control-sm" 
+                                                                min="0" step="0.01" inputmode="decimal"
+                                                                {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                style="max-width: 56px;"
+                                                                data-do-role="qty">
                                                         @else
-                                                            <div class="d-flex flex-column gap-1">
-                                                                <input type="number" 
-                                                                    wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
-                                                                    class="form-control form-control-sm @error('stackedItems.'.$itemIndex.'.item_qty') is-invalid @enderror" 
-                                                                    min="0.1" 
-                                                                    step="0.01"
-                                                                    inputmode="decimal"
-                                                                    wire:change="updatePriceLine({{ $itemIndex }})" 
-                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                    style="width: 100%;"
-                                                                    data-do-role="qty">
-                                                                <input type="text" 
-                                                                    wire:model="stackedItems.{{ $itemIndex }}.custom_um" 
-                                                                    class="form-control form-control-sm" 
-                                                                    placeholder="{{ ($item['item']['um'] ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item['item']['um'] ?? 'UOM') }}" 
-                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                    style="font-size: 0.75em; padding: 0.15rem 0.25rem;">
-                                                                @error('stackedItems.'.$itemIndex.'.item_qty')
-                                                                    <div class="text-danger small">!</div>
-                                                                @enderror
-                                                            </div>
-                                                            @if(!$isView && !$this->isPosted)
-                                                                <div class="d-flex gap-1 mt-1 justify-content-center">
-                                                                    <button type="button"
-                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
-                                                                        wire:click="moveItemUp({{ $itemIndex }})"
-                                                                        {{ $canMoveUp ? '' : 'disabled' }}
-                                                                        title="Move to empty row above"
-                                                                        style="font-size: 0.65rem; line-height: 1;">
-                                                                        ▲
-                                                                    </button>
-                                                                    <button type="button"
-                                                                        class="btn btn-sm btn-outline-secondary p-0 px-1"
-                                                                        wire:click="moveItemDown({{ $itemIndex }})"
-                                                                        {{ $canMoveDown ? '' : 'disabled' }}
-                                                                        title="Move to empty row below"
-                                                                        style="font-size: 0.65rem; line-height: 1;">
-                                                                        ▼
-                                                                    </button>
-                                                                </div>
-                                                            @endif
+                                                            <input type="number" 
+                                                                wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
+                                                                class="form-control form-control-sm @error('stackedItems.'.$itemIndex.'.item_qty') is-invalid @enderror" 
+                                                                min="0.1" step="0.01" inputmode="decimal"
+                                                                wire:change="updatePriceLine({{ $itemIndex }})" 
+                                                                {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                style="max-width: 56px;"
+                                                                data-do-role="qty">
+                                                            @error('stackedItems.'.$itemIndex.'.item_qty')
+                                                                <div class="text-danger small">!</div>
+                                                            @enderror
                                                         @endif
                                                     @elseif(!$isView && $isEmptyRow)
-                                                        {{-- Empty row: allow qty + UOM input for text entries (UOM can be empty) --}}
-                                                        <div class="d-flex flex-column gap-1">
-                                                            <input type="number" 
-                                                                wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.qty" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
-                                                                class="form-control form-control-sm" 
-                                                                min="0" 
-                                                                step="0.01"
-                                                                inputmode="decimal"
-                                                                placeholder="0"
-                                                                style="width: 100%;"
-                                                                data-do-role="qty">
-                                                            <input type="text" 
-                                                                wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.um" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
-                                                                class="form-control form-control-sm" 
-                                                                placeholder="UOM" 
-                                                                style="font-size: 0.75em; padding: 0.15rem 0.25rem;">
-                                                        </div>
-                                                    @elseif(!$isView)
-                                                        <input type="text" 
+                                                        <input type="number" 
+                                                            wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.qty" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
                                                             class="form-control form-control-sm" 
-                                                            placeholder="Qty"
-                                                            disabled
+                                                            min="0" step="0.01" inputmode="decimal"
+                                                            placeholder="0"
+                                                            style="max-width: 56px;"
+                                                            data-do-role="qty">
+                                                    @elseif(!$isView)
+                                                        <input type="text" class="form-control form-control-sm" placeholder="Qty" disabled
+                                                            style="width: 100%; background-color: #f8f9fa;">
+                                                    @endif
+                                                </td>
+                                                <td style="width: 80px; vertical-align: top;">
+                                                    @if($item)
+                                                        @if(isset($item['is_choice']) && $item['is_choice'])
+                                                            <input type="text" class="form-control form-control-sm" value="" placeholder="UOM" disabled
+                                                                style="max-width: 86px; padding: 0.15rem 0.25rem; background-color: #f8f9fa;">
+                                                        @elseif((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
+                                                            <input type="text" wire:model="stackedItems.{{ $itemIndex }}.custom_um"
+                                                                class="form-control form-control-sm" placeholder="UOM"
+                                                                {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                style="max-width: 86px; padding: 0.15rem 0.25rem;">
+                                                        @else
+                                                            <input type="text" wire:model="stackedItems.{{ $itemIndex }}.custom_um"
+                                                                class="form-control form-control-sm"
+                                                                placeholder="{{ ($item['item']['um'] ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item['item']['um'] ?? 'UOM') }}"
+                                                                {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                style="max-width: 86px; padding: 0.15rem 0.25rem;">
+                                                        @endif
+                                                    @elseif(!$isView && $isEmptyRow)
+                                                        <input type="text" wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.um" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                            class="form-control form-control-sm" placeholder="UOM"
+                                                            style="max-width: 86px; padding: 0.15rem 0.25rem;">
+                                                    @elseif(!$isView)
+                                                        <input type="text" class="form-control form-control-sm" placeholder="UOM" disabled
                                                             style="width: 100%; background-color: #f8f9fa;">
                                                     @endif
                                                 </td>
@@ -411,7 +365,7 @@
                                                                             {{ ($isView || $this->isPosted) ? 'disabled' : '' }}>
                                                                         <option value="">Select one option...</option>
                                                                         @foreach(($item['choice_options'] ?? []) as $opt)
-                                                                            <option value="{{ $opt['item_id'] }}">{{ $opt['item_name'] }}</option>
+                                                                            <option value="{{ $opt['item_id'] }}">{{ $opt['item_name'] }} (Qty: {{ $opt['qty'] ?? 1 }})</option>
                                                                         @endforeach
                                                                     </select>
                                                                     @if(empty($item['choice_selected_item_id']))
@@ -419,6 +373,22 @@
                                                                     @endif
                                                                 </div>
                                                                 @if(!$isView && !$this->isPosted)
+                                                                    <button type="button"
+                                                                        class="btn btn-sm p-0 px-1 btn-outline-secondary flex-shrink-0"
+                                                                        wire:click="moveItemUp({{ $itemIndex }})"
+                                                                        {{ $canMoveUp ? '' : 'disabled' }}
+                                                                        title="Move up"
+                                                                        style="font-size: 0.7rem;">
+                                                                        ▲
+                                                                    </button>
+                                                                    <button type="button"
+                                                                        class="btn btn-sm p-0 px-1 btn-outline-secondary flex-shrink-0"
+                                                                        wire:click="moveItemDown({{ $itemIndex }})"
+                                                                        {{ $canMoveDown ? '' : 'disabled' }}
+                                                                        title="Move down"
+                                                                        style="font-size: 0.7rem;">
+                                                                        ▼
+                                                                    </button>
                                                                     <button type="button" 
                                                                         class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0"
                                                                         wire:click="removeItem({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
@@ -439,10 +409,26 @@
                                                                             placeholder="Detail/text"
                                                                             style="font-size: 0.85em; padding: 0.15rem 0.25rem;">
                                                                     @else
-                                                                        <span>{{ $item['custom_item_name'] ?? '' }}</span>
+                                                                        <span class="do-item-name-text">{{ $item['custom_item_name'] ?? '' }}</span>
                                                                     @endif
                                                                 </div>
                                                                 @if(!$isView && !$this->isPosted)
+                                                                    <button type="button"
+                                                                        class="btn btn-sm p-0 px-1 btn-outline-secondary flex-shrink-0"
+                                                                        wire:click="moveItemUp({{ $itemIndex }})"
+                                                                        {{ $canMoveUp ? '' : 'disabled' }}
+                                                                        title="Move up"
+                                                                        style="font-size: 0.7rem;">
+                                                                        ▲
+                                                                    </button>
+                                                                    <button type="button"
+                                                                        class="btn btn-sm p-0 px-1 btn-outline-secondary flex-shrink-0"
+                                                                        wire:click="moveItemDown({{ $itemIndex }})"
+                                                                        {{ $canMoveDown ? '' : 'disabled' }}
+                                                                        title="Move down"
+                                                                        style="font-size: 0.7rem;">
+                                                                        ▼
+                                                                    </button>
                                                                     <button type="button" 
                                                                         class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0"
                                                                         wire:click="removeItem({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
@@ -484,7 +470,7 @@
                                                                      @mouseleave="clearTimeout(hoverTimeout); showMemo = false">
                                                                     <template x-if="!editingName">
                                                                         <div>
-                                                                            <span x-text="displayName"></span>
+                                                                            <span class="do-item-name-text" x-text="displayName"></span>
                                                                             @if(!empty($item['item']['memo']))
                                                                                 <div x-show="showMemo"
                                                                                      x-transition
@@ -537,6 +523,22 @@
                                                                         style="font-size: 0.7rem;">
                                                                         Edit
                                                                     </button>
+                                                                    <button type="button"
+                                                                        class="btn btn-sm p-0 px-1 btn-outline-secondary flex-shrink-0"
+                                                                        wire:click="moveItemUp({{ $itemIndex }})"
+                                                                        {{ $canMoveUp ? '' : 'disabled' }}
+                                                                        title="Move up"
+                                                                        style="font-size: 0.7rem;">
+                                                                        ▲
+                                                                    </button>
+                                                                    <button type="button"
+                                                                        class="btn btn-sm p-0 px-1 btn-outline-secondary flex-shrink-0"
+                                                                        wire:click="moveItemDown({{ $itemIndex }})"
+                                                                        {{ $canMoveDown ? '' : 'disabled' }}
+                                                                        title="Move down"
+                                                                        style="font-size: 0.7rem;">
+                                                                        ▼
+                                                                    </button>
                                                                     <button type="button" 
                                                                         class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0"
                                                                         wire:click="removeItem({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
@@ -556,61 +558,24 @@
                                                     </div>
                                                 @endif
                                                 @if(!$isView)
-                                                                <div x-show="showDescription" class="mt-2 mb-3 p-2" style="background-color: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
+                                                                <div x-show="showDescription" class="mt-1 mb-1 p-1" style="background-color: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
                                                         <textarea 
                                                                         wire:model.defer="stackedItems.{{ $itemIndex }}.more_description" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                             class="form-control form-control-sm"
-                                                            rows="3"
+                                                            rows="1"
                                                                         placeholder="Enter additional description"
-                                                                        style="font-size: 0.85em; resize: vertical;"></textarea>
-                                                                    <div class="d-flex justify-content-between align-items-center mt-2">
-                                                                        <small class="text-muted" style="font-size: 0.75em;">
+                                                                        style="font-size: 0.78em; resize: vertical; min-height: 28px; padding: 0.15rem 0.3rem; line-height: 1.15;"></textarea>
+                                                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                                                        <small class="text-muted" style="font-size: 0.7em;">
                                                                             Formula 1+N rows. Max 24 rows total.
                                                                         </small>
                                                                         <button type="button"
                                                                             wire:click="saveDescriptionAndValidate({{ $itemIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                             class="btn btn-sm btn-primary"
-                                                                            style="font-size: 0.75em; padding: 4px 12px;">
+                                                                            style="font-size: 0.7em; padding: 2px 9px;">
                                                                             Save
                                                                         </button>
                                                                     </div>
-                                                    </div>
-                                                                <div class="mt-2 d-flex justify-content-between align-items-center gap-3" style="font-size: 0.85em;">
-                                                                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                                                                        <span class="text-muted fw-medium" style="white-space: nowrap;">Price:</span>
-                                                                        @php
-                                                                            $price = $stackedItems[$itemIndex]['item_unit_price'] ?? 0;
-                                                                            $tier = $stackedItems[$itemIndex]['pricing_tier'] ?? '';
-                                                                        @endphp
-                                                                        <select wire:model.live="stackedItems.{{ $itemIndex }}.pricing_tier" 
-                                                                                wire:change="selectPricingTier({{ $itemIndex }}, $event.target.value)"
-                                                                                class="form-select form-select-sm" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
-                                                                                style="width: 180px; font-size: 0.85em; flex-shrink: 0;">
-                                                                            <option value="">Custom</option>
-                                                                            <option value="Cash Price">Cash: {{ number_format($item['item']['cash_price'] ?? 0, 2) }}</option>
-                                                                            <option value="Term Price">Term: {{ number_format($item['item']['term_price'] ?? 0, 2) }}</option>
-                                                                            <option value="Customer Price">Customer: {{ number_format($item['item']['cust_price'] ?? 0, 2) }}</option>
-                                                                            <option value="Cost">Cost: {{ number_format($item['item']['cost'] ?? 0, 2) }}</option>
-                                                                            @if($cust_id && ($item['item']['latest_do_price'] ?? 0) > 0)
-                                                                                <option value="Previous Price">Previous: {{ number_format($item['item']['latest_do_price'], 2) }}</option>
-                                                                            @endif
-                                                                        </select>
-                                                                        @if(($tier ?? '') === '')
-                                                            <input type="text" 
-                                                                                inputmode="decimal"
-                                                                                wire:model.lazy="stackedItems.{{ $itemIndex }}.item_unit_price"
-                                                                                wire:change="updateUnitPrice({{ $itemIndex }})"
-                                                                class="form-control form-control-sm" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
-                                                                                placeholder="0.00"
-                                                                                style="width: 110px; font-size: 0.85em; text-align: right; flex-shrink: 0;">
-                                                                        @else
-                                                                            <span class="fw-bold form-control form-control-sm d-inline-block" style="width: 110px; font-size: 0.85em; text-align: right; background-color: #f8f9fa; border: 1px solid #ced4da; border-radius: 0.25rem; padding: 0.25rem 0.5rem; line-height: 1.5; flex-shrink: 0;">{{ number_format($price, 2) }}</span>
-                                                                        @endif
-                                                            </div>
-                                                                    <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
-                                                                        <span class="text-muted fw-medium" style="white-space: nowrap;">Amount:</span>
-                                                                        <span class="fw-bold" style="font-size: 0.95em; min-width: 90px; text-align: right; color: #0d6efd; white-space: nowrap;">{{ number_format($stackedItems[$itemIndex]['amount'] ?? 0, 2) }}</span>
-                                                        </div>
                                                     </div>
                                                     @endif
                                                         </div>
@@ -629,7 +594,7 @@
                                                                     x-show="!showSearch"
                                                                     wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                     class="form-control form-control-sm flex-grow-1" 
-                                                                    placeholder="Type anything here (remarks, notes, etc.)"
+                                                                    placeholder="Type anything here"
                                                                     style="font-size: 0.85em;"
                                                                     data-do-role="desc">
                                                                 <div x-show="showSearch" class="position-relative flex-grow-1">
@@ -755,11 +720,67 @@
                                                     </div>
                                                 @endif
                                             </td>
+                                            <td style="vertical-align: top;">
+                                                @if($item && !(isset($item['is_choice']) && $item['is_choice']) && !(isset($item['is_text_only']) && $item['is_text_only']) && (($item['item']['id'] ?? null) !== null))
+                                                    @php
+                                                        $price = $stackedItems[$itemIndex]['item_unit_price'] ?? 0;
+                                                        $tier = $stackedItems[$itemIndex]['pricing_tier'] ?? '';
+                                                    @endphp
+                                                    <div class="d-flex align-items-center gap-1">
+                                                        <select wire:model.live="stackedItems.{{ $itemIndex }}.pricing_tier"
+                                                                wire:change="selectPricingTier({{ $itemIndex }}, $event.target.value)"
+                                                                class="form-select form-select-sm do-price-tier-select" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                style="width: 70px; font-size: 0.75em; flex-shrink: 0;">
+                                                            <option value="">Custom</option>
+                                                            <option value="Cash Price">Cash</option>
+                                                            <option value="Term Price">Term</option>
+                                                            <option value="Customer Price">Customer</option>
+                                                            <option value="Cost">Cost</option>
+                                                            @if($cust_id && ($item['item']['latest_do_price'] ?? 0) > 0)
+                                                                <option value="Previous Price">Previous</option>
+                                                            @endif
+                                                        </select>
+                                                        @if(($tier ?? '') === '')
+                                                            <input type="text"
+                                                                inputmode="decimal"
+                                                                wire:model.lazy="stackedItems.{{ $itemIndex }}.item_unit_price"
+                                                                wire:change="updateUnitPrice({{ $itemIndex }})"
+                                                                class="form-control form-control-sm" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                placeholder="0.00"
+                                                                style="width: 52px; font-size: 0.76em; text-align: right; flex-shrink: 0;">
+                                                        @else
+                                                            <span class="fw-bold form-control form-control-sm d-inline-block"
+                                                                style="width: 52px; font-size: 0.76em; text-align: right; background-color: #f8f9fa; border: 1px solid #ced4da; border-radius: 0.25rem; padding: 0.12rem 0.25rem; line-height: 1.15; flex-shrink: 0;">
+                                                                {{ number_format($price, 2) }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td class="text-end" style="vertical-align: top;">
+                                                @if($item)
+                                                    <span class="fw-bold do-amount-cell" style="font-size: 0.8em; color: #0d6efd; white-space: nowrap;">
+                                                        {{ number_format($stackedItems[$itemIndex]['amount'] ?? 0, 2) }}
+                                                    </span>
+                                                @endif
+                                            </td>
                                             </tr>
                                         @endfor
                                         {{-- Hidden row 24 (NOTES) - only shown in preview/print, hidden in form --}}
                                         <tr class="item-row" style="display: none;">
-                                            <td style="width: 95px; vertical-align: top; padding: 4px 8px;">
+                                            <td class="text-center text-muted" style="width: 44px; vertical-align: top; padding: 4px 8px;">
+                                                25
+                                            </td>
+                                            <td style="width: 62px; vertical-align: top; padding: 4px 8px;">
+                                                &nbsp;
+                                            </td>
+                                            <td style="width: 80px; vertical-align: top; padding: 4px 8px;">
+                                                &nbsp;
+                                            </td>
+                                            <td style="vertical-align: top; padding: 4px 8px;">
+                                                &nbsp;
+                                            </td>
+                                            <td style="vertical-align: top; padding: 4px 8px;">
                                                 &nbsp;
                                             </td>
                                             <td style="vertical-align: top; padding: 4px 8px;">
@@ -768,6 +789,7 @@
                                         </tr>
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
 
                             <div class="text-end mb-3">
@@ -851,7 +873,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
         </div>
     </div>
 
@@ -916,9 +937,63 @@
     @endif
 
     <style>
+        :root {
+            --do-grid-border: #d6deea;
+            --do-grid-border-strong: #bcc8d9;
+            --do-row-divider: #aebcd0;
+            --do-row-alt: #fbfcfe;
+            --do-row-focus: #f1f6ff;
+            --do-row-focus-accent: #0d6efd;
+        }
+
         .search-results {
             position: relative;
         }
+
+        /* Slightly denser top form area (customer/date/do no, etc.) */
+        .do-header-fields label {
+            font-size: 0.8em;
+            margin-bottom: 0.1rem;
+        }
+
+        .do-header-fields .form-control,
+        .do-header-fields .form-select {
+            font-size: 0.8em;
+        }
+
+        .do-header-fields p,
+        .do-header-fields b {
+            font-size: 1.0em;
+        }
+
+        .do-customer-detail {
+            margin-top: 0.4rem;
+            padding: 0.35rem 0.5rem 0.35rem 0.65rem;
+            border-left: 3px solid #c5d4e8;
+            background: #f8fafc;
+            border-radius: 0 4px 4px 0;
+            font-size: 0.78em;
+            line-height: 1.35;
+        }
+
+        .do-customer-detail-title {
+            font-size: 0.95em;
+        }
+
+        .do-created-by p {
+            padding-top: 0.12rem;
+        }
+
+        .do-created-by-sep {
+            border-color: #dee2e6 !important;
+        }
+
+        @media (min-width: 1200px) {
+            .do-header-three-col .do-header-stack {
+                min-height: 100%;
+            }
+        }
+
         .search-results ul {
             position: absolute;
             z-index: 100;
@@ -936,35 +1011,127 @@
             background-color: #f1f1f1;
         }
         
+        /* Cap form width on large monitors — full fluid width felt too wide */
+        .do-form-page {
+            max-width: 1080px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
         /* Fixed 23-row table layout */
+        .do-table-shell {
+            border: 1px solid #c8d3e2;
+            border-radius: 8px;
+            overflow: auto;
+            background: #fff;
+        }
+
         .do-fixed-table { 
             table-layout: fixed;
             width: 100%;
+            border: 0;
+            border-collapse: collapse;
+            background: #fff;
+            margin-bottom: 0;
         }
         
         .do-fixed-table th, .do-fixed-table td {
-            padding: 4px 8px;
-            vertical-align: top;
+            padding: 4px 6px;
+            vertical-align: middle;
             word-wrap: break-word;
+            border-left: 1px solid #e7ecf4;
+            border-right: 1px solid #e7ecf4;
+            border-top: 0;
+            border-bottom: 0;
+            font-size: 0.82em;
         }
         
         .do-fixed-table th {
             font-size: 0.85em;
             font-weight: bold;
             text-transform: uppercase;
-            border-bottom: 2px solid #000;
+            border-bottom: 1px solid var(--do-grid-border-strong);
+            background: #f3f7fc;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            box-shadow: inset 0 -1px 0 var(--do-grid-border-strong);
+            letter-spacing: 0.02em;
         }
         
         .do-fixed-table tbody tr {
-            min-height: 30px;
+            min-height: 24px;
+            border-bottom: 1.6px solid var(--do-row-divider);
+        }
+
+        .do-fixed-table td:nth-child(2),
+        .do-fixed-table td:nth-child(3),
+        .do-fixed-table td:nth-child(5),
+        .do-fixed-table td:nth-child(6) {
+            background: #fcfdff;
+        }
+
+        .do-fixed-table td:nth-child(5),
+        .do-fixed-table td:nth-child(6) {
+            text-align: center;
+        }
+
+        .do-fixed-table td:nth-child(6) {
+            text-align: right;
+            padding-right: 8px;
+        }
+
+        /* Tighten Description column so input aligns closer to cell edges */
+        .do-fixed-table td:nth-child(4) {
+            padding-left: 3px;
+            padding-right: 3px;
+        }
+
+        .do-fixed-table td:nth-child(4) .form-control,
+        .do-fixed-table td:nth-child(4) .form-control-sm {
+            margin-left: 0;
+            margin-right: 0;
         }
         
         .do-fixed-table .remark-row {
             background-color: #f8f9fa;
         }
         
+        .do-fixed-table tbody .item-row:nth-child(even) {
+            background-color: var(--do-row-alt);
+        }
+
         .do-fixed-table .item-row:hover {
-            background-color: #f0f0f0;
+            background-color: #f7faff;
+        }
+
+        .do-fixed-table tbody tr:last-child {
+            border-bottom: 0;
+        }
+
+        /* Strong focus cue to match "operator-first" row tracking */
+        .do-fixed-table .item-row:focus-within {
+            background-color: var(--do-row-focus) !important;
+            box-shadow: inset 3px 0 0 var(--do-row-focus-accent);
+        }
+
+        /* Subtle section separators for easier scanning */
+        .do-fixed-table th:nth-child(1),
+        .do-fixed-table td:nth-child(1),
+        .do-fixed-table th:nth-child(2),
+        .do-fixed-table td:nth-child(2),
+        .do-fixed-table th:nth-child(3),
+        .do-fixed-table td:nth-child(3),
+        .do-fixed-table th:nth-child(5),
+        .do-fixed-table td:nth-child(5),
+        .do-fixed-table th:nth-child(6),
+        .do-fixed-table td:nth-child(6) {
+            border-right: 1px solid #d2dcea;
+        }
+
+        .do-fixed-table th:nth-child(4),
+        .do-fixed-table td:nth-child(4) {
+            border-right: 1px solid #b8c6da;
         }
 
         /* Input fields in table */
@@ -972,9 +1139,105 @@
         .do-fixed-table input[type="number"],
         .do-fixed-table textarea {
             width: 100%;
-            padding: 0.25rem;
-            font-size: 0.85em;
-            border: 1px solid #ddd;
+            padding: 0.12rem 0.22rem;
+            font-size: 0.8em;
+            border: 1px solid transparent;
+            border-radius: 0.2rem;
+            background: transparent;
+        }
+
+        .do-fixed-table input[type="text"]:hover,
+        .do-fixed-table input[type="number"]:hover,
+        .do-fixed-table textarea:hover,
+        .do-fixed-table select:hover {
+            border-color: #d6deea;
+            background: #fff;
+        }
+
+        .do-fixed-table .form-control-sm,
+        .do-fixed-table .form-select-sm {
+            min-height: calc(1.2em + 0.24rem + 2px);
+            padding-top: 0.12rem;
+            padding-bottom: 0.12rem;
+            line-height: 1.1;
+        }
+
+        .do-fixed-table .form-select,
+        .do-fixed-table .form-select-sm,
+        .do-fixed-table .form-control-sm,
+        .do-fixed-table .btn-sm {
+            font-size: 0.8em;
+        }
+
+        .do-item-name-text {
+            font-size: 0.84em;
+            line-height: 1.2;
+        }
+
+        .do-row-number-cell {
+            font-weight: 600;
+            color: #73829a !important;
+            background: #f7f9fc;
+        }
+
+        .do-amount-cell {
+            font-variant-numeric: tabular-nums;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+        }
+
+        .do-qty-row {
+            flex-wrap: nowrap;
+        }
+
+        /* Keep row height tight; show move controls only when needed */
+        .do-move-actions {
+            display: none !important;
+        }
+
+        .item-row:hover .do-move-actions,
+        .item-row:focus-within .do-move-actions {
+            display: flex !important;
+        }
+
+        .do-price-row {
+            margin-top: 2px !important;
+            line-height: 1.05;
+            flex-wrap: nowrap !important;
+            white-space: nowrap;
+            overflow-x: auto;
+        }
+
+        .do-price-tier-select {
+            padding-right: 1.15rem !important;
+            background-position: right 0.3rem center;
+            text-overflow: ellipsis;
+        }
+
+        [data-do-add-item-button] {
+            border: 1px solid #cfd8e6 !important;
+            background: #ffffff !important;
+            color: #5a6f8f !important;
+            padding: 1px 4px !important;
+        }
+
+        [data-do-add-item-button]:hover {
+            border-color: #b8c9de !important;
+            background: #f5f9ff !important;
+            color: #3f5f87 !important;
+        }
+
+        .do-fixed-table td:nth-child(4) .btn.btn-sm {
+            border-radius: 4px;
+        }
+
+        .do-fixed-table input[type="text"]:focus,
+        .do-fixed-table input[type="number"]:focus,
+        .do-fixed-table textarea:focus,
+        .do-fixed-table select:focus {
+            outline: none;
+            border-color: #3d7be0;
+            box-shadow: 0 0 0 0.12rem rgba(13, 110, 253, 0.18);
+            background: #fff;
         }
         
         /* Search dropdown */
@@ -1013,6 +1276,13 @@
             border-radius: 0.5rem;
             box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
             text-align: center;
+        }
+
+        @media (max-width: 1200px) {
+            .do-fixed-table th,
+            .do-fixed-table td {
+                padding: 2px 5px;
+            }
         }
     </style>
 

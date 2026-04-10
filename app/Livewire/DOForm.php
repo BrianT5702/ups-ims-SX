@@ -521,8 +521,7 @@ class DOForm extends Component
                             'more_description' => '',
                             'is_text_only' => true,
                             'is_choice' => true,
-                            'choice_options' => $choiceOptions, // [{item_id,item_name}]
-                            'choice_qty' => $orGroup['qty'],
+                            'choice_options' => $choiceOptions, // [{item_id,item_name,qty}]
                             'choice_selected_item_id' => null,
                             'is_detail_generated' => true,
                             'original_row_index' => $rowIndex + 1 + $detailRowOffset,
@@ -1694,7 +1693,6 @@ class DOForm extends Component
         }
 
         $matchedOptions = [];
-        $groupQty = null;
         foreach ($groupRawLines as $line) {
             $parsed = $this->smartParseLeadingQtyUom($line);
             if ($parsed === null) {
@@ -1704,11 +1702,6 @@ class DOForm extends Component
             $qty = (float) ($parsed['qty'] ?? 0);
             if ($qty <= 0) {
                 return null;
-            }
-            if ($groupQty === null) {
-                $groupQty = $qty;
-            } elseif (abs($groupQty - $qty) > 0.0001) {
-                return null; // mixed qty in OR group -> keep as plain text
             }
 
             $rest = trim((string) ($parsed['rest'] ?? ''));
@@ -1734,6 +1727,7 @@ class DOForm extends Component
             $matchedOptions[] = [
                 'item_id' => (int) $item->id,
                 'item_name' => $itemName,
+                'qty' => $qty,
             ];
         }
 
@@ -1754,7 +1748,6 @@ class DOForm extends Component
         }
 
         return [
-            'qty' => $groupQty ?? 1,
             'options' => $options,
             'next_index' => $idx,
         ];
@@ -1938,10 +1931,15 @@ class DOForm extends Component
             return;
         }
 
-        $validIds = collect($row['choice_options'] ?? [])->pluck('item_id')->map(fn($v) => (int) $v)->all();
+        $options = $row['choice_options'] ?? [];
+        $validIds = collect($options)->pluck('item_id')->map(fn($v) => (int) $v)->all();
         if (!in_array($selectedItemId, $validIds, true)) {
             return;
         }
+
+        $matchedOpt = collect($options)->first(function ($o) use ($selectedItemId) {
+            return (int) ($o['item_id'] ?? 0) === $selectedItemId;
+        });
 
         $item = Item::find($selectedItemId);
         if (!$item) {
@@ -1949,7 +1947,7 @@ class DOForm extends Component
         }
 
         $defaultUm = ($item->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item->um ?? 'UNIT');
-        $qty = (float) ($row['choice_qty'] ?? 1);
+        $qty = (float) ($matchedOpt['qty'] ?? 1);
         if ($qty <= 0) {
             $qty = 1;
         }

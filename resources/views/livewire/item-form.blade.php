@@ -74,12 +74,12 @@
                                     <label for="qty" class="form-label">Quantity <span class="text-danger">*</span></label>
                                     @if($item)
                                         @if($canEditQtyForUpsDervet ?? false)
-                                            <input type="number" wire:model.live="qty" min="0" id="qty" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                            <input type="number" step="any" wire:model.live="qty" id="qty" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
                                         @else
                                             <input type="number" value="{{ $qty }}" class="form-control form-control-sm rounded" disabled>
                                         @endif
                                     @else
-                                        <input type="number" wire:model.live="initialQuantity" min="0" class="form-control form-control-sm rounded">
+                                        <input type="number" step="any" wire:model.live="initialQuantity" min="0" class="form-control form-control-sm rounded">
                                     @endif
                                     @error('initialQuantity') <span class="text-danger">{{ $message }}</span> @enderror
                                     @error('qty') <span class="text-danger">{{ $message }}</span> @enderror
