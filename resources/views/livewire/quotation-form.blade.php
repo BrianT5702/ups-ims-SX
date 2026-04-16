@@ -100,7 +100,7 @@
                             <div class="col-xl-4 col-lg-6 do-header-stack">
                                 <div id="field-quotation_num">
                                     <label for="quotation_num">Quotation Number <span class="text-danger">*</span></label>
-                                    <input type="text" wire:model="quotation_num" id="quotation_num" class="form-control rounded" {{ $isView ? 'disabled' : '' }} placeholder="Enter Quotation Number">
+                                    <input type="text" wire:model="quotation_num" id="quotation_num" class="form-control rounded" {{ $isView ? 'disabled' : '' }} @if(!$isView && (!$quotation || !$quotation->id)) readonly @endif placeholder="Quotation number (assigned on save)">
                                     @error('quotation_num') <p class="text-danger">{{ $message }}</p> @enderror
                                 </div>
                                 <div class="mt-2">

@@ -561,20 +561,28 @@ class DatabaseSeeder extends Seeder
             'updated_at'    => now(),
         ]);
 
-        DB::connection($connection)->table('purchase_orders')->updateOrInsert(
-            ['po_num' => 'PO0000000000'],
-            [
-                'ref_num' => 'PO0000000000',
-                'po_num' => 'PO0000000000',
-                'sup_id' => 1,
-                'user_id' => 1,
-                'date' => now()->subDays(10),
-                'remark' => 'First Purchase Order',
-                'status' => 'Pending',
-                'final_total_price' => 1000.00,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]
-        );
+        // Use real FK targets — never assume suppliers.id / users.id === 1 after updateOrInsert
+        $seedSupplierId = DB::connection($connection)
+            ->table('suppliers')
+            ->where('account', 'SUP001')
+            ->value('id');
+
+        if ($seedSupplierId && isset($admin)) {
+            DB::connection($connection)->table('purchase_orders')->updateOrInsert(
+                ['po_num' => 'PO0000000000'],
+                [
+                    'ref_num' => 'PO0000000000',
+                    'po_num' => 'PO0000000000',
+                    'sup_id' => $seedSupplierId,
+                    'user_id' => $admin->id,
+                    'date' => now()->subDays(10),
+                    'remark' => 'First Purchase Order',
+                    'status' => 'Pending',
+                    'final_total_price' => 1000.00,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
     }
 }

@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\CustomerSnapshot;
 use App\Rules\UniqueInCurrentDatabase;
 use App\Rules\ExistsInCurrentDatabase;
+use App\Services\QuotationNumberService;
 use Illuminate\Support\Facades\DB;
 
 #[Title('UR | Manage Quotation')]
@@ -54,7 +55,7 @@ class QuotationForm extends Component
     {
         $this->isView = request()->routeIs('quotations.view');
 
-        if ($quotation && $quotation->id) {
+        if ($quotation->id) {
             $this->quotation = $quotation;
             $this->quotation_num = $quotation->quotation_num;
             $this->ref_num = $quotation->ref_num;
@@ -97,6 +98,10 @@ class QuotationForm extends Component
             if ($quotation->customer) {
                 $this->customerSearchTerm = $quotation->customer->cust_name;
             }
+        } else {
+            $this->quotation = $quotation;
+            $connection = session('active_db') ?: DB::getDefaultConnection();
+            $this->quotation_num = QuotationNumberService::getNextQuotationNumberPreview($connection);
         }
     }
 
@@ -470,8 +475,10 @@ class QuotationForm extends Component
         }
         if ($this->getErrorBag()->any()) { return; }
 
+        $connection = session('active_db') ?: DB::getDefaultConnection();
+
         try {
-            DB::beginTransaction();
+            DB::connection($connection)->beginTransaction();
 
             $this->recalculateTotals();
 
@@ -513,8 +520,10 @@ class QuotationForm extends Component
 
                 QuotationItem::where('quotation_id', $q->id)->delete();
             } else {
+                $this->quotation_num = QuotationNumberService::getNextQuotationNumber($connection, true);
+
                 $this->quotation = Quotation::create([
-                    'quotation_num' => $this->quotation_num ?? ('Q' . time()),
+                    'quotation_num' => $this->quotation_num,
                     'ref_num' => $this->ref_num,
                     'cust_id' => $this->cust_id,
                     'user_id' => auth()->id(),
@@ -540,12 +549,12 @@ class QuotationForm extends Component
                 ]);
             }
 
-            DB::commit();
+            DB::connection($connection)->commit();
             if (!$this->isPreviewMode) {
                 toastr()->success('Quotation saved');
             }
         } catch (\Exception $e) {
-            DB::rollBack();
+            DB::connection($connection)->rollBack();
             if (!$this->isPreviewMode) {
                 toastr()->error('Failed to save quotation: ' . $e->getMessage());
             }
@@ -557,7 +566,6 @@ class QuotationForm extends Component
     public function render()
     {
         $this->date = $this->date ?? now()->toDateString();
-        $this->quotation_num = $this->quotation_num ?? ('Q' . time());
         // Use current database connection (not just 'ups') to match validation
         $connection = session('active_db') ?: DB::getDefaultConnection();
         $this->salesmen = User::on($connection)->role('Salesperson')->orderBy('name','asc')->get();
