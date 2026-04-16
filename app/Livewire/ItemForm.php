@@ -10,6 +10,7 @@ use App\Models\Family;
 use App\Models\Group;
 use App\Models\Item;
 use App\Rules\UniqueInCurrentDatabase;
+use App\Rules\ExistsInCurrentDatabase;
 use Livewire\Attributes\Title;
 use App\Models\Warehouse;
 use App\Models\Location;
@@ -37,22 +38,16 @@ class ItemForm extends Component
     public $imagePreview = null;
     public $isImageUploading = false;
 
-    #[Validate('required', message: 'Category is required')]
     public $category = '';
 
-    #[Validate('required', message: 'Family is required')]
     public $family = '';
 
-    #[Validate('required', message: 'Group is required')]
     public $group = '';
 
-    #[Validate('required', message: 'Supplier is required')]
     public $supplier = '';
 
-    #[Validate('required', message: 'Warehouse is required')]
     public $warehouse = '';
 
-    #[Validate('required', message: 'location is required')]
     public $location = '';
 
     public $categories;
@@ -68,13 +63,13 @@ class ItemForm extends Component
     #[Validate('required', message: 'Item name is required')]
     public $item_name = '';
 
-    #[Validate('required|numeric', message: 'Quantity must be a valid number')]
+    #[Validate('nullable|numeric', message: 'Quantity must be a valid number')]
     public $qty = 0;
 
     #[Validate('required|numeric|min:0', message: 'Customer price must be a non-negative number')]
     public $cust_price = 0;
 
-    #[Validate('nullable|numeric|min:0', message: 'Cost must be a non-negative number')]
+    #[Validate('required|numeric|min:0', message: 'Cost must be a non-negative number')]
     public $cost = 0;
 
     #[Validate('required|numeric|min:0', message: 'Term price must be a non-negative number')]
@@ -106,7 +101,7 @@ class ItemForm extends Component
 
     public $batchTrackings = [];
 
-    #[Validate('nullable|numeric|min:0', message: 'Initial quantity must be a valid non-negative number')]
+    #[Validate('required|numeric|min:0', message: 'Quantity must be a valid non-negative number')]
     public $initialQuantity = 0;
 
     // New batch form fields
@@ -115,6 +110,18 @@ class ItemForm extends Component
     public $newBatchSourceType = 'Manual Addition';
     public $newBatchSourceDoc = '-';
     public $showAddBatchSection = false;
+
+    protected function rules()
+    {
+        return [
+            'category' => ['nullable', new ExistsInCurrentDatabase('categories', 'id')],
+            'family' => ['nullable', new ExistsInCurrentDatabase('families', 'id')],
+            'group' => ['nullable', new ExistsInCurrentDatabase('groups', 'id')],
+            'supplier' => ['nullable', new ExistsInCurrentDatabase('suppliers', 'id')],
+            'warehouse' => ['nullable', new ExistsInCurrentDatabase('warehouses', 'id')],
+            'location' => ['nullable', new ExistsInCurrentDatabase('locations', 'id')],
+        ];
+    }
 
     public function updatedImage()
     {
@@ -505,9 +512,9 @@ class ItemForm extends Component
                 ]);
             }
     
-            $totalQuantity = $this->item ? 
-                BatchTracking::where('item_id', $this->item->id)->sum('quantity') : 
-                0;
+            $totalQuantity = $this->item
+                ? BatchTracking::where('item_id', $this->item->id)->sum('quantity')
+                : (float) $this->initialQuantity;
 
             // For UPS + DERVET SLIDING DOOR: use direct qty edit, create transaction for audit
             $activeDb = session('active_db', DB::getDefaultConnection());
@@ -540,13 +547,13 @@ class ItemForm extends Component
                 'term_price' => $this->term_price,
                 'cash_price' => $this->cash_price,
                 'stock_alert_level' => $this->stock_alert_level,
-                'sup_id' => $this->supplier,
+                'sup_id' => filled($this->supplier) ? $this->supplier : null,
                 'um' => $unit_measurement,
-                'cat_id' => $this->category,
-                'family_id' => $this->family,
-                'group_id' => $this->group,
-                'warehouse_id' => $this->warehouse,
-                'location_id' => $this->location,
+                'cat_id' => filled($this->category) ? $this->category : null,
+                'family_id' => filled($this->family) ? $this->family : null,
+                'group_id' => filled($this->group) ? $this->group : null,
+                'warehouse_id' => filled($this->warehouse) ? $this->warehouse : null,
+                'location_id' => filled($this->location) ? $this->location : null,
                 'memo' => $this->memo,
                 'details' => $this->details,
             ];

@@ -30,9 +30,9 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group mb-2">
-                                    <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
+                                    <label for="category" class="form-label">Category</label>
                                     <select wire:model.live="category" id="category" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="" disabled>Select a category</option>
+                                        <option value="">— None —</option>
                                         @foreach($categories as $category)
                                             <option value="{{ $category->id }}">{{ $category->cat_name }}</option>
                                         @endforeach
@@ -43,9 +43,9 @@
                         
                             <div class="col-md-4">
                                 <div class="form-group mb-2">
-                                    <label for="family" class="form-label">Family <span class="text-danger">*</span></label>
+                                    <label for="family" class="form-label">Family</label>
                                     <select wire:model.live="family" id="family" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="" disabled>Select a family</option>
+                                        <option value="">— None —</option>
                                         @foreach($families as $family)
                                             <option value="{{ $family->id }}">{{ $family->family_name }}</option>
                                         @endforeach
@@ -56,9 +56,9 @@
 
                             <div class="col-md-4">
                                 <div class="form-group mb-2">
-                                    <label for="group" class="form-label">Group <span class="text-danger">*</span></label>
+                                    <label for="group" class="form-label">Group</label>
                                     <select wire:model.live="group" id="group" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="" disabled>Select a group</option>
+                                        <option value="">— None —</option>
                                         @foreach($groups as $group)
                                             <option value="{{ $group->id }}">{{ $group->group_name }}</option>
                                         @endforeach
@@ -154,9 +154,9 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group mb-2">
-                                    <label for="supplier" class="form-label">Supplier <span class="text-danger">*</span></label>
+                                    <label for="supplier" class="form-label">Supplier</label>
                                     <select wire:model.live="supplier" id="supplier" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="" disabled>Select a supplier</option>
+                                        <option value="">— None —</option>
                                         @foreach($suppliers as $supplier)
                                             <option value="{{ $supplier->id }}">{{ $supplier->sup_name }}</option>
                                         @endforeach
@@ -167,9 +167,9 @@
 
                         <div class="col-md-4">
                             <div class="form-group mb-2">
-                                    <label for="warehouse" class="form-label">Warehouse <span class="text-danger">*</span></label>
+                                    <label for="warehouse" class="form-label">Warehouse</label>
                                     <select wire:model.live="warehouse" id="warehouse" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="" disabled>Select a warehouse</option>
+                                        <option value="">— None —</option>
                                         @foreach($warehouses as $wh)
                                             <option value="{{ $wh->id }}">{{ $wh->warehouse_name }}</option>
                                         @endforeach
@@ -180,9 +180,9 @@
 
                         <div class="col-md-4">
                         <div class="form-group mb-2">
-                            <label for="location" class="form-label">Location <span class="text-danger">*</span></label>
+                            <label for="location" class="form-label">Location</label>
                             <select wire:model.live="location" id="location" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="" disabled>Select a location</option>
+                                        <option value="">— None —</option>
                                         @foreach($locations as $location)
                                             <option value="{{ $location->id }}">{{ $location->location_name }}</option>
                                         @endforeach
