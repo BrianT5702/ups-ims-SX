@@ -160,7 +160,7 @@
                                     <thead>
                                         <tr>
                                             <th style="width: 30px;" class="text-center">#</th>
-                                            <th style="width: 90px;">QTY</th>
+                                            <th style="width: 90px;" class="text-end">QTY</th>
                                             <th style="width: 90px;">UNIT</th>
                                             <th>
                                                 <div class="d-flex justify-content-between align-items-center">
@@ -263,11 +263,11 @@
                                                 $canMoveUp = $item && $rowIndex > 0 && !isset($rowToItemMap[$rowIndex - 1]);
                                                 $canMoveDown = $item && $rowIndex < 23 && !isset($rowToItemMap[$rowIndex + 1]);
                                             @endphp
-                                            <tr class="item-row" wire:key="do-form-row-{{ $rowIndex }}-{{ $itemIndex === null ? 'empty' : $itemIndex }}">
+                                            <tr class="item-row" data-row-index="{{ $rowIndex }}" wire:key="do-form-row-{{ $rowIndex }}-{{ $itemIndex === null ? 'empty' : $itemIndex }}">
                                                 <td class="text-center text-muted do-row-number-cell" style="width: 30px; vertical-align: top; font-size: 0.65em;">
                                                     {{ $rowIndex + 1 }}
                                                 </td>
-                                                <td style="width: 62px; vertical-align: top;">
+                                                <td class="do-qty-cell" style="width: 62px; vertical-align: top;">
                                                     @if($item)
                                                         @if(isset($item['is_choice']) && $item['is_choice'])
                                                             @php
@@ -294,7 +294,8 @@
                                                                 value="{{ $choiceQtyLabel }}"
                                                                 disabled
                                                                 title="Quantity for each OR option (applies after you pick one)"
-                                                                style="max-width: 72px; background-color: #f8f9fa;">
+                                                                style="max-width: 72px; background-color: #f8f9fa;"
+                                                                data-do-role="qty">
                                                         @elseif((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
                                                             <input type="text"
                                                                 wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty"
@@ -314,7 +315,7 @@
                                                                 style="max-width: 56px;"
                                                                 data-do-role="qty">
                                                             @error('stackedItems.'.$itemIndex.'.item_qty')
-                                                                <div class="text-danger small">!</div>
+                                                                <div class="text-danger small text-end">!</div>
                                                             @enderror
                                                         @endif
                                                     @elseif(!$isView && $isEmptyRow)
@@ -772,7 +773,7 @@
                                             <td class="text-center text-muted" style="width: 44px; vertical-align: top; padding: 4px 8px;">
                                                 25
                                             </td>
-                                            <td style="width: 62px; vertical-align: top; padding: 4px 8px;">
+                                            <td class="do-qty-cell" style="width: 62px; vertical-align: top; padding: 4px 8px;">
                                                 &nbsp;
                                             </td>
                                             <td style="width: 80px; vertical-align: top; padding: 4px 8px;">
@@ -1072,6 +1073,16 @@
             background: #fcfdff;
         }
 
+        /* QTY header and values align right toward UNIT */
+        .do-fixed-table th:nth-child(2) {
+            text-align: right;
+        }
+
+        .do-fixed-table td.do-qty-cell {
+            text-align: right;
+            vertical-align: top;
+        }
+
         .do-fixed-table td:nth-child(5),
         .do-fixed-table td:nth-child(6) {
             text-align: center;
@@ -1145,6 +1156,33 @@
             border: 1px solid transparent;
             border-radius: 0.2rem;
             background: transparent;
+        }
+
+        /*
+         * QTY values: browsers treat input width:auto like "fill the cell", so margin-left:auto
+         * does not pull the field right. Use a fixed width + inline-block inside text-align:right td.
+         */
+        .do-fixed-table td.do-qty-cell input[data-do-role="qty"] {
+            display: inline-block !important;
+            width: 4.5rem !important;
+            max-width: 72px !important;
+            min-width: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            text-align: right !important;
+            box-sizing: border-box;
+            vertical-align: top;
+        }
+
+        .do-fixed-table td.do-qty-cell input[type="number"][data-do-role="qty"]::-webkit-outer-spin-button,
+        .do-fixed-table td.do-qty-cell input[type="number"][data-do-role="qty"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .do-fixed-table td.do-qty-cell input[type="number"][data-do-role="qty"] {
+            -moz-appearance: textfield;
+            appearance: textfield;
         }
 
         .do-fixed-table input[type="text"]:hover,
@@ -1387,6 +1425,34 @@
             }
             document.addEventListener('livewire:init', registerScrollToError);
             if (document.readyState !== 'loading' && typeof Livewire !== 'undefined') registerScrollToError();
+        })();
+    </script>
+    <script>
+        (function() {
+            var registered = false;
+            function registerFocusQtyAfterAdd() {
+                if (typeof Livewire === 'undefined' || registered) return;
+                registered = true;
+                Livewire.on('focus-qty-row', (event) => {
+                    var payload = event && event[0];
+                    var rowIndex = payload && payload.rowIndex;
+                    if (rowIndex === null || rowIndex === undefined) return;
+
+                    // Wait for Livewire DOM patch to complete before focusing.
+                    setTimeout(function() {
+                        var row = document.querySelector('tr.item-row[data-row-index="' + rowIndex + '"]');
+                        if (!row) return;
+
+                        var qtyInput = row.querySelector('[data-do-role="qty"]:not([disabled])');
+                        if (!qtyInput) return;
+
+                        qtyInput.focus();
+                        if (typeof qtyInput.select === 'function') qtyInput.select();
+                    }, 0);
+                });
+            }
+            document.addEventListener('livewire:init', registerFocusQtyAfterAdd);
+            if (document.readyState !== 'loading' && typeof Livewire !== 'undefined') registerFocusQtyAfterAdd();
         })();
     </script>
     <script>

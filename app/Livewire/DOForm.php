@@ -569,6 +569,7 @@ class DOForm extends Component
             $this->itemSearchResults = [];
 
             $this->calculateTotalAmount();
+            $this->dispatch('focus-qty-row', ['rowIndex' => (int) $rowIndex]);
         }
     }
 
