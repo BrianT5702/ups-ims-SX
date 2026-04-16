@@ -296,10 +296,11 @@
                                                                 title="Quantity for each OR option (applies after you pick one)"
                                                                 style="max-width: 72px; background-color: #f8f9fa;">
                                                         @elseif((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
-                                                            <input type="number" 
-                                                                wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty" 
-                                                                class="form-control form-control-sm" 
-                                                                min="0" step="0.01" inputmode="decimal"
+                                                            <input type="text"
+                                                                wire:model.lazy="stackedItems.{{ $itemIndex }}.item_qty"
+                                                                class="form-control form-control-sm"
+                                                                inputmode="decimal"
+                                                                autocomplete="off"
                                                                 {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                 style="max-width: 56px;"
                                                                 data-do-role="qty">
@@ -317,11 +318,11 @@
                                                             @enderror
                                                         @endif
                                                     @elseif(!$isView && $isEmptyRow)
-                                                        <input type="number" 
-                                                            wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.qty" {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
-                                                            class="form-control form-control-sm" 
-                                                            min="0" step="0.01" inputmode="decimal"
-                                                            placeholder="0"
+                                                        <input type="text"
+                                                            wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.qty" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                            class="form-control form-control-sm"
+                                                            inputmode="decimal"
+                                                            autocomplete="off"
                                                             style="max-width: 56px;"
                                                             data-do-role="qty">
                                                     @elseif(!$isView)
@@ -336,7 +337,7 @@
                                                                 style="max-width: 86px; padding: 0.15rem 0.25rem; background-color: #f8f9fa;">
                                                         @elseif((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
                                                             <input type="text" wire:model="stackedItems.{{ $itemIndex }}.custom_um"
-                                                                class="form-control form-control-sm" placeholder="UOM"
+                                                                class="form-control form-control-sm"
                                                                 {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                 style="max-width: 86px; padding: 0.15rem 0.25rem;">
                                                         @else
@@ -348,7 +349,7 @@
                                                         @endif
                                                     @elseif(!$isView && $isEmptyRow)
                                                         <input type="text" wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.um" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                            class="form-control form-control-sm" placeholder="UOM"
+                                                            class="form-control form-control-sm"
                                                             style="max-width: 86px; padding: 0.15rem 0.25rem;">
                                                     @elseif(!$isView)
                                                         <input type="text" class="form-control form-control-sm" placeholder="UOM" disabled

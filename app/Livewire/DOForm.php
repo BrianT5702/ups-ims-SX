@@ -116,7 +116,7 @@ class DOForm extends Component
                         ],
                         'custom_item_name' => $doItem->custom_item_name ?? '',
                         'custom_um' => $doItem->custom_um ?? '',
-                        'item_qty' => floatval($doItem->qty ?? 0), // Normalize: 1.50 -> 1.5 for display
+                        'item_qty' => $this->textOnlyQtyForForm($doItem->qty ?? 0), // Blank cell when qty is zero
                         'item_unit_price' => 0,
                         'amount' => 0,
                         'pricing_tier' => null,
@@ -266,7 +266,7 @@ class DOForm extends Component
                 // If current selection is Previous Price, update the unit price as well
                 if (($stackedItem['pricing_tier'] ?? '') === 'Previous Price') {
                     $this->stackedItems[$key]['item_unit_price'] = $this->stackedItems[$key]['item']['latest_do_price'] ?? 0;
-                    $this->stackedItems[$key]['amount'] = $this->stackedItems[$key]['item_qty'] * $this->stackedItems[$key]['item_unit_price'];
+                    $this->stackedItems[$key]['amount'] = floatval($this->stackedItems[$key]['item_qty'] ?? 0) * floatval($this->stackedItems[$key]['item_unit_price'] ?? 0);
                 }
             }
             $this->calculateTotalAmount();
@@ -534,6 +534,7 @@ class DOForm extends Component
                 }
 
                 // Non-OR line: insert as text-only detail row (it may auto-convert below).
+                // Do not copy the parent item's UOM — these are description lines until converted to a real item row.
                 $this->stackedItems[] = [
                     'item' => [
                         'id' => null,
@@ -543,8 +544,8 @@ class DOForm extends Component
                         'details' => '',
                     ],
                     'custom_item_name' => $lineTrim,
-                    'custom_um' => $newItem['custom_um'] ?? '',
-                    'item_qty' => 0,
+                    'custom_um' => '',
+                    'item_qty' => '',
                     'item_unit_price' => 0,
                     'amount' => 0,
                     'pricing_tier' => '',
@@ -750,7 +751,7 @@ class DOForm extends Component
                 $this->stackedItems[$key]['amount'] = floatval($this->stackedItems[$key]['item_qty'] ?? 0) * floatval($this->stackedItems[$key]['item_unit_price'] ?? 0);
             } else {
                 // For custom prices, just recalculate amount without changing the price
-                $this->stackedItems[$key]['amount'] = $this->stackedItems[$key]['item_qty'] * $this->stackedItems[$key]['item_unit_price'];
+                $this->stackedItems[$key]['amount'] = floatval($this->stackedItems[$key]['item_qty'] ?? 0) * floatval($this->stackedItems[$key]['item_unit_price'] ?? 0);
             }
         }
     }
@@ -774,17 +775,37 @@ class DOForm extends Component
 
     public function updatePriceLine($index)
     {
-        if (isset($this->stackedItems[$index])) {
-            $item = $this->stackedItems[$index];
-            $requestedQty = floatval($item['item_qty'] ?? 0);
-            
-            // No stock validation - allow any quantity, including negative stock
-            $item['item_qty'] = $requestedQty;
-            $item['item_unit_price'] = floatval($item['item_unit_price'] ?? 0);
-            $this->stackedItems[$index]['amount'] = $item['item_qty'] * $item['item_unit_price'];
-
-            $this->calculateTotalAmount();
+        if (!isset($this->stackedItems[$index])) {
+            return;
         }
+
+        $item = $this->stackedItems[$index];
+        $raw = $item['item_qty'] ?? null;
+        $trimmed = is_string($raw) ? trim($raw) : $raw;
+        $numericQty = ($trimmed === '' || $trimmed === null) ? 0.0 : floatval($trimmed);
+
+        // Description lines: keep QTY cell visually empty when quantity is zero (stored as '').
+        $isBlankTextQty = isset($item['is_text_only']) && $item['is_text_only']
+            && !($item['is_choice'] ?? false);
+
+        if ($isBlankTextQty) {
+            if ($numericQty === 0.0) {
+                $this->stackedItems[$index]['item_qty'] = '';
+            } else {
+                $this->stackedItems[$index]['item_qty'] = (floor($numericQty) == $numericQty)
+                    ? (int) $numericQty
+                    : $numericQty;
+            }
+        } else {
+            $this->stackedItems[$index]['item_qty'] = $numericQty;
+        }
+
+        $item = $this->stackedItems[$index];
+        $item['item_unit_price'] = floatval($item['item_unit_price'] ?? 0);
+        $effQty = floatval(($item['item_qty'] === '' || $item['item_qty'] === null) ? 0 : $item['item_qty']);
+        $this->stackedItems[$index]['amount'] = $effQty * $item['item_unit_price'];
+
+        $this->calculateTotalAmount();
     }
     
     public function updatedStackedItems($value, $key)
@@ -1112,7 +1133,7 @@ class DOForm extends Component
                 ],
                 'custom_item_name' => $textTrim,
                 'custom_um' => $umFromRow,
-                'item_qty' => $qtyFromRow,
+                'item_qty' => $this->textOnlyQtyForForm($qtyFromRow),
                 'item_unit_price' => 0,
                 'amount' => 0,
                 'pricing_tier' => '',
@@ -3006,7 +3027,7 @@ class DOForm extends Component
                     ],
                     'custom_item_name' => $doItem->custom_item_name ?? '',
                     'custom_um' => $doItem->custom_um ?? '',
-                    'item_qty' => floatval($doItem->qty ?? 0),
+                    'item_qty' => $this->textOnlyQtyForForm($doItem->qty ?? 0),
                     'item_unit_price' => 0,
                     'amount' => 0,
                     'pricing_tier' => null,
@@ -3124,6 +3145,22 @@ class DOForm extends Component
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get();
+    }
+
+    /**
+     * Text-only description rows: use empty string for zero/unspecified qty so the QTY input stays blank.
+     */
+    private function textOnlyQtyForForm(mixed $qty): mixed
+    {
+        if ($qty === '' || $qty === null) {
+            return '';
+        }
+        $f = is_numeric($qty) ? (float) $qty : floatval($qty);
+        if ($f === 0.0) {
+            return '';
+        }
+
+        return (floor($f) == $f) ? (int) $f : $f;
     }
 
     private function getLatestDOPriceForItem($itemId, $customerId = null)
