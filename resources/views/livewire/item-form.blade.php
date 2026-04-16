@@ -1,6 +1,6 @@
-<div class="container my-3">
+<div class="container my-3 item-form-page">
     <div class="row">
-        <div class="col-9 m-auto">
+        <div class="col-12 col-xl-10 col-xxl-9 m-auto">
             <div class="card shadow-sm" style="overflow: visible;">
                 <div class="card-header">
                     <div class="row d-flex align-items-center justify-content-between">
@@ -13,8 +13,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-body">
-                    <form wire:submit.prevent="addItem">
+                <div class="card-body item-form-body">
+                    <form wire:submit.prevent="addItem" class="item-form-grid">
                         <div class="form-group mb-2">
                             <label for="item_code" class="form-label">Item Code <span class="text-danger">*</span></label>
                             <input type="text" wire:model.live="item_code" id="item_code" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
@@ -27,7 +27,8 @@
                             @error('item_name') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
 
-                        <div class="row">
+                        <div class="item-form-section-title">Classification</div>
+                        <div class="row g-2">
                             <div class="col-md-4">
                                 <div class="form-group mb-2">
                                     <label for="category" class="form-label">Category</label>
@@ -68,8 +69,9 @@
                             </div>
                         </div>
                         
-                        <div class="row">
-                            <div class="col-md-6">
+                        <div class="item-form-section-title">Pricing & Quantity</div>
+                        <div class="row g-2">
+                            <div class="col-md-4">
                                 <div class="form-group mb-2">
                                     <label for="qty" class="form-label">Quantity <span class="text-danger">*</span></label>
                                     @if($item)
@@ -85,7 +87,27 @@
                                     @error('qty') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="form-group mb-2">
+                                    <label for="um" class="form-label">Unit Measurement</label>
+                                    <select wire:model.live="um" id="um" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                        <option value="" disabled>Select a unit measurement</option>
+                                        <option value="UNIT">UNIT</option>
+                                        <option value="BOX">BOX</option>
+                                        <option value="KG">KG</option>
+                                        <option value="ROLL">ROLL</option>
+                                        <option value="custom">Other (Specify)</option>
+                                    </select>
+                                    
+                                    @if ($is_custom_um)
+                                        <input type="text" wire:model.live="custom_um" wire:key="custom-um-input" class="form-control form-control-sm rounded mt-2" placeholder="Enter custom unit">
+                                    @endif
+
+                                    @error('um') <span class="text-danger">{{ $message }}</span> @enderror
+                                    @error('custom_um') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="form-group mb-2">
                                     <label for="cost" class="form-label">Cost <span class="text-danger">*</span></label>
                                     <input type="number" step="0.01" wire:model.live="cost" min="0" id="cost" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
@@ -94,7 +116,7 @@
                             </div>
                         </div>
 
-                        <div class="row">
+                        <div class="row g-2">
                             <div class="col-md-4">
                                 <div class="form-group mb-2">
                                     <label for="cash_price" class="form-label">Cash Price <span class="text-danger">*</span></label>
@@ -118,40 +140,8 @@
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-2">
-                                    <label for="stock_alert_level" class="form-label">Stock Alert Level</label>
-                                    <input type="number" wire:model.live="stock_alert_level" min="0" id="stock_alert_level" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                    @error('stock_alert_level') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="form-group mb-2">
-                                    <label for="um" class="form-label">Unit Measurement</label>
-                                    <select wire:model.live="um" id="um" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="" disabled>Select a unit measurement</option>
-                                        <option value="UNIT">UNIT</option>
-                                        <option value="BOX">BOX</option>
-                                        <option value="KG">KG</option>
-                                        <option value="ROLL">ROLL</option>
-                                        <option value="custom">Other (Specify)</option>
-                                    </select>
-                                    
-                                    @if ($is_custom_um)
-                                        <input type="text" wire:model.live="custom_um" wire:key="custom-um-input" class="form-control form-control-sm rounded mt-2" placeholder="Enter custom unit">
-                                    @endif
-
-                                    @error('um') <span class="text-danger">{{ $message }}</span> @enderror
-                                    @error('custom_um') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                        </div>
-
-
-                        </div>
-
-                        <div class="row">
+                        <div class="item-form-section-title">Inventory Settings</div>
+                        <div class="row g-2">
                             <div class="col-md-4">
                                 <div class="form-group mb-2">
                                     <label for="supplier" class="form-label">Supplier</label>
@@ -191,7 +181,18 @@
                         </div>
                         </div>
 
-                        <div class="row">
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <div class="form-group mb-2">
+                                    <label for="stock_alert_level" class="form-label">Stock Alert Level</label>
+                                    <input type="number" wire:model.live="stock_alert_level" min="0" id="stock_alert_level" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                    @error('stock_alert_level') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="item-form-section-title">Notes</div>
+                        <div class="row g-2">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
                                     <label for="memo" class="form-label">Memo</label>
@@ -208,6 +209,7 @@
                             </div>
                         </div>
 
+                        <div class="item-form-section-title">Image</div>
                         <div>
                             <!-- Image upload section with preview -->
                             <div class="mb-4">
@@ -388,4 +390,60 @@
             </div>
         </div>
     </div>
+    <style>
+        .item-form-page .card {
+            border: 1px solid #d8deea;
+        }
+
+        .item-form-page .card-header {
+            background: #f7f9fc;
+            border-bottom: 1px solid #d8deea;
+            padding-top: 0.65rem;
+            padding-bottom: 0.65rem;
+        }
+
+        .item-form-page .item-form-body {
+            padding-top: 0.85rem;
+            padding-bottom: 0.85rem;
+        }
+
+        .item-form-page .item-form-grid .form-group {
+            margin-bottom: 0.45rem !important;
+        }
+
+        .item-form-page .item-form-section-title {
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #5f6f86;
+            border-top: 1px solid #e7ecf4;
+            padding-top: 0.55rem;
+            margin-top: 0.45rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .item-form-page .item-form-grid .form-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+            color: #2f3b4b;
+        }
+
+        .item-form-page .item-form-grid .form-control,
+        .item-form-page .item-form-grid .form-select {
+            font-size: 0.84rem;
+            min-height: calc(1.45em + 0.45rem + 2px);
+            padding-top: 0.22rem;
+            padding-bottom: 0.22rem;
+        }
+
+        .item-form-page .item-form-grid textarea.form-control {
+            min-height: 72px;
+        }
+
+        .item-form-page .text-danger {
+            font-size: 0.77rem;
+        }
+    </style>
 </div>
