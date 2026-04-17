@@ -11,8 +11,11 @@ use App\Models\Group;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ItemsExport;
+use App\Jobs\GenerateInventoryPdfReport;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Str;
 
 class Report extends Component
 {
@@ -28,6 +31,10 @@ class Report extends Component
     public $sortByBrand = false;
     public $sortByGroup = false;
     public $showGrouping = true; // Show GROUP/BRAND/TYPE headers
+    public $reportJobToken = null;
+    public $reportStatusMessage = '';
+    public $reportDownloadUrl = null;
+    public $reportProgress = 0;
     
     public $availableColumns = [
         'item_code' => 'Stock Code',
@@ -56,12 +63,22 @@ class Report extends Component
         $this->sortByBrand = false;
         $this->sortByGroup = false;
         $this->showGrouping = true;
+
+        $lastToken = session('inventory_report_last_token');
+        if ($lastToken) {
+            $this->reportJobToken = $lastToken;
+            $this->checkReportStatus();
+        }
     }
 
     public function generateReport()
     {
         $this->errorMessage = '';
         $this->isGenerating = true;
+        $this->reportDownloadUrl = null;
+        $this->reportStatusMessage = '';
+        $this->reportJobToken = null;
+        $this->reportProgress = 0;
         
         try {
             $this->validate();
@@ -176,14 +193,31 @@ class Report extends Component
                 return null;
             }
             
-            // For PDF, always attempt to generate a single PDF file.
-            // Any memory/size problems will be caught and surfaced as an error message.
             if ($this->fileType === 'pdf') {
-                $pdfContent = $this->generatePDFContent($query, $itemCount);
-                $this->dispatch('download-pdf', [
-                    'content' => base64_encode($pdfContent),
-                    'filename' => 'inventory_report_' . date('Y-m-d') . '.pdf'
-                ]);
+                $this->reportJobToken = (string) Str::uuid();
+
+                Cache::put($this->cacheKey($this->reportJobToken), [
+                    'status' => 'queued',
+                    'message' => 'Report queued. Please wait...',
+                    'progress' => 5,
+                ], now()->addHours(2));
+
+                session(['inventory_report_last_token' => $this->reportJobToken]);
+
+                GenerateInventoryPdfReport::dispatch(
+                    token: $this->reportJobToken,
+                    selectedColumns: $this->selectedColumns,
+                    stockFilter: $this->stockFilter,
+                    selectedGroupId: $this->selectedGroupId ? (int) $this->selectedGroupId : null,
+                    selectedFamilyId: $this->selectedFamilyId ? (int) $this->selectedFamilyId : null,
+                    selectedCategoryId: $this->selectedCategoryId ? (int) $this->selectedCategoryId : null,
+                    showGrouping: (bool) $this->showGrouping
+                );
+
+                $this->reportStatusMessage = 'PDF report is generating in background...';
+                $this->reportProgress = 10;
+                $this->isGenerating = false;
+                return null;
             } else {
                 // For Excel, we can still load all at once as Excel handles it better
                 $items = $query->get();
@@ -225,7 +259,43 @@ class Report extends Component
             return null;
         }
     }
-    
+
+    public function checkReportStatus()
+    {
+        if (!$this->reportJobToken) {
+            return;
+        }
+
+        $statusData = Cache::get($this->cacheKey($this->reportJobToken));
+
+        if (!$statusData) {
+            $this->reportStatusMessage = 'Report status expired. Please generate again.';
+            $this->isGenerating = false;
+            return;
+        }
+
+        $status = $statusData['status'] ?? 'queued';
+        $this->reportStatusMessage = $statusData['message'] ?? '';
+        $this->reportProgress = (int) ($statusData['progress'] ?? 10);
+
+        if ($status === 'ready') {
+            $this->reportDownloadUrl = route('report.download', ['token' => $this->reportJobToken]);
+            $this->reportProgress = 100;
+            $this->isGenerating = false;
+        }
+
+        if ($status === 'failed') {
+            $this->errorMessage = $statusData['message'] ?? 'PDF generation failed.';
+            $this->reportProgress = 0;
+            $this->isGenerating = false;
+        }
+    }
+
+    private function cacheKey(string $token): string
+    {
+        return 'inventory_report_pdf:' . $token;
+    }
+
 
     protected function shouldShowTotals()
     {

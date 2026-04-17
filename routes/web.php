@@ -29,6 +29,7 @@ use App\Livewire\QuotationList;
 use App\Livewire\Report;
 use App\Livewire\Dashboard;
 use App\Http\Controllers\PrintController;
+use App\Http\Controllers\ReportDownloadController;
 use App\Livewire\Profile;
 use App\Livewire\TransactionReport;
 use App\Livewire\ChemicalForm\IBCChemicalForm;
@@ -244,6 +245,7 @@ Route::middleware(['auth', 'preventBackHistory', 'switchdb'])->group(function ()
     //Report section
     Route::prefix('report')->name('report')->middleware('permission:View Report')->group(function () {
         Route::get('/', Report::class);
+        Route::get('/download/{token}', ReportDownloadController::class)->name('.download');
     });
     Route::prefix('transaction-report')->name('transaction-report')->middleware('permission:View Report')->group(function () {
         Route::get('/', TransactionReport::class);

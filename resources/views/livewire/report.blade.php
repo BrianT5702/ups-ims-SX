@@ -102,14 +102,15 @@
         <button 
             wire:click="generateReport" 
             wire:loading.attr="disabled"
+            wire:target="generateReport"
             type="button"
             class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 relative disabled:opacity-50 disabled:cursor-not-allowed w-48 flex items-center justify-center"
             @if($isGenerating) disabled @endif
         >
-            <div wire:loading.remove>
+            <div wire:loading.remove wire:target="generateReport">
                 Generate Report
             </div>
-            <div wire:loading class="flex items-center justify-center space-x-2">
+            <div wire:loading wire:target="generateReport" class="flex items-center justify-center space-x-2">
                 <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -118,50 +119,27 @@
             </div>
         </button>
 
-        <script>
-            document.addEventListener('livewire:init', () => {
-                Livewire.on('download-pdf', (event) => {
-                    const content = event[0].content;
-                    const filename = event[0].filename;
-                    
-                    // Decode base64 content
-                    const binaryString = atob(content);
-                    const bytes = new Uint8Array(binaryString.length);
-                    for (let i = 0; i < binaryString.length; i++) {
-                        bytes[i] = binaryString.charCodeAt(i);
-                    }
-                    
-                    // Create blob and download
-                    const blob = new Blob([bytes], { type: 'application/pdf' });
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                });
-                
-                Livewire.on('download-html', (event) => {
-                    const content = event[0].content;
-                    const filename = event[0].filename;
-                    
-                    // Decode base64 content
-                    const htmlString = atob(content);
-                    
-                    // Create blob and download
-                    const blob = new Blob([htmlString], { type: 'text/html' });
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                });
-            });
-        </script>
+        @if($reportJobToken && !$reportDownloadUrl)
+            <div wire:poll.2s="checkReportStatus" class="mt-4">
+                <div class="flex items-center justify-between text-sm text-blue-700 mb-1">
+                    <span>{{ $reportStatusMessage ?: 'Generating PDF in background...' }}</span>
+                    <span>{{ (int) $reportProgress }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                        class="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                        style="width: {{ max(0, min(100, (int) $reportProgress)) }}%;"
+                    ></div>
+                </div>
+            </div>
+        @endif
+
+        @if($reportDownloadUrl)
+            <div class="mt-4">
+                <a href="{{ $reportDownloadUrl }}" class="inline-block bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                    Download Ready PDF
+                </a>
+            </div>
+        @endif
     </div>
 </div>
