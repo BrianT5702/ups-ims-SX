@@ -201,17 +201,19 @@
                                             }
                                         @endphp
                                         @php
-                                            // Count total description lines across all items (each line = 1 row to deduct from bottom)
-                                            $totalDescriptionLines = 0;
-                                            $totalDetailLines = 0;
+                                            // Deduct description rows per item using formula (1 + N) for each item with description.
+                                            // N = wrapped description lines for that item.
+                                            $rowsDeducedForDesc = 0;
                                             foreach ($stackedItems as $item) {
                                                 $desc = $item['more_description'] ?? '';
                                                 if (!empty($desc)) {
                                                     $lines = explode("\n", $desc);
+                                                    $itemDescLines = 0;
                                                     foreach ($lines as $line) {
                                                         $lineLength = strlen($line);
-                                                        $totalDescriptionLines += max(1, ceil($lineLength / 60));
+                                                        $itemDescLines += max(1, ceil($lineLength / 60));
                                                     }
+                                                    $rowsDeducedForDesc += (1 + $itemDescLines);
                                                 }
                                             }
                                             
@@ -248,8 +250,7 @@
                                                 }
                                             }
                                             
-                                            // Deduct rows from bottom: formula 1+N for descriptions only
-                                            $rowsDeducedForDesc = $totalDescriptionLines > 0 ? (1 + $totalDescriptionLines) : 0;
+                                            // Deduct rows from bottom using per-item (1+N) description cost.
                                             $rowsDeducedTotal = $rowsDeducedForDesc;
                                             $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
                                             $rowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedTotal));
@@ -604,7 +605,7 @@
                                                                         x-ref="searchInput"
                                                                         x-model="searchTerm"
                                                                         class="form-control form-control-sm" 
-                                                                        placeholder="Search item code or name..."
+                                                                        placeholder="Search item description..."
                                                                         autocomplete="off"
                                                                         {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                         @keydown.escape="showSearch = false; searchTerm = ''; showResults = false"

@@ -317,16 +317,23 @@ class DOForm extends Component
         }
         
         if (!empty($this->itemSearchTerm)) {
-            // Show all items regardless of stock level - allow out of stock items
-            // Order by item_code so list matches display (item_name often has leading @, *, etc. which breaks name sort)
-            $term = $this->itemSearchTerm;
-            $query = Item::where(function ($q) use ($term) {
-                    $q->where('item_code', 'like', '%' . $term . '%')
-                      ->orWhere('item_name', 'like', '%' . $term . '%');
-                });
-            
+            // Search by item description (item_name) only.
+            // For fraction-like input (e.g. "3/8"), require description to start with that token
+            // so results like "1/8 x 3/8 ..." do not appear.
+            $term = trim((string) $this->itemSearchTerm);
+            $isFractionSearch = preg_match('/\d+\s*\/\s*\d+/', $term) === 1;
+
+            $query = Item::query();
+            if ($isFractionSearch) {
+                $query->where('item_name', 'like', $term . '%');
+            } else {
+                $query->where('item_name', 'like', '%' . $term . '%');
+            }
+
             $this->itemSearchResults = $query
-                ->orderBy('item_code', 'asc')
+                // Sort by description while ignoring quote characters for cleaner ordering.
+                ->orderByRaw("LOWER(REPLACE(REPLACE(item_name, '\"', ''), '''', '')) ASC")
+                ->orderBy('item_name', 'asc')
                 ->limit(50)
                 ->get();
             $this->itemHighlightIndex = (count($this->itemSearchResults) > 0) ? 0 : -1;
@@ -1851,7 +1858,7 @@ class DOForm extends Component
             
             $totalRows += 1; // Base row for each item
             
-            // Estimate description rows - formula 1+N: N lines = (1+N) row cost (1 line→2, 2 lines→3, etc.)
+            // Estimate description rows per item - formula 1+N per described item.
             $desc = $stackedItem['more_description'] ?? '';
             if (!empty($desc)) {
                 $lines = explode("\n", $desc);
@@ -1861,37 +1868,25 @@ class DOForm extends Component
                     $wrappedLines = max(1, ceil($lineLength / 60));
                     $totalDescRows += $wrappedLines;
                 }
-                $totalRows += $totalDescRows;
+                $totalRows += 1 + $totalDescRows;
             }
         }
         
-        // Formula 1+N: add 1 extra row when any description exists
-        $totalDescRows = 0;
-        foreach ($items as $stackedItem) {
-            $desc = $stackedItem['more_description'] ?? '';
-            if (!empty($desc)) {
-                $lines = explode("\n", $desc);
-                foreach ($lines as $line) {
-                    $totalDescRows += max(1, ceil(strlen($line) / 60));
-                }
-            }
-        }
-        if ($totalDescRows > 0) {
-            $totalRows += 1;
-        }
-        
-        // If including new item, add 1 base row + rows for item details (deduct available rows by detail lines)
+        // If including new item, add 1 base row + projected rows for details.
+        // Use the same projection rules as addItem() so we don't over-count rows.
         if ($includeNewItem && $newItem) {
             $totalRows += 1; // Base row for the item
 
-            // Each detail line becomes its own DO grid row (text-only row)
+            // Projected detail rows:
+            // - blank / header lines are skipped
+            // - OR groups can collapse into a single choice row
             $detailLines = $this->normalizeDetailsLines($newItem->details ?? '');
-            $totalRows += count($detailLines);
+            $totalRows += $this->projectedDetailRowsForNewItem($detailLines);
         }
         
         // Add rows for remarks if present
-        $remark = $this->remark ?? '';
-        if (!empty($remark)) {
+        $remark = (string) ($this->remark ?? '');
+        if (trim($remark) !== '') {
             // Remark section calculation (including all padding and borders):
             // - Wrapper padding-top: 10px
             // - Inner padding: 8px top + 8px bottom = 16px
@@ -1903,8 +1898,8 @@ class DOForm extends Component
             
             // Count actual newlines - each line counts as 1 row
             // MUST account for actual newlines (Enter key presses)
-            $remarkLines = explode("\n", $remark);
-            $lineCount = count($remarkLines);
+            $remarkLines = preg_split('/\r\n|\r|\n/', trim($remark));
+            $lineCount = max(1, count(array_filter($remarkLines, fn($line) => trim((string) $line) !== '')));
             
             // Base remark section = ~2 rows equivalent (padding + border + label)
             // Each line in remark = 1 row
@@ -1913,6 +1908,38 @@ class DOForm extends Component
         }
         
         return $totalRows;
+    }
+
+    /**
+     * Project how many DO grid rows a details block will consume when adding a new item.
+     * Mirrors addItem() behavior so page-limit checks stay aligned with rendered output.
+     */
+    private function projectedDetailRowsForNewItem(array $detailLines): int
+    {
+        $rows = 0;
+        $i = 0;
+        $count = count($detailLines);
+
+        while ($i < $count) {
+            $line = trim((string) ($detailLines[$i] ?? ''));
+
+            if ($line === '' || $this->smartLooksLikeConsistOfHeader($line)) {
+                $i++;
+                continue;
+            }
+
+            $orGroup = $this->buildOrChoiceGroupFromDetailLines($detailLines, $i);
+            if ($orGroup !== null && count($orGroup['options'] ?? []) >= 2) {
+                $rows += 1; // one "OR choice" row
+                $i = (int) ($orGroup['next_index'] ?? ($i + 1));
+                continue;
+            }
+
+            $rows += 1; // regular text-only detail row
+            $i++;
+        }
+
+        return $rows;
     }
     
     /**

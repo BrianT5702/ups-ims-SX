@@ -963,15 +963,18 @@
                         </thead>
                         <tbody>
                             @php
-                                // Count total description lines - deduct that many rows from the bottom
-                                $totalDescriptionLines = 0;
+                                // Deduct description rows per item using formula (1 + N) for each item with description.
+                                // N = wrapped description lines for that item.
+                                $rowsDeducedForDesc = 0;
                                 foreach ($deliveryOrder->items as $item) {
                                     $desc = $item->more_description ?? '';
                                     if (!empty($desc)) {
                                         $lines = explode("\n", $desc);
+                                        $itemDescLines = 0;
                                         foreach ($lines as $line) {
-                                            $totalDescriptionLines += max(1, ceil(strlen($line) / 60));
+                                            $itemDescLines += max(1, ceil(strlen($line) / 60));
                                         }
+                                        $rowsDeducedForDesc += (1 + $itemDescLines);
                                     }
                                 }
                                 
@@ -999,8 +1002,7 @@
                                     }
                                 }
 
-                                // Deduct rows from bottom: formula 1+N for descriptions only
-                                $rowsDeducedForDesc = $totalDescriptionLines > 0 ? (1 + $totalDescriptionLines) : 0;
+                                // Deduct rows from bottom using per-item (1+N) description cost.
                                 $rowsDeducedTotal = $rowsDeducedForDesc;
                                 $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
                                 $itemRowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedTotal));
