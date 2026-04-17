@@ -727,6 +727,11 @@
                                                     @php
                                                         $price = $stackedItems[$itemIndex]['item_unit_price'] ?? 0;
                                                         $tier = $stackedItems[$itemIndex]['pricing_tier'] ?? '';
+                                                        $cashPrice = (float) ($item['item']['cash_price'] ?? 0);
+                                                        $termPrice = (float) ($item['item']['term_price'] ?? 0);
+                                                        $customerPrice = (float) ($item['item']['cust_price'] ?? 0);
+                                                        $costPrice = (float) ($item['item']['cost'] ?? 0);
+                                                        $previousPrice = (float) ($item['item']['latest_do_price'] ?? 0);
                                                     @endphp
                                                     <div class="d-flex align-items-center gap-1">
                                                         <select wire:model.live="stackedItems.{{ $itemIndex }}.pricing_tier"
@@ -734,12 +739,12 @@
                                                                 class="form-select form-select-sm do-price-tier-select" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                 style="width: 70px; font-size: 0.75em; flex-shrink: 0;">
                                                             <option value="">Custom</option>
-                                                            <option value="Cash Price">Cash</option>
-                                                            <option value="Term Price">Term</option>
-                                                            <option value="Customer Price">Customer</option>
-                                                            <option value="Cost">Cost</option>
-                                                            @if($cust_id && ($item['item']['latest_do_price'] ?? 0) > 0)
-                                                                <option value="Previous Price">Previous</option>
+                                                            <option value="Cash Price">Cash {{ number_format($cashPrice, 2) }}</option>
+                                                            <option value="Term Price">Term {{ number_format($termPrice, 2) }}</option>
+                                                            <option value="Customer Price">Customer {{ number_format($customerPrice, 2) }}</option>
+                                                            <option value="Cost">Cost {{ number_format($costPrice, 2) }}</option>
+                                                            @if($cust_id && $previousPrice > 0)
+                                                                <option value="Previous Price">Previous {{ number_format($previousPrice, 2) }}</option>
                                                             @endif
                                                         </select>
                                                         @if(($tier ?? '') === '')
