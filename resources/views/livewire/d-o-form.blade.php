@@ -176,8 +176,8 @@
                                                     @endif
                                                 </div>
                                             </th>
-                                            <th style="width: 150px;" class="text-center">Price</th>
-                                            <th style="width: 150px;" class="text-center">Amount</th>
+                                            <th style="width: 165px;" class="text-center">Price</th>
+                                            <th style="width: 135px;" class="text-center">Amount</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -261,6 +261,10 @@
                                                 $itemIndex = $rowToItemMap[$rowIndex] ?? null;
                                                 $item = $itemIndex !== null ? $stackedItems[$itemIndex] : null;
                                                 $isEmptyRow = ($itemIndex === null);
+                                                $freeFormRowData = $freeFormTextRows[$rowIndex] ?? null;
+                                                $freeFormQty = is_array($freeFormRowData) ? (float) ($freeFormRowData['qty'] ?? 0) : 0;
+                                                $freeFormPrice = is_array($freeFormRowData) ? (float) ($freeFormRowData['price'] ?? 0) : 0;
+                                                $freeFormAmount = $freeFormQty * $freeFormPrice;
                                                 $canMoveUp = $item && $rowIndex > 0 && !isset($rowToItemMap[$rowIndex - 1]);
                                                 $canMoveDown = $item && $rowIndex < 23 && !isset($rowToItemMap[$rowIndex + 1]);
                                             @endphp
@@ -340,18 +344,21 @@
                                                         @elseif((isset($item['is_text_only']) && $item['is_text_only']) || ($item['item']['id'] ?? null) === null)
                                                             <input type="text" wire:model="stackedItems.{{ $itemIndex }}.custom_um"
                                                                 class="form-control form-control-sm"
+                                                                data-do-role="uom"
                                                                 {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                 style="max-width: 86px; padding: 0.15rem 0.25rem;">
                                                         @else
                                                             <input type="text" wire:model="stackedItems.{{ $itemIndex }}.custom_um"
                                                                 class="form-control form-control-sm"
                                                                 placeholder="{{ ($item['item']['um'] ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item['item']['um'] ?? 'UOM') }}"
+                                                                data-do-role="uom"
                                                                 {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                 style="max-width: 86px; padding: 0.15rem 0.25rem;">
                                                         @endif
                                                     @elseif(!$isView && $isEmptyRow)
                                                         <input type="text" wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.um" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                             class="form-control form-control-sm"
+                                                            data-do-role="uom"
                                                             style="max-width: 86px; padding: 0.15rem 0.25rem;">
                                                     @elseif(!$isView)
                                                         <input type="text" class="form-control form-control-sm" placeholder="UOM" disabled
@@ -755,20 +762,41 @@
                                                                 wire:change="updateUnitPrice({{ $itemIndex }})"
                                                                 class="form-control form-control-sm" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                 placeholder="0.00"
-                                                                style="width: 52px; font-size: 0.76em; text-align: right; flex-shrink: 0;">
+                                                                style="width: 78px; font-size: 0.76em; text-align: right; flex-shrink: 0;">
                                                         @else
                                                             <span class="fw-bold form-control form-control-sm d-inline-block"
-                                                                style="width: 52px; font-size: 0.76em; text-align: right; background-color: #f8f9fa; border: 1px solid #ced4da; border-radius: 0.25rem; padding: 0.12rem 0.25rem; line-height: 1.15; flex-shrink: 0;">
+                                                                style="width: 78px; font-size: 0.76em; text-align: right; background-color: #f8f9fa; border: 1px solid #ced4da; border-radius: 0.25rem; padding: 0.12rem 0.25rem; line-height: 1.15; flex-shrink: 0;">
                                                                 {{ number_format($price, 2) }}
                                                             </span>
                                                         @endif
                                                     </div>
+                                                @elseif($item && ((isset($item['is_text_only']) && $item['is_text_only']) || (($item['item']['id'] ?? null) === null)))
+                                                    <input type="text"
+                                                        inputmode="decimal"
+                                                        wire:model.lazy="stackedItems.{{ $itemIndex }}.item_unit_price"
+                                                        wire:change="updateUnitPrice({{ $itemIndex }})"
+                                                        class="form-control form-control-sm" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                        placeholder="0.00"
+                                                        data-do-role="price"
+                                                        style="width: 78px; font-size: 0.76em; text-align: right; margin-left: auto; display: block;">
+                                                @elseif(!$isView && $isEmptyRow)
+                                                    <input type="text"
+                                                        inputmode="decimal"
+                                                        wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.price" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                        class="form-control form-control-sm"
+                                                        placeholder="0.00"
+                                                        data-do-role="price"
+                                                        style="width: 78px; font-size: 0.76em; text-align: right; margin-left: auto; display: block;">
                                                 @endif
                                             </td>
                                             <td class="text-end" style="vertical-align: top;">
                                                 @if($item)
                                                     <span class="fw-bold do-amount-cell" style="font-size: 0.8em; color: #0d6efd; white-space: nowrap;">
                                                         {{ number_format($stackedItems[$itemIndex]['amount'] ?? 0, 2) }}
+                                                    </span>
+                                                @elseif(!$isView && $isEmptyRow && ($freeFormQty > 0 || $freeFormPrice > 0))
+                                                    <span class="fw-bold do-amount-cell" style="font-size: 0.8em; color: #0d6efd; white-space: nowrap;">
+                                                        {{ number_format($freeFormAmount, 2) }}
                                                     </span>
                                                 @endif
                                             </td>
@@ -802,6 +830,20 @@
 
                             <div class="text-end mb-3">
                                 <div class="mb-3">
+                                    @php
+                                        $freeFormPreviewAmountTotal = 0;
+                                        if (!empty($freeFormTextRows) && is_array($freeFormTextRows)) {
+                                            foreach ($freeFormTextRows as $rowData) {
+                                                if (!is_array($rowData)) {
+                                                    continue;
+                                                }
+                                                $qty = (float) ($rowData['qty'] ?? 0);
+                                                $price = (float) ($rowData['price'] ?? 0);
+                                                $freeFormPreviewAmountTotal += ($qty * $price);
+                                            }
+                                        }
+                                        $displayTotalAmount = (float) ($total_amount ?? 0) + $freeFormPreviewAmountTotal;
+                                    @endphp
                                     <h6>Total Amount: 
                                         @if($deliveryOrder && $deliveryOrder->id)
                                             {{ $deliveryOrder->customerSnapshot->currency ?? $deliveryOrder->customer->currency ?? 'RM' }}
@@ -810,7 +852,7 @@
                                         @else
                                             RM
                                         @endif
-                                        {{ number_format((float)$total_amount, 2) }}
+                                        {{ number_format($displayTotalAmount, 2) }}
                                     </h6>
                                 </div>
                             </div>
@@ -1465,7 +1507,8 @@
         (function() {
             // Enter handling inside DO form:
             // - Never submits the form
-            // - From ANY field in an item row: jump into the NEXT row's description text field (if any)
+            // - From QTY field: jump to same-row UOM field
+            // - Otherwise from item-row field: jump into the NEXT row's description text field (if any)
             document.addEventListener('keydown', function (e) {
                 if (e.key !== 'Enter') return;
 
@@ -1483,6 +1526,39 @@
                 if (!currentRow) {
                     // Outside grid in the form: Enter is just blocked (no submit, no move)
                     return;
+                }
+
+                // If Enter was pressed in QTY, move to UOM in the same row first.
+                var isQtyTarget = e.target.matches('[data-do-role="qty"]');
+                if (isQtyTarget) {
+                    var unitInput = currentRow.querySelector('[data-do-role="uom"]:not([disabled])');
+                    if (unitInput) {
+                        unitInput.focus();
+                        if (typeof unitInput.select === 'function') unitInput.select();
+                        return;
+                    }
+                }
+
+                // If Enter was pressed in UOM, move to description in the same row first.
+                var isUomTarget = e.target.matches('[data-do-role="uom"]');
+                if (isUomTarget) {
+                    var sameRowDesc = currentRow.querySelector('[data-do-role="desc"]:not([disabled])');
+                    if (sameRowDesc) {
+                        sameRowDesc.focus();
+                        if (typeof sameRowDesc.select === 'function') sameRowDesc.select();
+                        return;
+                    }
+                }
+
+                // If Enter was pressed in description, move to price in the same row first.
+                var isDescTarget = e.target.matches('[data-do-role="desc"]');
+                if (isDescTarget) {
+                    var sameRowPrice = currentRow.querySelector('[data-do-role="price"]:not([disabled])');
+                    if (sameRowPrice) {
+                        sameRowPrice.focus();
+                        if (typeof sameRowPrice.select === 'function') sameRowPrice.select();
+                        return;
+                    }
                 }
 
                 // Find the next item-row that has a free-form description input

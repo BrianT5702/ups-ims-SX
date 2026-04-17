@@ -117,8 +117,8 @@ class DOForm extends Component
                         'custom_item_name' => $doItem->custom_item_name ?? '',
                         'custom_um' => $doItem->custom_um ?? '',
                         'item_qty' => $this->textOnlyQtyForForm($doItem->qty ?? 0), // Blank cell when qty is zero
-                        'item_unit_price' => 0,
-                        'amount' => 0,
+                        'item_unit_price' => floatval($doItem->unit_price ?? 0),
+                        'amount' => floatval($doItem->amount ?? 0),
                         'pricing_tier' => null,
                         'more_description' => null,
                         'is_text_only' => true,
@@ -1120,6 +1120,7 @@ class DOForm extends Component
             $textTrim = trim((string) $text);
 
             $qtyFromRow = is_array($rowData) ? (float) ($rowData['qty'] ?? 0) : 0;
+            $priceFromRow = is_array($rowData) ? (float) ($rowData['price'] ?? 0) : 0;
             $umFromRow = is_array($rowData) ? ($rowData['um'] ?? '') : '';
             $umFromRow = is_string($umFromRow) ? trim($umFromRow) : '';
 
@@ -1142,8 +1143,8 @@ class DOForm extends Component
                 'custom_item_name' => $textTrim,
                 'custom_um' => $umFromRow,
                 'item_qty' => $this->textOnlyQtyForForm($qtyFromRow),
-                'item_unit_price' => 0,
-                'amount' => 0,
+                'item_unit_price' => $priceFromRow,
+                'amount' => floatval($qtyFromRow) * floatval($priceFromRow),
                 'pricing_tier' => '',
                 'more_description' => '',
                 'is_text_only' => true,
@@ -2522,16 +2523,18 @@ class DOForm extends Component
                 
                 // For text-only items, item_id can be null
                 if (isset($item['is_text_only']) && $item['is_text_only']) {
+                    $textOnlyQty = floatval($item['item_qty'] ?? 0);
+                    $textOnlyUnitPrice = floatval($item['item_unit_price'] ?? 0);
                     DeliveryOrderItem::create([
                         'do_id' => $this->deliveryOrder->id,
                         'item_id' => null, // Text-only items have no item_id
                         'custom_item_name' => $item['custom_item_name'] ?? null,
                         'custom_um' => !empty(trim($item['custom_um'] ?? '')) ? trim($item['custom_um']) : null,
-                        'qty' => floatval($item['item_qty'] ?? 0), // Allow decimal qty for text-only items
-                        'unit_price' => 0,
+                        'qty' => $textOnlyQty, // Allow decimal qty for text-only items
+                        'unit_price' => $textOnlyUnitPrice,
                         'pricing_tier' => null,
                         'more_description' => null,
-                        'amount' => 0,
+                        'amount' => $textOnlyQty * $textOnlyUnitPrice,
                         'row_index' => $rowIndex, // Store row position
                     ]);
                 } else {
@@ -3056,8 +3059,8 @@ class DOForm extends Component
                     'custom_item_name' => $doItem->custom_item_name ?? '',
                     'custom_um' => $doItem->custom_um ?? '',
                     'item_qty' => $this->textOnlyQtyForForm($doItem->qty ?? 0),
-                    'item_unit_price' => 0,
-                    'amount' => 0,
+                    'item_unit_price' => floatval($doItem->unit_price ?? 0),
+                    'amount' => floatval($doItem->amount ?? 0),
                     'pricing_tier' => null,
                     'more_description' => $doItem->more_description,
                     'details_lines' => [],
