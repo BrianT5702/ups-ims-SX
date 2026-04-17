@@ -1,0 +1,58 @@
+# Laravel (Dockerfile) + MySQL 8 on the default Compose network.
+# MySQL is not published to the host; only `app` and optional phpMyAdmin publish ports.
+# If 8080 is already in use, set APP_PUBLISH_PORT in `.env` (Compose reads it for substitution)
+# and set APP_URL to the same host port for Laravel (e.g. APP_PUBLISH_PORT=8090, APP_URL=http://localhost:8090).
+#
+# .env (bind-mounted into the app): DB_HOST=mysql, DB_PASSWORD matching MYSQL_ROOT_PASSWORD, etc.
+# Run: docker compose up -d --build
+# phpMyAdmin: docker compose --profile tools up -d
+
+services:
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_DATABASE:-ups}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init-databases.sql:/docker-entrypoint-initdb.d/zz-init-databases.sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${APP_PUBLISH_PORT:-8080}:80"
+    volumes:
+      - ./.env:/var/www/html/.env:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  phpmyadmin:
+    profiles:
+      - tools
+    image: phpmyadmin:5-apache
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

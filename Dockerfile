@@ -1,160 +1,139 @@
-# Use the official PHP image with Apache
-FROM php:8.3-apache
+# syntax=docker/dockerfile:1
+# Production: PHP-FPM + Nginx in one image (Supervisor).
+# Queue workers: run a separate container/service, e.g.
+#   php artisan queue:work --tries=3 --timeout=300
 
-# Install system dependencies including Node.js
-RUN apt-get update && apt-get install -y \
-    git unzip libzip-dev libonig-dev libpng-dev libxml2-dev zip curl ca-certificates \
-    libfreetype6-dev libjpeg62-turbo-dev libwebp-dev libcurl4-openssl-dev \
-    # Add Node.js installation
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    # PHP extensions
+# -----------------------------------------------------------------------------
+# Stage: Composer dependencies (PHP 8.3 + ext-gd — matches runtime; avoids
+# composer:2 image shipping PHP 8.5+ which breaks locked sabberworm/php-css-parser)
+# -----------------------------------------------------------------------------
+FROM php:8.3-cli-bookworm AS vendor
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libwebp-dev \
+        libfreetype6-dev \
+        libicu-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install pdo_mysql mbstring zip exif pcntl bcmath gd curl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && docker-php-ext-install -j"$(nproc)" zip intl gd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Enable Apache rewrite module and PHP
-RUN a2enmod rewrite && \
-    a2enmod php
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Configure Apache
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf && \
-    sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf && \
-    echo "php_flag display_errors on" >> /etc/apache2/apache2.conf && \
-    echo "php_value error_reporting E_ALL" >> /etc/apache2/apache2.conf
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_NO_INTERACTION=1 \
+    COMPOSER_MEMORY_LIMIT=-1
 
-# Create Apache virtual host configuration
-RUN echo '<VirtualHost *:80>\n\
-    ServerAdmin webmaster@localhost\n\
-    DocumentRoot /var/www/html/public\n\
-    <Directory /var/www/html/public>\n\
-        Options Indexes FollowSymLinks\n\
-        AllowOverride All\n\
-        Require all granted\n\
-        php_flag display_errors on\n\
-        php_value error_reporting E_ALL\n\
-    </Directory>\n\
-    ErrorLog ${APACHE_LOG_DIR}/error.log\n\
-    CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
-    LogLevel debug\n\
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-scripts \
+    --prefer-dist \
+    --optimize-autoloader
 
-# Set working directory
+# -----------------------------------------------------------------------------
+# Stage: Vite frontend assets
+# -----------------------------------------------------------------------------
+FROM node:22-bookworm-slim AS frontend
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+
+COPY vite.config.js postcss.config.js tailwind.config.js ./
+COPY resources ./resources
+COPY public ./public
+
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Stage: Runtime (PHP-FPM + Nginx)
+# -----------------------------------------------------------------------------
+FROM php:8.3-fpm-bookworm
+
+LABEL org.opencontainers.image.title="UPS IMS" \
+      org.opencontainers.image.description="Laravel (PHP-FPM + Nginx)"
+
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
 WORKDIR /var/www/html
 
-# Copy composer files first to leverage Docker cache
-COPY composer.json composer.lock ./
+# System deps + Nginx + Supervisor + PHP extensions (MySQL, Excel, DomPDF, Livewire)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        nginx \
+        supervisor \
+        curl \
+        ca-certificates \
+        git \
+        unzip \
+        libicu-dev \
+        libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libwebp-dev \
+        libfreetype6-dev \
+        libonig-dev \
+        libxml2-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j"$(nproc)" \
+        pdo_mysql \
+        zip \
+        intl \
+        opcache \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
-COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
+COPY docker/php/conf.d/*.ini /usr/local/etc/php/conf.d/
+COPY docker/php-fpm.d/zzz-pool.conf /usr/local/etc/php-fpm.d/zzz-pool.conf
 
-# Verify Composer installation and show version
-RUN composer --version
+# Nginx: drop default site, use Laravel vhost
+RUN rm -f /etc/nginx/sites-enabled/default \
+    && ln -sf /etc/nginx/sites-available/laravel /etc/nginx/sites-enabled/laravel
 
-# Set Composer environment variables
-ENV COMPOSER_ALLOW_SUPERUSER=1
-ENV COMPOSER_MEMORY_LIMIT=2G
+COPY docker/nginx/laravel.conf /etc/nginx/sites-available/laravel
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --verbose --no-scripts
+# Supervisor program fragments
+COPY docker/supervisor/laravel.conf /etc/supervisor/conf.d/laravel.conf
 
-# Copy the rest of the application
-COPY . .
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+# Windows checkouts often use CRLF; Linux then fails with "no such file or directory" on shebang
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
 
-# Install Node.js dependencies and build assets
-RUN npm install && \
-    npm run build
+# Application (respects .dockerignore)
+COPY --chown=www-data:www-data . /var/www/html
 
-# Create storage directory and set permissions
-RUN mkdir -p /var/www/html/storage/framework/{sessions,views,cache} && \
-    mkdir -p /var/www/html/storage/logs && \
-    touch /var/www/html/storage/logs/laravel.log && \
-    chown -R www-data:www-data /var/www/html && \
-    chmod -R 755 /var/www/html && \
-    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+COPY --from=vendor --chown=www-data:www-data /app/vendor /var/www/html/vendor
+COPY --from=frontend --chown=www-data:www-data /app/public/build /var/www/html/public/build
 
-# Create storage symlink
-RUN ln -sf /var/www/html/storage/app/public /var/www/html/public/storage
+RUN mkdir -p \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/framework/cache/data \
+        storage/logs \
+        bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R ug+rwx storage bootstrap/cache
 
-# Create startup script
-RUN echo '#!/bin/bash\n\
-set -e\n\
-cd /var/www/html\n\
-\n\
-echo "Checking Laravel status..."\n\
-php artisan --version || true\n\
-\n\
-echo "Setting up storage and logs..."\n\
-mkdir -p storage/framework/{sessions,views,cache}\n\
-mkdir -p storage/logs\n\
-touch storage/logs/laravel.log\n\
-\n\
-wait_for_connection() {\n\
-  local CONNECTION="$1"\n\
-  local MAX_TRIES=12\n\
-  local COUNT=0\n\
-  echo "Waiting for database connection: ${CONNECTION}"\n\
-  until php artisan migrate:status --database="${CONNECTION}" > /dev/null 2>&1; do\n\
-    COUNT=$((COUNT+1))\n\
-    if (( COUNT >= MAX_TRIES )); then\n\
-      echo "WARNING: ${CONNECTION} not ready after ${MAX_TRIES} attempts. Continuing startup..."\n\
-      break\n\
-    fi\n\
-    echo "\"${CONNECTION}\" not ready. Retrying in 5 seconds... (${COUNT}/${MAX_TRIES})"\n\
-    sleep 5\n\
-  done\n\
-  if (( COUNT < MAX_TRIES )); then\n\
-    echo "${CONNECTION} connection successful (or at least reachable)."\n\
-  fi\n\
-}\n\
-\n\
-echo "Clearing caches before DB ops..."\n\
-php artisan config:clear || true\n\
-php artisan cache:clear || true\n\
-php artisan view:clear || true\n\
-php artisan route:clear || true\n\
-\n\
-wait_for_connection ups\n\
-wait_for_connection urs\n\
-wait_for_connection ucs\n\
-wait_for_connection ups2\n\
-wait_for_connection urs2\n\
-wait_for_connection ucs2\n\
-\n\
-echo "Running migrations for UPS/URS/UCS/UPS2/URS2/UCS2..."\n\
-php artisan migrate --force --database=ups || true\n\
-php artisan migrate --force --database=urs || true\n\
-php artisan migrate --force --database=ucs || true\n\
-php artisan migrate --force --database=ups2 || true\n\
-php artisan migrate --force --database=urs2 || true\n\
-php artisan migrate --force --database=ucs2 || true\n\
-\n\
-echo "Running seeders for UPS/URS/UCS/UPS2/URS2/UCS2..."\n\
-php artisan db:seed --force --database=ups || true\n\
-php artisan db:seed --force --database=urs || true\n\
-php artisan db:seed --force --database=ucs || true\n\
-php artisan db:seed --force --database=ups2 || true\n\
-php artisan db:seed --force --database=urs2 || true\n\
-php artisan db:seed --force --database=ucs2 || true\n\
-\n\
-echo "Rebuilding caches..."\n\
-php artisan config:cache || true\n\
-php artisan view:cache || true\n\
-\n\
-echo "Setting proper permissions..."\n\
-chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache\n\
-chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache\n\
-\n\
-echo "Laravel setup complete. Starting Apache..."\n\
-exec apache2-foreground\n\
-' > /usr/local/bin/start.sh && \
-chmod +x /usr/local/bin/start.sh
+# Optimize autoload + package discovery; normalize ownership (runtime user is www-data in FPM)
+RUN composer dump-autoload --optimize --classmap-authoritative \
+    && php artisan package:discover --ansi || true \
+    && chown -R www-data:www-data /var/www/html
 
-# Expose port 80
 EXPOSE 80
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s \
-    CMD curl -f http://localhost/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -fsS http://127.0.0.1/ > /dev/null || exit 1
 
-CMD ["/usr/local/bin/start.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
