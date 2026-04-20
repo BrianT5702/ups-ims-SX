@@ -591,143 +591,23 @@
                                                         </div>
                                                 @endif
                                                     @elseif(!$isView && $isEmptyRow)
-                                                        {{-- Show empty row input (rows are already limited by rowsToShow calculation above) --}}
-                                                            <div x-data="{ 
-                                                                    showSearch: false,
-                                                                    searchTerm: '',
-                                                                    highlightIndex: -1,
-                                                                    showResults: false
-                                                                }" 
-                                                                class="d-flex gap-2 align-items-center" 
-                                                                style="position: relative; width: 100%;">
-                                                                <input type="text" 
-                                                                    x-show="!showSearch"
-                                                                    wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                    class="form-control form-control-sm flex-grow-1" 
-                                                                    placeholder="Type anything here"
-                                                                    style="font-size: 0.85em;"
-                                                                    data-do-role="desc">
-                                                                <div x-show="showSearch" class="position-relative flex-grow-1">
-                                                                    <input type="text" 
-                                                                        x-ref="searchInput"
-                                                                        x-model="searchTerm"
-                                                                        class="form-control form-control-sm" 
-                                                                        placeholder="Search item description..."
-                                                                        autocomplete="off"
-                                                                        {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                        @keydown.escape="showSearch = false; searchTerm = ''; showResults = false"
-                                                                        @keydown.arrow-down.prevent="
-                                                                            const container = $el.closest('[x-data]').querySelector('ul.list-group');
-                                                                            const items = container ? container.querySelectorAll('li') : [];
-                                                                            if (items.length === 0) return;
-                                                                            if (highlightIndex < items.length - 1) { highlightIndex++; } else { highlightIndex = 0; }
-                                                                            const active = items[highlightIndex];
-                                                                            if (active && container) {
-                                                                                const activeTop = active.offsetTop;
-                                                                                const activeBottom = activeTop + active.offsetHeight;
-                                                                                const viewTop = container.scrollTop;
-                                                                                const viewBottom = viewTop + container.clientHeight;
-                                                                                if (activeTop < viewTop) {
-                                                                                    container.scrollTop = activeTop;
-                                                                                } else if (activeBottom > viewBottom) {
-                                                                                    container.scrollTop = activeBottom - container.clientHeight;
-                                                                                }
-                                                                            }
-                                                                        "
-                                                                        @keydown.arrow-up.prevent="
-                                                                            const container = $el.closest('[x-data]').querySelector('ul.list-group');
-                                                                            const items = container ? container.querySelectorAll('li') : [];
-                                                                            if (items.length === 0) return;
-                                                                            if (highlightIndex > 0) { highlightIndex--; } else { highlightIndex = items.length - 1; }
-                                                                            const active = items[highlightIndex];
-                                                                            if (active && container) {
-                                                                                const activeTop = active.offsetTop;
-                                                                                const activeBottom = activeTop + active.offsetHeight;
-                                                                                const viewTop = container.scrollTop;
-                                                                                const viewBottom = viewTop + container.clientHeight;
-                                                                                if (activeTop < viewTop) {
-                                                                                    container.scrollTop = activeTop;
-                                                                                } else if (activeBottom > viewBottom) {
-                                                                                    container.scrollTop = activeBottom - container.clientHeight;
-                                                                                }
-                                                                            }
-                                                                        "
-                                                                        @keydown.enter.prevent="
-                                                                            const items = $el.closest('[x-data]').querySelectorAll('ul.list-group li');
-                                                                            if (items.length === 0) return;
-                                                                            if (highlightIndex < 0) highlightIndex = 0;
-                                                                            const target = items[highlightIndex];
-                                                                            if (target) {
-                                                                                target.click();
-                                                                                searchTerm = '';
-                                                                                showResults = false;
-                                                                                showSearch = false;
-                                                                                highlightIndex = -1;
-                                                                            }
-                                                                        "
-                                                                        @input="
-                                                                            $wire.set('itemSearchTerm', searchTerm);
-                                                                            $wire.call('searchItems');
-                                                                            if(searchTerm.length > 0) {
-                                                                                showResults = true;
-                                                                                const items = $el.closest('[x-data]').querySelectorAll('ul.list-group li');
-                                                                                if (highlightIndex < 0 && items.length > 0) { highlightIndex = 0; }
-                                                                            } else {
-                                                                                showResults = false;
-                                                                                highlightIndex = -1;
-                                                                            }
-                                                                        "
-                                                                        @focus="
-                                                                            const items = $el.closest('[x-data]').querySelectorAll('ul.list-group li');
-                                                                            if (items.length > 0) {
-                                                                                showResults = true;
-                                                                                if (highlightIndex < 0) { highlightIndex = 0; }
-                                                                            }
-                                                                        "
-                                                                        @blur="setTimeout(() => showResults = false, 200)"
-                                                                        style="font-size: 0.85em; width: 100%;">
-                                                                    @if(count($itemSearchResults) > 0 && !$this->isPosted)
-                                                                        <ul x-show="showResults && searchTerm.length > 0" 
-                                                                            class="list-group position-absolute w-100" 
-                                                                            style="z-index: 1000; max-height: 200px; overflow-y: auto; margin-top: 2px;"
-                                                                            x-cloak>
-                                                                            @foreach($itemSearchResults as $idx => $result)
-                                                                                <li class="list-group-item list-group-item-action" 
-                                                                                    :class="{ 'active': highlightIndex === {{ $idx }} }"
-                                                                                    wire:click="addItemToRow({{ $result->id }}, {{ $rowIndex }})" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                                    @click="showSearch = false; searchTerm = ''"
-                                                                                    style="cursor: pointer; font-size: 0.85em;">
-                                                                                    <span>{{ $result->item_code }} - {{ $result->item_name }}</span>
-                                                                                    @if($result->qty > 0)
-                                                                                        <span class="badge bg-success ms-2">Qty: {{ $result->qty }}</span>
-                                                                                    @elseif($result->qty < 0)
-                                                                                        <span class="badge ms-2" style="background-color: #f8d7da; color: #000; border: 1px solid #f5c2c7;">Qty: {{ $result->qty }}</span>
-                                                                                    @else
-                                                                                        <span class="badge bg-warning ms-2" style="color: #000;">Qty: {{ $result->qty }}</span>
-                                                                                    @endif
-                                                        </li>
-                                                                            @endforeach
-                                                                        </ul>
-                                                                    @endif
-                                                                </div>
-                                                                <button type="button" 
-                                                                    x-show="!showSearch"
-                                                                    @click="showSearch = true; $nextTick(() => { $refs.searchInput?.focus(); })"
-                                                                    {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
-                                                                    class="btn btn-sm btn-outline-primary"
-                                                                    style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;"
-                                                                    data-do-add-item-button="1">
-                                                                    + Add Item (F2)
-                                                                </button>
-                                                                <button type="button" 
-                                                                    x-show="showSearch"
-                                                                    @click="showSearch = false; searchTerm = ''; showResults = false"
-                                                                    class="btn btn-sm btn-outline-secondary"
-                                                                    style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;"
-                                                                    data-do-add-item-cancel="1">
-                                                                    Cancel
-                                                                </button>
-                                                    </div>
+                                                        {{-- Empty row: text line + open item picker (modal, F2) --}}
+                                                        <div class="d-flex gap-2 align-items-center" style="position: relative; width: 100%;">
+                                                            <input type="text"
+                                                                wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                class="form-control form-control-sm flex-grow-1"
+                                                                placeholder="Type anything here"
+                                                                style="font-size: 0.85em;"
+                                                                data-do-role="desc">
+                                                            <button type="button"
+                                                                wire:click="openItemPickerModal({{ $rowIndex }})"
+                                                                {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
+                                                                class="btn btn-sm btn-outline-primary"
+                                                                style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;"
+                                                                data-do-add-item-button="1">
+                                                                + Add Item (F2)
+                                                            </button>
+                                                        </div>
                                                 @endif
                                             </td>
                                             <td style="vertical-align: top;">
@@ -986,6 +866,90 @@
     </div>
     @endif
 
+    {{-- Add Item picker (F2): full list + search in a modal --}}
+    @if($showItemPickerModal)
+    <div class="modal fade show do-item-picker-modal" tabindex="-1" style="display: block;" aria-modal="true" role="dialog">
+        <div class="modal-backdrop fade show" style="z-index: 1040;" wire:click="closeItemPickerModal"></div>
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="z-index: 1045;">
+            <div class="modal-content" wire:click.stop>
+                <div class="modal-header py-2">
+                    <h5 class="modal-title mb-0">Add item — row {{ ($itemPickerRowIndex ?? 0) + 1 }}</h5>
+                    <button type="button" class="btn-close" wire:click="closeItemPickerModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3" wire:init="loadItemPickerResults" wire:key="do-item-picker-open-{{ $itemPickerRowIndex }}">
+                    <label class="form-label small text-muted mb-1">Search by description</label>
+                    <input type="text"
+                        class="form-control form-control-sm mb-2"
+                        wire:model.live.debounce.300ms="itemPickerSearchTerm"
+                        placeholder="Type to filter… (leave empty to show first items)"
+                        autocomplete="off"
+                        id="do-item-picker-search">
+                    <p class="small text-muted mb-2">
+                        Showing up to {{ trim($itemPickerSearchTerm) === '' ? '500' : '200' }} matches, sorted by description (leading @ * # ~ ^ $ and spaces stripped). Click a row to add.
+                    </p>
+                    <div class="table-responsive border rounded do-item-picker-table-wrap" style="max-height: min(55vh, 480px); overflow: auto;">
+                        <table class="table table-sm table-bordered table-hover table-striped mb-0 do-item-picker-table">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th scope="col" style="width: 11%;">Stock Code</th>
+                                    <th scope="col">Stock Description</th>
+                                    <th scope="col" class="text-end" style="width: 9%;">On Hand</th>
+                                    <th scope="col" class="text-center" style="width: 8%;">U.O.M</th>
+                                    <th scope="col" class="text-end" style="width: 10%;">Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if($itemPickerLoading && count($itemPickerResults) === 0)
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">
+                                            <span class="spinner-border spinner-border-sm me-2 align-middle" role="status" aria-hidden="true"></span>
+                                            <span class="align-middle">Loading items…</span>
+                                        </td>
+                                    </tr>
+                                @else
+                                @forelse($itemPickerResults as $result)
+                                    @php
+                                        $pickerUm = ($result->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($result->um ?? 'UNITS');
+                                        $pickerPrice = (float) ($result->cash_price ?? 0);
+                                        $rawPickerDesc = (string) ($result->item_name ?? '');
+                                        $pickerDesc = preg_replace('/^[\s@*#~^$]+/u', '', $rawPickerDesc);
+                                        $pickerDesc = ltrim($pickerDesc);
+                                        if ($pickerDesc === '') {
+                                            $pickerDesc = $rawPickerDesc;
+                                        }
+                                    @endphp
+                                    <tr class="do-item-picker-row"
+                                        wire:click="selectItemFromPicker({{ $result->id }})"
+                                        wire:key="do-picker-item-{{ $result->id }}"
+                                        role="button"
+                                        tabindex="0"
+                                        style="cursor: pointer;">
+                                        <td class="small fw-semibold text-nowrap">{{ $result->item_code }}</td>
+                                        <td class="small">{{ $pickerDesc }}</td>
+                                        <td class="small text-end font-monospace @if($result->qty < 0) text-danger @elseif((float) $result->qty == 0.0) text-warning @endif">
+                                            {{ number_format((float) $result->qty, 2) }}
+                                        </td>
+                                        <td class="small text-center text-nowrap">{{ $pickerUm }}</td>
+                                        <td class="small text-end font-monospace">{{ number_format($pickerPrice, 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-muted small py-3 px-3">No items found. Try a different search.</td>
+                                    </tr>
+                                @endforelse
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" wire:click="closeItemPickerModal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <style>
         :root {
             --do-grid-border: #d6deea;
@@ -1059,6 +1023,16 @@
         }
         .search-results ul li:hover {
             background-color: #f1f1f1;
+        }
+
+        /* Item picker modal: clear grid lines */
+        .do-item-picker-table-wrap .do-item-picker-table th,
+        .do-item-picker-table-wrap .do-item-picker-table td {
+            border: 1px solid #c5cdd6 !important;
+            vertical-align: middle;
+        }
+        .do-item-picker-table-wrap .do-item-picker-table thead th {
+            border-bottom: 2px solid #aeb8c4 !important;
         }
         
         /* Cap form width on large monitors — full fluid width felt too wide */
@@ -1375,52 +1349,50 @@
 
     <script>
         (function () {
-            // F2 handling inside DO form:
-            // - If item search is closed on the current row: behaves like clicking "+ Add Item"
-            // - If item search is open on the current row: behaves like clicking "Cancel" (closes search)
-            // - Lets users add/exit item mode without touching the mouse
+            // F2: open the item picker modal for the current (or last) row; F2 again closes it.
             document.addEventListener('keydown', function (e) {
                 if (e.key !== 'F2') return;
 
-                // Only handle inside the DO form
                 var form = e.target.closest('form[wire\\:submit\\.prevent="addDO"]');
                 if (!form) return;
 
                 e.preventDefault();
 
-                // Prefer the current item row, if any
+                var lwRoot = form.closest('[wire\\:id]');
+                if (!lwRoot || typeof Livewire === 'undefined') return;
+                var comp = Livewire.find(lwRoot.getAttribute('wire:id'));
+                if (!comp) return;
+
+                if (document.querySelector('.do-item-picker-modal')) {
+                    comp.call('closeItemPickerModal');
+                    return;
+                }
+
                 var currentRow = e.target.closest('tr.item-row');
                 var targetRow = currentRow;
-
-                // If not focused inside a row, fall back to the last visible item row
                 if (!targetRow) {
                     var rows = form.querySelectorAll('tr.item-row');
                     if (rows.length === 0) return;
                     targetRow = rows[rows.length - 1];
                 }
+                if (!targetRow || !targetRow.dataset.rowIndex) return;
+                var rowIdx = parseInt(targetRow.dataset.rowIndex, 10);
+                if (isNaN(rowIdx)) return;
 
-                if (!targetRow) return;
-
-                // If search is already open on this row, click the Cancel button (toggle off)
-                var cancelBtn = targetRow.querySelector('[data-do-add-item-cancel]');
-                if (cancelBtn && !cancelBtn.disabled && cancelBtn.offsetParent !== null) {
-                    cancelBtn.click();
-                    // After closing search, return focus to the row's main text/description field if available
-                    setTimeout(function () {
-                        var descInput = targetRow.querySelector('[data-do-role=\"desc\"]');
-                        if (descInput && !descInput.disabled) {
-                            descInput.focus();
-                            if (typeof descInput.select === 'function') descInput.select();
-                        }
-                    }, 0);
-                    return;
-                }
-
-                // Otherwise, trigger the "+ Add Item" button for this row (toggle on)
-                var addBtn = targetRow.querySelector('[data-do-add-item-button]');
-                if (addBtn && !addBtn.disabled && addBtn.offsetParent !== null) {
-                    addBtn.click();
-                }
+                comp.call('openItemPickerModal', rowIdx);
+            });
+        })();
+        (function () {
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== 'Escape') return;
+                var modal = document.querySelector('.do-item-picker-modal');
+                if (!modal) return;
+                var form = document.querySelector('form[wire\\:submit\\.prevent="addDO"]');
+                if (!form) return;
+                var lwRoot = form.closest('[wire\\:id]');
+                if (!lwRoot || typeof Livewire === 'undefined') return;
+                var comp = Livewire.find(lwRoot.getAttribute('wire:id'));
+                if (comp) comp.call('closeItemPickerModal');
             });
         })();
     </script>

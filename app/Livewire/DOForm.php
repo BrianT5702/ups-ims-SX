@@ -62,6 +62,18 @@ class DOForm extends Component
     public $duplicateSelectedDoId = null;
     public $duplicateDoSearchTerm = '';
 
+    /** Add-item picker modal (F2): full scrollable list + search */
+    public bool $showItemPickerModal = false;
+
+    public ?int $itemPickerRowIndex = null;
+
+    public string $itemPickerSearchTerm = '';
+
+    /** @var \Illuminate\Database\Eloquent\Collection<int, Item>|array */
+    public $itemPickerResults = [];
+
+    public bool $itemPickerLoading = false;
+
     /**
      * Check if the DO is posted (status is Completed)
      * When posted, all fields should be disabled unless "Restore All" is clicked
@@ -318,29 +330,176 @@ class DOForm extends Component
         
         if (!empty($this->itemSearchTerm)) {
             // Search by item description (item_name) only.
-            // For fraction-like input (e.g. "3/8"), require description to start with that token
-            // so results like "1/8 x 3/8 ..." do not appear.
+            // Fraction terms (e.g. "1/8") match anywhere so "1 1/8"" rows are found; compound "1/8 x 3/8"
+            // second legs are filtered out so searching "3/8" does not surface the wrong size first.
             $term = trim((string) $this->itemSearchTerm);
             $isFractionSearch = preg_match('/\d+\s*\/\s*\d+/', $term) === 1;
 
-            $query = Item::query();
+            $query = Item::query()->where('item_name', 'like', '%' . $term . '%');
+
+            $fetchLimit = $isFractionSearch ? 250 : 50;
+            $results = $this->applyItemPickerDescriptionOrder($query)
+                ->limit($fetchLimit)
+                ->get();
+
             if ($isFractionSearch) {
-                $query->where('item_name', 'like', $term . '%');
-            } else {
-                $query->where('item_name', 'like', '%' . $term . '%');
+                $results = $results
+                    ->filter(fn ($item) => $this->itemDescriptionFractionSearchKeepsRow($item->item_name ?? '', $term))
+                    ->sortBy(fn ($item) => mb_strtolower($this->itemPickerDescriptionSortKey($item->item_name ?? '')))
+                    ->values()
+                    ->take(50);
             }
 
-            $this->itemSearchResults = $query
-                // Sort by description while ignoring quote characters for cleaner ordering.
-                ->orderByRaw("LOWER(REPLACE(REPLACE(item_name, '\"', ''), '''', '')) ASC")
-                ->orderBy('item_name', 'asc')
-                ->limit(50)
-                ->get();
+            $this->itemSearchResults = $results;
             $this->itemHighlightIndex = (count($this->itemSearchResults) > 0) ? 0 : -1;
         } else {
             $this->itemSearchResults = [];
             $this->itemHighlightIndex = -1;
         }
+    }
+
+    public function openItemPickerModal(int $rowIndex): void
+    {
+        if ($this->isView || $this->isPosted) {
+            return;
+        }
+        $this->itemPickerRowIndex = $rowIndex;
+        $this->itemPickerSearchTerm = '';
+        $this->itemPickerResults = [];
+        $this->itemPickerLoading = true;
+        $this->showItemPickerModal = true;
+        // Heavy query runs in a follow-up request via wire:init so F2 feels instant.
+        $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
+    }
+
+    public function closeItemPickerModal(): void
+    {
+        $this->showItemPickerModal = false;
+        $this->itemPickerRowIndex = null;
+        $this->itemPickerSearchTerm = '';
+        $this->itemPickerResults = [];
+        $this->itemPickerLoading = false;
+    }
+
+    /**
+     * Load picker rows after the modal is shown (deferred from openItemPickerModal).
+     */
+    public function loadItemPickerResults(): void
+    {
+        if (!$this->showItemPickerModal || $this->isPosted || $this->isView) {
+            $this->itemPickerLoading = false;
+
+            return;
+        }
+
+        try {
+            $this->refreshItemPickerResults();
+        } finally {
+            $this->itemPickerLoading = false;
+            // Re-focus after Livewire morphs the table (autofocus is unreliable on injected DOM).
+            $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
+        }
+    }
+
+    public function updatedItemPickerSearchTerm(): void
+    {
+        if ($this->showItemPickerModal && !$this->isView && !$this->isPosted) {
+            $this->refreshItemPickerResults();
+        }
+    }
+
+    public function selectItemFromPicker(int $itemId): void
+    {
+        if ($this->isView || $this->isPosted || $this->itemPickerRowIndex === null) {
+            return;
+        }
+        $rowIndex = $this->itemPickerRowIndex;
+        $this->closeItemPickerModal();
+        $this->addItemToRow($itemId, $rowIndex);
+    }
+
+    private function refreshItemPickerResults(): void
+    {
+        if ($this->isPosted) {
+            $this->itemPickerResults = [];
+
+            return;
+        }
+
+        $term = trim((string) $this->itemPickerSearchTerm);
+        $query = Item::query()->select(['id', 'item_code', 'item_name', 'qty', 'um', 'cash_price']);
+
+        if ($term === '') {
+            $this->itemPickerResults = $this->applyItemPickerDescriptionOrder($query)
+                ->limit(500)
+                ->get();
+        } else {
+            $isFractionSearch = preg_match('/\d+\s*\/\s*\d+/', $term) === 1;
+            $query->where('item_name', 'like', '%' . $term . '%');
+
+            $fetchLimit = $isFractionSearch ? 600 : 200;
+            $results = $this->applyItemPickerDescriptionOrder($query)
+                ->limit($fetchLimit)
+                ->get();
+
+            if ($isFractionSearch) {
+                $results = $results
+                    ->filter(fn ($item) => $this->itemDescriptionFractionSearchKeepsRow($item->item_name ?? '', $term))
+                    ->sortBy(fn ($item) => mb_strtolower($this->itemPickerDescriptionSortKey($item->item_name ?? '')))
+                    ->values()
+                    ->take(200);
+            }
+
+            $this->itemPickerResults = $results;
+        }
+    }
+
+    /**
+     * For a fraction search term, keep rows where the first match is not the second size in "… x 3/8 …".
+     * Allows "1/8" to match "1 1/8"" (leading "1 " before the fraction).
+     */
+    /**
+     * Description text used for picker ordering — matches table display (strip leading @, *, #).
+     */
+    private function itemPickerDescriptionSortKey(string $itemName): string
+    {
+        // Match picker display: strip leading markup (@ * # ~ ^ $) and spaces, e.g. "~*^ ", "$ *** ", "$$ @ ".
+        $stripped = preg_replace('/^[\s@*#~^$]+/u', '', $itemName);
+        $stripped = ltrim((string) $stripped);
+
+        return $stripped !== '' ? $stripped : $itemName;
+    }
+
+    /**
+     * Order items by display description (prefix-stripped name). MySQL 8+ REGEXP_REPLACE.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Item>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Item>
+     */
+    private function applyItemPickerDescriptionOrder($query)
+    {
+        $expr = "COALESCE(NULLIF(TRIM(REGEXP_REPLACE(item_name, '^[[:space:]@#*~^$]+', '')), ''), item_name)";
+
+        return $query->orderByRaw($expr . ' ASC')->orderBy('id');
+    }
+
+    private function itemDescriptionFractionSearchKeepsRow(string $itemName, string $term): bool
+    {
+        $pos = mb_stripos($itemName, $term);
+        if ($pos === false) {
+            return false;
+        }
+
+        $before = mb_substr($itemName, 0, $pos);
+        if (preg_match('/\s[xX]\s*$/u', $before)) {
+            return false;
+        }
+        // Tight "1/8x3/8" style (no spaces around x)
+        if (preg_match('/[xX]$/u', $before)) {
+            return false;
+        }
+
+        return true;
     }
 
     public function moveItemHighlight($delta)
