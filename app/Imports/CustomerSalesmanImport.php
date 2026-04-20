@@ -24,16 +24,20 @@ class CustomerSalesmanImport implements ToCollection
         }
 
         $customerConnection = session('active_db') ?: DB::getDefaultConnection();
-        // Users (salespersons) always live in the shared UPS database
-        $userConnection = 'ups';
-
-        $salesman = User::on($userConnection)
-            ->whereRaw('LOWER(username) = ?', [strtolower($salesmanCode)])
-            ->orWhereRaw('LOWER(name) = ?', [strtolower($salesmanCode)])
+        // salesman_id FK on customers references users on the same connection (UPS/URS/UCS), not the shared auth DB
+        $salesman = User::on($customerConnection)
+            ->where(function ($q) use ($salesmanCode) {
+                $code = strtolower($salesmanCode);
+                $q->whereRaw('LOWER(username) = ?', [$code])
+                    ->orWhereRaw('LOWER(name) = ?', [$code]);
+            })
             ->first();
 
         if (!$salesman) {
-            throw new \Exception("Salesman with code '{$salesmanCode}' not found.");
+            throw new \Exception(
+                "Salesman with code '{$salesmanCode}' not found in {$customerConnection} users. " .
+                'Each company database must have a matching user (username or name) for the FK to succeed.'
+            );
         }
 
         // Data starts at row 9 (index 8). Column B (index 1) is the account number.

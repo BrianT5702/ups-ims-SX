@@ -91,11 +91,24 @@
             margin: 10px 0;
             padding-left: 20px;
         }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #1565c0;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+            color: #0d47a1;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Delete Records from Database</h1>
+        <a href="{{ route('dashboard') }}" class="back-link">← Back to Dashboard</a>
 
         @if (session('success'))
             <div class="alert alert-success">

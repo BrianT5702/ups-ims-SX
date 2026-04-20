@@ -168,13 +168,14 @@ class UserController extends Controller
     public function importExcel(Request $request)
     {
         $request->validate([
-            'file' => [
-                'required',
-                'file',
-            ],
+            'file' => ['required', 'array', 'min:1'],
+            'file.*' => ['file'],
             'import_type' => 'required|in:items,customers,suppliers,customer_salesman',
             'db_connection' => 'required|in:ups,urs,ucs',
         ]);
+
+        /** @var array<int, \Illuminate\Http\UploadedFile> $uploadedFiles */
+        $uploadedFiles = $request->file('file');
 
         try {
             // Set selected DB for this import run
@@ -186,7 +187,7 @@ class UserController extends Controller
 
             if ($request->import_type === 'items') {
                 $itemImporter = new ItemImport();
-                Excel::import($itemImporter, $request->file('file'));
+                Excel::import($itemImporter, $uploadedFiles[0]);
                 $imported = $itemImporter->getSuccessCount();
                 $skipped = $itemImporter->getFailureCount();
                 if ($imported === 0 && $skipped > 0) {
@@ -200,32 +201,70 @@ class UserController extends Controller
                     : 'Import finished; no data rows were processed.';
             } 
             elseif($request->import_type === 'suppliers'){
-                Excel::import(new SupplierImport, $request->file('file'));
+                Excel::import(new SupplierImport, $uploadedFiles[0]);
                 $message = 'Suppliers imported successfully!';
             }
             elseif($request->import_type === 'customer_salesman'){
-                $importer = new CustomerSalesmanImport();
-                Excel::import($importer, $request->file('file'));
+                $totalUpdated = 0;
+                $allMissing = [];
+                $fileCount = count($uploadedFiles);
+                $successFiles = 0;
+                $failures = [];
 
-                $message = 'Customer-salesman assignments updated successfully!';
-                $updated = $importer->getUpdatedCount();
-                $missing = $importer->getMissingAccounts();
-
-                if ($updated > 0) {
-                    $message = "Customer-salesman assignments updated successfully ({$updated} updated)";
+                foreach ($uploadedFiles as $uploadedFile) {
+                    try {
+                        $importer = new CustomerSalesmanImport();
+                        Excel::import($importer, $uploadedFile);
+                        $totalUpdated += $importer->getUpdatedCount();
+                        $allMissing = array_merge($allMissing, $importer->getMissingAccounts());
+                        $successFiles++;
+                    } catch (\Exception $e) {
+                        $failures[] = [
+                            'file' => $uploadedFile->getClientOriginalName(),
+                            'message' => $e->getMessage(),
+                        ];
+                    }
                 }
-                if (!empty($missing)) {
-                    $message .= '. Missing accounts (not found): ' . implode(', ', $missing);
+
+                if ($successFiles === 0) {
+                    $lines = array_map(
+                        static fn (array $f) => '"' . $f['file'] . '": ' . $f['message'],
+                        $failures
+                    );
+
+                    return back()->with(
+                        'import_error',
+                        'No customer-salesman files were imported. ' . implode(' ', $lines)
+                    );
+                }
+
+                if ($fileCount === 1 && $successFiles === 1) {
+                    $message = "Customer-salesman assignments updated successfully ({$totalUpdated} updated)";
+                } elseif ($successFiles === $fileCount) {
+                    $message = "Customer-salesman: {$totalUpdated} assignment(s) updated across {$fileCount} file(s).";
+                } else {
+                    $message = "Customer-salesman: {$totalUpdated} assignment(s) updated ({$successFiles} of {$fileCount} files succeeded). Review skipped files below.";
+                }
+
+                $uniqueMissing = array_values(array_unique($allMissing));
+                if (!empty($uniqueMissing)) {
+                    $message .= ' Missing accounts (not found): ' . implode(', ', $uniqueMissing);
+                }
+
+                if (!empty($failures)) {
+                    return back()
+                        ->with('import_success', $message)
+                        ->with('import_customer_salesman_failures', $failures);
                 }
             }
             else {
-                Excel::import(new CustomerImport, $request->file('file'));
+                Excel::import(new CustomerImport, $uploadedFiles[0]);
                 $message = 'Customers imported successfully!';
             }
             
             return back()->with('import_success', $message);
         } catch (\Exception $e) {
-            return back()->with('import_error', 'Error importing file: ' . $e->getMessage());
+            return back()->with('import_error', 'Error importing file(s): ' . $e->getMessage());
         }
     }
 

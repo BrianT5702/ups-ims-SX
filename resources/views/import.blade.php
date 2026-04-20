@@ -35,12 +35,39 @@
         </div>
     @endif
 
-    @if (session('import_success'))
-        <div class="fixed bottom-6 right-6 z-[9999] max-w-md w-full mx-4 shadow-xl rounded-lg overflow-hidden" role="alert">
-            <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 flex items-center gap-3">
-                <i class="fas fa-check-circle text-emerald-600 flex-shrink-0"></i>
-                <span>{{ session('import_success') }}</span>
-            </div>
+    @php
+        $customerSalesmanFailures = session('import_customer_salesman_failures', []);
+    @endphp
+    @if (session('import_success') || ! empty($customerSalesmanFailures))
+        <div class="fixed bottom-6 right-6 z-[9999] max-w-lg w-full mx-4 flex flex-col gap-3">
+            @if (! empty($customerSalesmanFailures))
+                <div class="shadow-xl rounded-lg overflow-hidden" role="alert">
+                    <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-exclamation-triangle text-amber-600 mt-0.5 flex-shrink-0"></i>
+                            <div class="text-sm text-amber-900 dark:text-amber-100">
+                                <strong class="block mb-2">Some customer-salesman files were skipped:</strong>
+                                <ul class="list-disc list-inside space-y-2 text-amber-800 dark:text-amber-200">
+                                    @foreach ($customerSalesmanFailures as $failure)
+                                        <li>
+                                            <span class="font-medium">{{ $failure['file'] }}</span>
+                                            <span class="text-amber-700 dark:text-amber-300"> — {{ $failure['message'] }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+            @if (session('import_success'))
+                <div class="shadow-xl rounded-lg overflow-hidden" role="alert">
+                    <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 flex items-start gap-3">
+                        <i class="fas fa-check-circle text-emerald-600 flex-shrink-0 mt-0.5"></i>
+                        <span>{{ session('import_success') }}</span>
+                    </div>
+                </div>
+            @endif
         </div>
     @endif
 
@@ -76,9 +103,14 @@
                         </div>
 
                         <div>
-                            <label for="file" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Excel File</label>
+                            <label for="file" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <span id="file-label-text">Excel File</span>
+                            </label>
+                            <p id="file-hint-customer-salesman" class="hidden text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                You can select multiple workbooks (one per salesman) and import them in a single run.
+                            </p>
                             <div class="flex items-center gap-4">
-                                <input type="file" name="file" id="file" required accept=".xlsx,.xls"
+                                <input type="file" name="file[]" id="file" required accept=".xlsx,.xls"
                                     class="block w-full text-sm text-gray-600 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 dark:file:bg-emerald-900/30 dark:file:text-emerald-300 dark:hover:file:bg-emerald-900/50 cursor-pointer">
                             </div>
                         </div>
@@ -170,7 +202,7 @@
                                     <li>Data starts at Row 9, Column B: Account (required)</li>
                                 </ul>
                                 <p class="text-xs pt-2 border-t border-gray-200 dark:border-gray-600 mt-3">
-                                    Only existing customer accounts are updated. Selected database (UPS/URS/UCS) determines which customers.
+                                    Only existing customer accounts are updated. Selected database (UPS/URS/UCS) determines which customers. Use the file picker’s multi-select to upload several salesman files at once.
                                 </p>
                             </div>
                         </div>
@@ -193,6 +225,16 @@
     </div>
 
     <script>
+        function syncImportFileInput() {
+            const typeSelect = document.getElementById('import_type');
+            const fileInput = document.getElementById('file');
+            const isMulti = typeSelect.value === 'customer_salesman';
+            fileInput.multiple = isMulti;
+            document.getElementById('file-label-text').textContent = isMulti ? 'Excel Files' : 'Excel File';
+            document.getElementById('file-hint-customer-salesman').classList.toggle('hidden', !isMulti);
+            fileInput.value = '';
+        }
+
         document.getElementById('import_type').addEventListener('change', function() {
             document.querySelectorAll('.format-panel').forEach(el => el.classList.add('hidden'));
             const panels = {
@@ -203,12 +245,14 @@
             };
             const id = panels[this.value];
             if (id) document.getElementById(id).classList.remove('hidden');
+            syncImportFileInput();
         });
 
         (function() {
             const current = "{{ old('import_type', 'items') }}";
-            document.getElementById('import_type').value = current;
-            document.getElementById('import_type').dispatchEvent(new Event('change'));
+            const typeSelect = document.getElementById('import_type');
+            typeSelect.value = current;
+            typeSelect.dispatchEvent(new Event('change'));
         })();
     </script>
 </x-app-layout>
