@@ -486,7 +486,7 @@ class QuotationForm extends Component
             $customer = Customer::find($this->cust_id);
             $customerSnapshot = CustomerSnapshot::create([
                 'customer_id' => $customer->id,
-                'account' => $customer->account,
+                'account' => $customer->account ?? '',
                 'cust_name' => $customer->cust_name,
                 'address_line1' => $customer->address_line1,
                 'address_line2' => $customer->address_line2,
