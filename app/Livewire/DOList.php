@@ -88,7 +88,8 @@ class DOList extends Component
               return  $q->where(function($query) {
                     $query->where('do_num', 'like', '%' . $this->doSearchTerm . '%')
                       ->orWhereHas('customer', function($subQuery) {
-                          $subQuery->where('cust_name', 'like', '%' . $this->doSearchTerm . '%');
+                          $subQuery->where('cust_name', 'like', '%' . $this->doSearchTerm . '%')
+                              ->orWhere('account', 'like', '%' . $this->doSearchTerm . '%');
                       });
                 });
             })

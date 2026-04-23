@@ -21,10 +21,21 @@
 
                         <!-- Customer Table -->
                         <div class="table-responsive mt-3">
-                            <table class="table table-hover">
+                            <table class="table table-hover table-sm small">
                                 <thead>
                                     <tr>
                                         <th>No</th>
+                                        <th>Account Number <span wire:click="sortBy('account')">
+                                                @if ($sortColumn === 'account')
+                                                    @if ($sortOrder === 'asc')
+                                                        <i class="fa-solid fa-sort-up"></i>
+                                                    @else
+                                                        <i class="fa-solid fa-sort-down"></i>
+                                                    @endif
+                                                @else
+                                                    <i class="fa-solid fa-sort"></i>
+                                                @endif
+                                        </span></th>
                                         <th>Name <span wire:click="sortBy('cust_name')">
                                                 @if ($sortColumn === 'cust_name')
                                                     @if ($sortOrder === 'asc')
@@ -47,6 +58,7 @@
                                     @forelse($customers as $customer)
                                         <tr>
                                             <td>{{ ($customers->firstItem() ?? 0) + $loop->index }}</td>
+                                            <td><a wire:navigate href="{{ route('customers.view', $customer->id)}}">{{ $customer->account ?: '-' }}</a></td>
                                             <td><a wire:navigate href="{{ route('customers.view', $customer->id)}}"> {{ $customer->cust_name }}</a></td>
                                             <td><a wire:navigate href="{{ route('customers.view', $customer->id)}}">{{ $customer->phone_num }}</a></td>
                                             <td><a wire:navigate href="{{ route('customers.view', $customer->id)}}">{{ $customer->email }}</a></td>
@@ -63,7 +75,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7" class="text-center">No customers found.</td>
+                                            <td colspan="8" class="text-center">No customers found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

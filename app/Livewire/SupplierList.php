@@ -32,7 +32,7 @@ class SupplierList extends Component
     public function fetchSuppliers(){
         return Supplier::where('sup_name', 'like', '%'. $this->supplierSearchTerm. '%')->
         orderBy($this->sortColumn, $this->sortOrder)->
-        paginate(8); 
+        paginate(15); 
     }
 
     public function render() {

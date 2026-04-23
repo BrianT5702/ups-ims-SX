@@ -57,7 +57,7 @@ class FamilyList extends Component
     public function fetchFamilies(){
         return Family::where('family_name', 'like', '%'. $this->familySearchTerm. '%')->
         orderBy($this->sortColumn, $this->sortOrder)->
-        paginate(8); 
+        paginate(15); 
     }
 
     public function render() {

@@ -57,7 +57,7 @@ class CategoryList extends Component
     public function fetchCategories(){
         return Category::where('cat_name', 'like', '%'. $this->categorySearchTerm. '%')->
         orderBy($this->sortColumn, $this->sortOrder)->
-        paginate(8); 
+        paginate(15); 
     }
 
     public function render() {

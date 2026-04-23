@@ -57,7 +57,7 @@ class GroupList extends Component
     public function fetchGroups(){
         return Group::where('group_name', 'like', '%'. $this->groupSearchTerm. '%')->
         orderBy($this->sortColumn, $this->sortOrder)->
-        paginate(8); 
+        paginate(15); 
     }
 
     public function render() {

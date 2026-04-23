@@ -17,7 +17,7 @@ class CustomerList extends Component
     public $customerSearchTerm = null;
     public $activePageNumber = 1;
 
-    public $sortColumn = 'cust_name';
+    public $sortColumn = 'account';
     public $sortOrder = 'asc';
 
     public function sortBy($columnName){
@@ -30,10 +30,20 @@ class CustomerList extends Component
     }
 
     public function fetchCustomers(){
-        return Customer::with('salesman')
-            ->where('cust_name', 'like', '%'. $this->customerSearchTerm. '%')->
-        orderBy($this->sortColumn, $this->sortOrder)->
-        paginate(8); 
+        $query = Customer::with('salesman')
+            ->where(function ($query) {
+                $query->where('cust_name', 'like', '%' . $this->customerSearchTerm . '%')
+                    ->orWhere('account', 'like', '%' . $this->customerSearchTerm . '%');
+            });
+
+        if ($this->sortColumn === 'account') {
+            $query->orderByRaw("CASE WHEN account IS NULL OR account = '' THEN 1 ELSE 0 END")
+                ->orderBy('account', $this->sortOrder);
+        } else {
+            $query->orderBy($this->sortColumn, $this->sortOrder);
+        }
+
+        return $query->paginate(15);
     }
 
     public function render() {

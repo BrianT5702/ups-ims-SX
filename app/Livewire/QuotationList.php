@@ -70,7 +70,8 @@ class QuotationList extends Component
                 return $q->where(function($sub){
                     $sub->where('quotation_num', 'like', '%' . $this->quotationSearchTerm . '%')
                         ->orWhereHas('customer', function($subQuery){
-                            $subQuery->where('cust_name', 'like', '%' . $this->quotationSearchTerm . '%');
+                            $subQuery->where('cust_name', 'like', '%' . $this->quotationSearchTerm . '%')
+                                ->orWhere('account', 'like', '%' . $this->quotationSearchTerm . '%');
                         });
                 });
             })
