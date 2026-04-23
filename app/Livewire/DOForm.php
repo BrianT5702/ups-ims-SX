@@ -3108,9 +3108,10 @@ class DOForm extends Component
             return redirect()->route('print.delivery-order.preview', $this->deliveryOrder->id);
         }
         
-        // Ensure we have a saved draft, then redirect to print preview
+        // Ensure we are posted before redirecting to print preview
         $this->isPreviewMode = true;
-        $this->saveDraft();
+        $this->saveAsDraft = false;
+        $this->addDO();
         $this->isPreviewMode = false;
         if ($this->deliveryOrder && $this->deliveryOrder->id) {
             return redirect()->route('print.delivery-order.preview', $this->deliveryOrder->id);
