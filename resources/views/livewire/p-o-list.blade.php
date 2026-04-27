@@ -254,7 +254,11 @@
                                     <thead>
                                         <tr>
                                             <th>PO Number</th>
-                                            <th>Date</th>
+                                            <th>
+                                                <button type="button" wire:click="toggleDateSort" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
+                                                    Date {{ $dateSortDirection === 'asc' ? '↓' : '↑' }}
+                                                </button>
+                                            </th>
                                             <th>Supplier Name</th>
                                             <th>Status</th>
                                             <th>Created by</th>
@@ -267,7 +271,7 @@
                                         @forelse($purchase_orders as $purchase_order)
                                             <tr>
                                                 <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}"> {{ $purchase_order->po_num }}</a></td>
-                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}"> {{ $purchase_order->created_at->format('d/m/Y') }}</a></td>
+                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}"> {{ \Carbon\Carbon::parse($purchase_order->date)->format('d/m/Y') }}</a></td>
                                                 <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->supplierSnapshot->sup_name ?? $purchase_order->supplier->sup_name }}</a></td>
                                                 <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->status }}</a></td>
                                                 <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->user->name ?? '-' }}</a></td>

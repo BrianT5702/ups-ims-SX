@@ -19,6 +19,7 @@ class POList extends Component
     public $startDate = null;
     public $endDate = null;
     public $statusFilter='';
+    public $dateSortDirection = 'desc';
 
     public function updatingPOSearchTerm()
     {
@@ -71,6 +72,12 @@ class POList extends Component
         ]);
     }
 
+    public function toggleDateSort()
+    {
+        $this->dateSortDirection = $this->dateSortDirection === 'asc' ? 'desc' : 'asc';
+        $this->resetPage();
+    }
+
     public function render()
     {
         $user = Auth::user();
@@ -109,7 +116,8 @@ class POList extends Component
             })
             ->where('po_num', '!=', 'PO0000000000');
     
-        $purchase_orders = $query->orderBy('created_at', 'desc')
+        $purchase_orders = $query->orderBy('date', $this->dateSortDirection)
+            ->orderBy('created_at', 'desc')
             ->paginate(15);
 
         $filteredSupplier = $this->filterSupplierId
