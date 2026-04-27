@@ -35,6 +35,8 @@ class ItemList extends Component
     public $selectedSuppliers = [];
 
     public $selectedImage = null;
+    public $sortField = 'item_name';
+    public $sortDirection = 'asc';
 
     public function mount($familyId = null, $locationId = null)
     {
@@ -83,6 +85,22 @@ class ItemList extends Component
         $this->resetPage();
     }
 
+    public function sortBy($field)
+    {
+        if (!in_array($field, ['item_name', 'updated_at'], true)) {
+            return;
+        }
+
+        if ($this->sortField === $field) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortField = $field;
+            $this->sortDirection = 'asc';
+        }
+
+        $this->resetPage();
+    }
+
     public function fetchItems()
     {
         $query = Item::query()
@@ -121,7 +139,19 @@ class ItemList extends Component
                 $query->where('qty', '<', 0);
             });
 
-        return $query->paginate(50);
+        $expr = "COALESCE(NULLIF(TRIM(REGEXP_REPLACE(item_name, '^[[:space:]@#*~^$]+', '')), ''), item_name)";
+
+        if ($this->sortField === 'updated_at') {
+            return $query
+                ->orderBy('updated_at', $this->sortDirection)
+                ->orderBy('id', $this->sortDirection)
+                ->paginate(50);
+        }
+
+        return $query
+            ->orderByRaw($expr . ' ' . strtoupper($this->sortDirection))
+            ->orderBy('id', $this->sortDirection)
+            ->paginate(50);
     }
 
     public function getSelectedCategoryNames()

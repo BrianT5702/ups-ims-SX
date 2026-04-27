@@ -153,13 +153,21 @@
                                     <tr align="center">
                                         <th>No</th>
                                         <th>Item Code</th>
-                                        <th>Item Name</th>
+                                        <th>
+                                            <button type="button" wire:click="sortBy('item_name')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
+                                                Item Name{{ $sortField === 'item_name' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
+                                            </button>
+                                        </th>
                                         <th>Quantity</th>
                                         <th>Cost</th>
                                         <th>Cash Price</th>
                                         <th>Term Price</th>
                                         <th>Customer Price</th>
-                                        <th>Created/Updated At</th>
+                                        <th>
+                                            <button type="button" wire:click="sortBy('updated_at')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
+                                                Created/Updated At{{ $sortField === 'updated_at' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
+                                            </button>
+                                        </th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
