@@ -33,6 +33,7 @@ class PurchaseOrder extends BaseModel
         'remark',
         'status',
         'printed',
+        'is_updated',
         'final_total_price',
         'tax_rate',
         'tax_amount',

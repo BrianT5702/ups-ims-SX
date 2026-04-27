@@ -3385,7 +3385,7 @@ class DOForm extends Component
 
     private function checkStockAlertLevel(Item $item)
 {
-    if ($item->qty <= $item->stock_alert_level) {
+    if ($item->qty < $item->stock_alert_level) {
         session()->flash('stock-alert', [
             'item_code' => $item->item_code,
             'item_name' => $item->item_name,

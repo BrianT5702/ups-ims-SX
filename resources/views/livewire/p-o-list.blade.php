@@ -197,22 +197,29 @@
                                 
                                 .table.po-list th:nth-child(5), 
                                 .table.po-list td:nth-child(5) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Created by */
-                                
+                                    min-width: 90px;
+                                    width: 90px;
+                                    text-align: center;
+                                } /* Update */
+
                                 .table.po-list th:nth-child(6), 
                                 .table.po-list td:nth-child(6) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Last edited by */
-                                
-                                .table.po-list th:nth-child(7), 
-                                .table.po-list td:nth-child(7) { 
                                     min-width: 90px;
                                     width: 90px;
                                     text-align: center;
                                 } /* Print */
+
+                                .table.po-list th:nth-child(7), 
+                                .table.po-list td:nth-child(7) { 
+                                    min-width: 120px;
+                                    width: 120px;
+                                } /* Created by */
+                                
+                                .table.po-list th:nth-child(8), 
+                                .table.po-list td:nth-child(8) { 
+                                    min-width: 120px;
+                                    width: 120px;
+                                } /* Last edited by */
                                 
                                 /* Ensure links don't cause wrapping */
                                 .table.po-list td a {
@@ -261,9 +268,10 @@
                                             </th>
                                             <th>Supplier Name</th>
                                             <th>Status</th>
+                                            <th>Update</th>
+                                            <th>Print</th>
                                             <th>Created by</th>
                                             <th>Last edited by</th>
-                                            <th>Print</th>
                                         </tr>
                                     </thead>
 
@@ -274,18 +282,23 @@
                                                 <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}"> {{ \Carbon\Carbon::parse($purchase_order->date)->format('d/m/Y') }}</a></td>
                                                 <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->supplierSnapshot->sup_name ?? $purchase_order->supplier->sup_name }}</a></td>
                                                 <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->status }}</a></td>
-                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->user->name ?? '-' }}</a></td>
-                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->updatedBy->name ?? ($purchase_order->user->name ?? '-') }}</a></td>
+                                                <td class="text-center">
+                                                    <span class="po-print-flag">
+                                                        {{ ($purchase_order->is_updated ?? 'N') === 'Y' ? 'Y' : 'N' }}
+                                                    </span>
+                                                </td>
                                                 <td class="text-center">
                                                     <span class="po-print-flag">
                                                         {{ $purchase_order->printed === 'Y' ? 'Y' : 'N' }}
                                                     </span>
                                                 </td>
+                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->user->name ?? '-' }}</a></td>
+                                                <td><a wire:navigate href="{{ route('purchase-orders.view', $purchase_order->id)}}">{{ $purchase_order->updatedBy->name ?? ($purchase_order->user->name ?? '-') }}</a></td>
                                                 
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="7" class="text-center">No purchase orders found.</td>
+                                                <td colspan="8" class="text-center">No purchase orders found.</td>
                                             </tr>
                                         @endforelse
                                     </tbody>

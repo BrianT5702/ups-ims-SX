@@ -52,7 +52,36 @@ class POForm extends Component
     public $isRevising = false;
     public $backupStackedItems = [];
     public $backupTaxRate = null;
+    public $restockSourceIds = [];
+    public $restockSourceItemMap = [];
     private bool $isPreviewMode = false;
+
+    private function consumeRestockSourceItems(): void
+    {
+        if (!empty($this->restockSourceIds)) {
+            $savedItemIds = collect($this->stackedItems)
+                ->map(fn ($row) => (int)($row['item']['id'] ?? 0))
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+            $idsToConsume = collect($savedItemIds)
+                ->map(fn ($itemId) => $this->restockSourceItemMap[$itemId] ?? null)
+                ->filter()
+                ->values()
+                ->all();
+
+            if (!empty($idsToConsume)) {
+                RestockList::whereIn('id', $idsToConsume)->delete();
+            }
+
+            $this->restockSourceIds = [];
+            $this->restockSourceItemMap = [];
+        }
+
+        session()->forget('stackedItems');
+    }
 
     private function resolvePurchaseOrderItemForStackRow(array $item): ?PurchaseOrderItem
     {
@@ -191,6 +220,7 @@ class POForm extends Component
 
                 if (!$wantsUpdateCost && $this->isEdit && $this->purchaseOrder && $this->purchaseOrder->status === 'Completed') {
                     $this->purchaseOrder->status = 'In Progress';
+                    $this->purchaseOrder->is_updated = 'N';
                     $this->purchaseOrder->updated_by = auth()->id();
                     $this->purchaseOrder->save();
                     $this->status = 'In Progress';
@@ -213,7 +243,12 @@ class POForm extends Component
             $sessionItems = session('stackedItems');
 
             if (!empty($sessionItems)) {
+                $this->restockSourceIds = $sessionItems;
                 $restockItems = RestockList::with('item')->whereIn('id', $sessionItems)->get();
+                $this->restockSourceItemMap = $restockItems
+                    ->pluck('id', 'item_id')
+                    ->mapWithKeys(fn ($id, $itemId) => [(int)$itemId => (int)$id])
+                    ->all();
 
                 foreach ($restockItems as $restockItem) {
                     $this->stackedItems[] = [
@@ -236,8 +271,6 @@ class POForm extends Component
                     ];
                 }
 
-                RestockList::whereIn('id', $sessionItems)->delete(); //remove items in restock-lists table
-                session()->forget('stackedItems');
             }
         }
 
@@ -402,6 +435,13 @@ class POForm extends Component
                 $this->backupStackedItems = $this->stackedItems;
                 $this->backupTaxRate = $this->tax_rate;
                 $this->isRevising = true;
+
+                // Mark PO as needing update again once user enters revise mode.
+                if ($this->purchaseOrder && $this->purchaseOrder->is_updated === 'Y') {
+                    $this->purchaseOrder->is_updated = 'N';
+                    $this->purchaseOrder->updated_by = auth()->id();
+                    $this->purchaseOrder->save();
+                }
             } else {
                 // Cancelling revise: restore previous values and do not save
                 if (!empty($this->backupStackedItems)) {
@@ -572,6 +612,12 @@ class POForm extends Component
             // Clear backups so Cancel won't revert after save
             $this->backupStackedItems = [];
             $this->backupTaxRate = null;
+
+            // Revision means the PO needs Update Item to be invoked again.
+            $this->purchaseOrder->is_updated = 'N';
+            $this->purchaseOrder->updated_by = auth()->id();
+            $this->purchaseOrder->save();
+
             toastr()->success('Revision saved');
 
             DB::commit();
@@ -710,6 +756,7 @@ class POForm extends Component
                     'tax_amount' => $this->tax_amount ?? null,
                     'grand_total' => $this->grand_total ?? null,
                     'status' => 'In Progress',
+                    'is_updated' => 'N',
                     'supplier_snapshot_id' => $supplierSnapshot->id,
                 ]);
                 $this->status = 'In Progress';
@@ -731,6 +778,7 @@ class POForm extends Component
                     $this->stackedItems[$idx]['total_qty_received'] = 0.0;
                 }
 
+                $this->consumeRestockSourceItems();
                 toastr()->success('PO created successfully');
             }
         } catch (\Exception $e) {
@@ -860,6 +908,7 @@ class POForm extends Component
                     ]);
                 }
 
+                $this->consumeRestockSourceItems();
                 if (!$this->isPreviewMode) {
                     toastr()->success('Draft saved');
                 }
@@ -1119,6 +1168,12 @@ class POForm extends Component
             if ($hasUpdates) {
                 toastr()->success('Items updated successfully');
             }
+
+            // Once "Update Item" is successfully invoked, mark this PO as updated.
+            // If Revise was triggered earlier, the flag remains N until this point.
+            $this->purchaseOrder->is_updated = 'Y';
+            $this->purchaseOrder->updated_by = auth()->id();
+            $this->purchaseOrder->save();
     
             $allItemsReceived = PurchaseOrderItem::where('po_id', $this->purchaseOrder->id)
                 ->where('quantity', '>', DB::raw('COALESCE(total_qty_received, 0)'))
