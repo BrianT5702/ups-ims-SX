@@ -84,11 +84,9 @@ class ItemForm extends Component
     #[Validate('nullable|exists:suppliers,id', message: 'Invalid supplier')]
     public $sup_id = '';
 
-    #[Validate('nullable|string', message: 'Invalid unit measurement')]
+    #[Validate('required|string|max:255', message: 'Unit measurement is required')]
     public $um = '';
 
-    #[Validate('nullable|string|max:255', message: 'Custom unit measurement must not exceed 255 characters')]
-    public $custom_um = '';
 
     #[Validate('nullable|string|max:1000', message: 'Memo must be under 1000 characters')]
     public $memo = '';
@@ -96,7 +94,6 @@ class ItemForm extends Component
     #[Validate('nullable|string|max:5000', message: 'Details must be under 5000 characters')]
     public $details = '';
 
-    public $is_custom_um = false;
     public $activePageNumber = 1;
 
     public $batchTrackings = [];
@@ -198,7 +195,7 @@ class ItemForm extends Component
             $this->location = $item->location_id;
             $this->existing_image = $item->image;
             $this->imagePreview = $this->existing_image ? Storage::url($this->existing_image) : null;
-            $this->setUmValue($item->um);
+            $this->um = $item->um ?: 'UNIT';
 
             $this->memo = $item->memo;
             $this->details = $item->details;
@@ -209,7 +206,7 @@ class ItemForm extends Component
 
             $this->loadBatchTrackings();
         } else {
-            $this->setUmValue('UNIT');
+            $this->um = '';
             $this->batchTrackings = [];
         }
 
@@ -386,26 +383,9 @@ class ItemForm extends Component
     }
 
 
-    public function setUmValue($value)
-    {
-        if (in_array($value, ['UNIT', 'BOX', 'KG', 'ROLL'])) {
-            $this->um = $value;
-            $this->is_custom_um = false;
-            $this->custom_um = '';
-        } elseif ($value === 'custom') {
-            $this->um = 'custom';
-            $this->is_custom_um = true;
-            $this->custom_um = 'UNIT';
-        } else {
-            $this->um = 'custom';
-            $this->is_custom_um = true;
-            $this->custom_um = $value;
-        }
-    }
-    
     public function updatedUm($value)
     {
-        $this->setUmValue($value);
+        $this->um = is_string($value) ? trim($value) : '';
     }
 
     
@@ -455,8 +435,7 @@ class ItemForm extends Component
             return;
         }
     
-        $unit_measurement = $this->um === 'custom' ? $this->custom_um : $this->um;
-        $unit_measurement = $unit_measurement ?: 'UNIT';
+        $unit_measurement = is_string($this->um) ? trim($this->um) : '';
     
         try {
             if ($this->item && !empty($this->batchTrackings)) {
@@ -512,6 +491,11 @@ class ItemForm extends Component
                 ]);
             }
     
+            if (!$this->item) {
+                // New items always start at zero quantity.
+                $this->initialQuantity = 0;
+            }
+
             $totalQuantity = $this->item
                 ? BatchTracking::where('item_id', $this->item->id)->sum('quantity')
                 : (float) $this->initialQuantity;

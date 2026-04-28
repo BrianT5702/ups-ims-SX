@@ -108,7 +108,7 @@
 
                             <div class="col-xl-4 col-lg-6 do-header-stack">
                                 <div id="field-date">
-                                    <label for="date">Date <span class="text-danger">*</span></label>
+                                    <label for="date">Date <span class="text-danger">*</span></label> 
                                     <input type="date"
                                         wire:model="date"
                                         id="date"

@@ -81,7 +81,7 @@
                                             <input type="number" value="{{ $qty }}" class="form-control form-control-sm rounded" disabled>
                                         @endif
                                     @else
-                                        <input type="number" step="any" wire:model.live="initialQuantity" min="0" class="form-control form-control-sm rounded">
+                                        <input type="number" value="0" min="0" class="form-control form-control-sm rounded" readonly disabled>
                                     @endif
                                     @error('initialQuantity') <span class="text-danger">{{ $message }}</span> @enderror
                                     @error('qty') <span class="text-danger">{{ $message }}</span> @enderror
@@ -89,22 +89,10 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group mb-2">
-                                    <label for="um" class="form-label">Unit Measurement</label>
-                                    <select wire:model.live="um" id="um" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="" disabled>Select a unit measurement</option>
-                                        <option value="UNIT">UNIT</option>
-                                        <option value="BOX">BOX</option>
-                                        <option value="KG">KG</option>
-                                        <option value="ROLL">ROLL</option>
-                                        <option value="custom">Other (Specify)</option>
-                                    </select>
-                                    
-                                    @if ($is_custom_um)
-                                        <input type="text" wire:model.live="custom_um" wire:key="custom-um-input" class="form-control form-control-sm rounded mt-2" placeholder="Enter custom unit">
-                                    @endif
+                                    <label for="um" class="form-label">Unit Measurement <span class="text-danger">*</span></label>
+                                    <input type="text" wire:model.live="um" id="um" class="form-control form-control-sm rounded" placeholder="Enter unit measurement" {{ $isView ? 'disabled' : '' }}>
 
                                     @error('um') <span class="text-danger">{{ $message }}</span> @enderror
-                                    @error('custom_um') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                             <div class="col-md-4">
