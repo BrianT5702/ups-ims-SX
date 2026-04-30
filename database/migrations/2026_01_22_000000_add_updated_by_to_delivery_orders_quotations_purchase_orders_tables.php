@@ -15,23 +15,17 @@ return new class extends Migration
         
         foreach ($connections as $connection) {
             if (config("database.connections.{$connection}")) {
-                Schema::connection($connection)->table('delivery_orders', function (Blueprint $table) use ($connection) {
-                    if (!Schema::connection($connection)->hasColumn('delivery_orders', 'updated_by')) {
-                        $table->foreignId('updated_by')->nullable()->after('user_id')->constrained('users');
+                foreach (['delivery_orders', 'quotations', 'purchase_orders'] as $tableName) {
+                    if (!Schema::connection($connection)->hasTable($tableName)) {
+                        continue;
                     }
-                });
 
-                Schema::connection($connection)->table('quotations', function (Blueprint $table) use ($connection) {
-                    if (!Schema::connection($connection)->hasColumn('quotations', 'updated_by')) {
-                        $table->foreignId('updated_by')->nullable()->after('user_id')->constrained('users');
-                    }
-                });
-
-                Schema::connection($connection)->table('purchase_orders', function (Blueprint $table) use ($connection) {
-                    if (!Schema::connection($connection)->hasColumn('purchase_orders', 'updated_by')) {
-                        $table->foreignId('updated_by')->nullable()->after('user_id')->constrained('users');
-                    }
-                });
+                    Schema::connection($connection)->table($tableName, function (Blueprint $table) use ($connection, $tableName) {
+                        if (!Schema::connection($connection)->hasColumn($tableName, 'updated_by')) {
+                            $table->foreignId('updated_by')->nullable()->after('user_id')->constrained('users');
+                        }
+                    });
+                }
             }
         }
     }
@@ -45,26 +39,18 @@ return new class extends Migration
         
         foreach ($connections as $connection) {
             if (config("database.connections.{$connection}")) {
-                Schema::connection($connection)->table('delivery_orders', function (Blueprint $table) use ($connection) {
-                    if (Schema::connection($connection)->hasColumn('delivery_orders', 'updated_by')) {
-                        $table->dropForeign(['updated_by']);
-                        $table->dropColumn('updated_by');
+                foreach (['delivery_orders', 'quotations', 'purchase_orders'] as $tableName) {
+                    if (!Schema::connection($connection)->hasTable($tableName)) {
+                        continue;
                     }
-                });
 
-                Schema::connection($connection)->table('quotations', function (Blueprint $table) use ($connection) {
-                    if (Schema::connection($connection)->hasColumn('quotations', 'updated_by')) {
-                        $table->dropForeign(['updated_by']);
-                        $table->dropColumn('updated_by');
-                    }
-                });
-
-                Schema::connection($connection)->table('purchase_orders', function (Blueprint $table) use ($connection) {
-                    if (Schema::connection($connection)->hasColumn('purchase_orders', 'updated_by')) {
-                        $table->dropForeign(['updated_by']);
-                        $table->dropColumn('updated_by');
-                    }
-                });
+                    Schema::connection($connection)->table($tableName, function (Blueprint $table) use ($connection, $tableName) {
+                        if (Schema::connection($connection)->hasColumn($tableName, 'updated_by')) {
+                            $table->dropForeign(['updated_by']);
+                            $table->dropColumn('updated_by');
+                        }
+                    });
+                }
             }
         }
     }
