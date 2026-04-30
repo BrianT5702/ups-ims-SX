@@ -246,9 +246,11 @@ Route::middleware(['auth', 'preventBackHistory', 'switchdb'])->group(function ()
     Route::prefix('report')->name('report')->middleware('permission:View Report')->group(function () {
         Route::get('/', Report::class);
         Route::get('/download/{token}', ReportDownloadController::class)->name('.download');
+        Route::get('/download-file/{filename}', [ReportDownloadController::class, 'downloadFile'])->name('.download-file');
     });
     Route::prefix('transaction-report')->name('transaction-report')->middleware('permission:View Report')->group(function () {
         Route::get('/', TransactionReport::class);
+        Route::get('/download/{token}', [ReportDownloadController::class, 'downloadTransaction'])->name('.download');
     });
 
     //Dashboard section

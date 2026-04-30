@@ -37,8 +37,10 @@
 </head>
 <body class="font-sans antialiased" style="overflow-x: hidden; overflow-y: hidden; height: 100vh;">
     <div class="min-h-screen w-screen bg-gray-100 dark:bg-gray-900 flex" style="overflow-x: hidden; height: 100vh;">
-        <!-- Sidebar -->
-        <x-sidebar />
+        <!-- Sidebar: flex-shrink-0 so wide page content cannot collapse the rail -->
+        <div class="shrink-0" style="flex-shrink: 0; overflow: visible; position: relative; z-index: 20;">
+            <x-sidebar />
+        </div>
 
         <!-- Main Content Area -->
         <div class="flex-grow bg-gray-100 dark:bg-gray-900" style="overflow-x: hidden; min-width: 0;">

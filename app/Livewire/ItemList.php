@@ -12,7 +12,6 @@ use App\Models\Location;
 use Livewire\WithPagination;
 use Livewire\Attributes\Title;
 use App\Models\RestockList;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 
 #[Title('UR | Stock List')]
@@ -34,7 +33,6 @@ class ItemList extends Component
     public $selectedGroups = [];
     public $selectedSuppliers = [];
 
-    public $selectedImage = null;
     public $sortField = 'item_name';
     public $sortDirection = 'asc';
 
@@ -50,22 +48,6 @@ class ItemList extends Component
             $this->filterFamilyId = null;
             $this->selectedFamilies = [];
         }
-    }
-
-    public function showImage($itemId)
-    {
-        $item = Item::find($itemId);
-        if ($item && $item->image) {
-            $this->selectedImage = Storage::url($item->image);
-        } else {
-            $this->selectedImage = null;
-            toastr()->error('No image available for this item.');
-        }
-    }
-
-    public function closeImageModal()
-    {
-        $this->selectedImage = null;
     }
 
     protected $queryString = [
@@ -87,7 +69,7 @@ class ItemList extends Component
 
     public function sortBy($field)
     {
-        if (!in_array($field, ['item_name', 'updated_at'], true)) {
+        if (!in_array($field, ['item_name', 'created_at'], true)) {
             return;
         }
 
@@ -141,9 +123,9 @@ class ItemList extends Component
 
         $expr = "COALESCE(NULLIF(TRIM(REGEXP_REPLACE(item_name, '^[[:space:]@#*~^$]+', '')), ''), item_name)";
 
-        if ($this->sortField === 'updated_at') {
+        if ($this->sortField === 'created_at') {
             return $query
-                ->orderBy('updated_at', $this->sortDirection)
+                ->orderBy('created_at', $this->sortDirection)
                 ->orderBy('id', $this->sortDirection)
                 ->paginate(50);
         }
@@ -280,10 +262,5 @@ class ItemList extends Component
         }
 
         toastr()->success('Item added to restock list.');
-    }
-
-    public function showItemTransactions($itemId)
-    {
-        return redirect()->route('transaction-log.show', ['itemId' => $itemId]);
     }
 }

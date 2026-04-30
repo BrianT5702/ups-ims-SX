@@ -15,6 +15,7 @@ use App\Jobs\GenerateInventoryPdfReport;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Report extends Component
@@ -35,6 +36,7 @@ class Report extends Component
     public $reportStatusMessage = '';
     public $reportDownloadUrl = null;
     public $reportProgress = 0;
+    public $reportHistory = [];
     
     public $availableColumns = [
         'item_code' => 'Stock Code',
@@ -63,6 +65,8 @@ class Report extends Component
         $this->sortByBrand = false;
         $this->sortByGroup = false;
         $this->showGrouping = true;
+        $this->reportHistory = session('inventory_report_history', []);
+        $this->cleanupExpiredReports();
 
         $lastToken = session('inventory_report_last_token');
         if ($lastToken) {
@@ -195,14 +199,29 @@ class Report extends Component
             
             if ($this->fileType === 'pdf') {
                 $this->reportJobToken = (string) Str::uuid();
+                $queuedAt = now()->toDateTimeString();
+                $filterSummary = $this->buildFilterSummary();
 
                 Cache::put($this->cacheKey($this->reportJobToken), [
                     'status' => 'queued',
                     'message' => 'Report queued. Please wait...',
                     'progress' => 5,
+                    'queued_at' => $queuedAt,
+                    'filters' => $filterSummary,
                 ], now()->addHours(2));
 
                 session(['inventory_report_last_token' => $this->reportJobToken]);
+                $this->upsertReportHistory($this->reportJobToken, [
+                    'token' => $this->reportJobToken,
+                    'status' => 'queued',
+                    'message' => 'Report queued. Please wait...',
+                    'progress' => 5,
+                    'queued_at' => $queuedAt,
+                    'updated_at' => $queuedAt,
+                    'filters' => $filterSummary,
+                    'columns' => $this->selectedColumns,
+                    'file_type' => 'pdf',
+                ]);
 
                 GenerateInventoryPdfReport::dispatch(
                     token: $this->reportJobToken,
@@ -277,11 +296,26 @@ class Report extends Component
         $status = $statusData['status'] ?? 'queued';
         $this->reportStatusMessage = $statusData['message'] ?? '';
         $this->reportProgress = (int) ($statusData['progress'] ?? 10);
+        $updatedAt = now()->toDateTimeString();
+
+        $this->upsertReportHistory($this->reportJobToken, [
+            'token' => $this->reportJobToken,
+            'status' => $status,
+            'message' => $this->reportStatusMessage,
+            'progress' => $this->reportProgress,
+            'queued_at' => $statusData['queued_at'] ?? $updatedAt,
+            'updated_at' => $updatedAt,
+            'filters' => $statusData['filters'] ?? [],
+            'file_type' => 'pdf',
+        ]);
 
         if ($status === 'ready') {
             $this->reportDownloadUrl = route('report.download', ['token' => $this->reportJobToken]);
             $this->reportProgress = 100;
             $this->isGenerating = false;
+            $this->upsertReportHistory($this->reportJobToken, [
+                'download_url' => $this->reportDownloadUrl,
+            ]);
         }
 
         if ($status === 'failed') {
@@ -289,6 +323,106 @@ class Report extends Component
             $this->reportProgress = 0;
             $this->isGenerating = false;
         }
+    }
+
+    private function buildFilterSummary(): array
+    {
+        $groupName = 'All Groups';
+        $brandName = 'All Brands';
+        $typeName = 'All Types';
+
+        if ($this->selectedGroupId) {
+            $group = Group::find($this->selectedGroupId);
+            $groupName = $group->group_name ?? 'Selected Group';
+        }
+
+        if ($this->selectedFamilyId) {
+            $family = Family::find($this->selectedFamilyId);
+            $brandName = $family->family_name ?? 'Selected Brand';
+        }
+
+        if ($this->selectedCategoryId) {
+            $category = Category::find($this->selectedCategoryId);
+            $typeName = $category->cat_name ?? 'Selected Type';
+        }
+
+        $stockFilterLabel = match ($this->stockFilter) {
+            'gt0' => 'Non-zero quantity only',
+            'eq0' => 'Zero quantity only',
+            default => 'All quantities',
+        };
+
+        return [
+            'group' => $groupName,
+            'brand' => $brandName,
+            'type' => $typeName,
+            'stock_filter' => $stockFilterLabel,
+        ];
+    }
+
+    private function upsertReportHistory(string $token, array $payload): void
+    {
+        $history = collect($this->reportHistory);
+        $index = $history->search(fn ($item) => ($item['token'] ?? null) === $token);
+
+        if ($index === false) {
+            $history->prepend($payload);
+        } else {
+            $existing = $history->get($index);
+            $history->put($index, array_merge($existing, $payload));
+        }
+
+        $this->reportHistory = $history->take(10)->values()->all();
+        session(['inventory_report_history' => $this->reportHistory]);
+    }
+
+    private function cleanupExpiredReports(): void
+    {
+        $disk = Storage::disk('local');
+        if (!$disk->exists('reports')) {
+            return;
+        }
+
+        $expireBefore = now()->subDays(7)->timestamp;
+        foreach ($disk->files('reports') as $file) {
+            try {
+                if ($disk->lastModified($file) < $expireBefore) {
+                    $disk->delete($file);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to clean up report file', [
+                    'file' => $file,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function getAvailableReports(): array
+    {
+        $this->cleanupExpiredReports();
+        $disk = Storage::disk('local');
+        if (!$disk->exists('reports')) {
+            return [];
+        }
+
+        $files = collect($disk->files('reports'))
+            ->filter(fn ($file) => str_ends_with(strtolower($file), '.pdf'))
+            ->map(function ($file) use ($disk) {
+                $filename = basename($file);
+                $lastModified = $disk->lastModified($file);
+                return [
+                    'filename' => $filename,
+                    'generated_at' => date('Y-m-d H:i:s', $lastModified),
+                    'size_kb' => round($disk->size($file) / 1024, 1),
+                    'download_url' => route('report.download-file', ['filename' => $filename]),
+                ];
+            })
+            ->sortByDesc('generated_at')
+            ->values()
+            ->all();
+
+        return $files;
     }
 
     private function cacheKey(string $token): string
@@ -510,6 +644,7 @@ class Report extends Component
             'groups' => $groups,
             'families' => $families,
             'categories' => $categories,
+            'availableReports' => $this->getAvailableReports(),
         ])->layout('layouts.app');
     }
 }

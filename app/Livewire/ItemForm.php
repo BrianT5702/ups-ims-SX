@@ -98,7 +98,7 @@ class ItemForm extends Component
 
     public $batchTrackings = [];
 
-    #[Validate('required|numeric|min:0', message: 'Quantity must be a valid non-negative number')]
+    #[Validate('nullable|numeric|min:0', message: 'Initial quantity must be a valid non-negative number')]
     public $initialQuantity = 0;
 
     // New batch form fields

@@ -1,36 +1,59 @@
 <div class="container my-3 item-form-page">
     <div class="row">
-        <div class="col-12 col-xl-10 col-xxl-9 m-auto">
+        <div class="col-12 col-xxl-11 m-auto item-form-shell">
             <div class="card shadow-sm" style="overflow: visible;">
                 <div class="card-header">
-                    <div class="row d-flex align-items-center justify-content-between">
-                        <div class="col-8">
-                            <h5 class="fw-bold fs-5">{{ $isView ? 'View' : ($item ? 'Edit' : 'Add') }} Item</h5>
-                        </div>
-                        <div class="col-4 text-end">
-                        <a href="javascript:history.back()" class="btn btn-primary btn-sm">Back</a>
-
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <h5 class="fw-bold fs-5 mb-0">{{ $isView ? 'View' : ($item ? 'Edit' : 'Add') }} Item</h5>
+                        <div class="d-flex flex-wrap align-items-center justify-content-end gap-2 item-form-header-actions">
+                            @if(!$isView)
+                                <button type="submit"
+                                    form="item-form-main"
+                                    class="btn btn-primary btn-sm"
+                                    wire:loading.attr="disabled"
+                                    wire:target="image"
+                                    {{ $isImageUploading ? 'disabled' : '' }}>
+                                    <span wire:loading wire:target="image" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    {{ $item ? 'Update' : 'Add' }}
+                                </button>
+                                @if($item)
+                                    <button wire:confirm="Are you sure you want to delete this item? This will also delete all related batch tracking, purchase order, delivery order, and transaction records!" wire:click="deleteItem({{ $item->id }})" type="button" class="btn btn-danger btn-sm">Delete</button>
+                                @endif
+                            @endif
+                            @can('View Transaction Log')
+                                @if($item)
+                                    <a href="{{ route('transaction-log.show', $item->id) }}" wire:navigate class="btn btn-outline-primary btn-sm" title="Transaction log for this item">
+                                        <i class="fa-solid fa-clock-rotate-left me-1"></i>Transaction log
+                                    </a>
+                                @endif
+                            @endcan
+                            <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">Back</a>
                         </div>
                     </div>
                 </div>
                 <div class="card-body item-form-body">
-                    <form wire:submit.prevent="addItem" class="item-form-grid">
-                        <div class="form-group mb-2">
-                            <label for="item_code" class="form-label">Item Code <span class="text-danger">*</span></label>
-                            <input type="text" wire:model.live="item_code" id="item_code" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                            @error('item_code') <span class="text-danger">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div class="form-group mb-2">
-                            <label for="item_name" class="form-label">Item Name <span class="text-danger">*</span></label>
-                            <input type="text" wire:model.live="item_name" id="item_name" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                            @error('item_name') <span class="text-danger">{{ $message }}</span> @enderror
+                    <form id="item-form-main" wire:submit.prevent="addItem" class="item-form-grid">
+                        <div class="row g-1 g-lg-2">
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group mb-1">
+                                    <label for="item_code" class="form-label">Item Code <span class="text-danger">*</span></label>
+                                    <input type="text" wire:model.live="item_code" id="item_code" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                    @error('item_code') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-lg-9 col-md-6">
+                                <div class="form-group mb-1">
+                                    <label for="item_name" class="form-label">Item Name <span class="text-danger">*</span></label>
+                                    <input type="text" wire:model.live="item_name" id="item_name" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                    @error('item_name') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
                         </div>
 
                         <div class="item-form-section-title">Classification</div>
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
+                        <div class="row g-1 g-lg-2">
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
                                     <label for="category" class="form-label">Category</label>
                                     <select wire:model.live="category" id="category" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
                                         <option value="">— None —</option>
@@ -41,9 +64,8 @@
                                     @error('category') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                        
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
                                     <label for="family" class="form-label">Family</label>
                                     <select wire:model.live="family" id="family" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
                                         <option value="">— None —</option>
@@ -54,9 +76,8 @@
                                     @error('family') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
                                     <label for="group" class="form-label">Group</label>
                                     <select wire:model.live="group" id="group" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
                                         <option value="">— None —</option>
@@ -67,71 +88,70 @@
                                     @error('group') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="item-form-section-title">Pricing & Quantity</div>
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
-                                    <label for="qty" class="form-label">Quantity <span class="text-danger">*</span></label>
-                                    @if($item)
-                                        @if($canEditQtyForUpsDervet ?? false)
-                                            <input type="number" step="any" wire:model.live="qty" id="qty" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                        @else
-                                            <input type="number" value="{{ $qty }}" class="form-control form-control-sm rounded" disabled>
-                                        @endif
-                                    @else
-                                        <input type="number" value="0" min="0" class="form-control form-control-sm rounded" readonly disabled>
-                                    @endif
-                                    @error('initialQuantity') <span class="text-danger">{{ $message }}</span> @enderror
-                                    @error('qty') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
-                                    <label for="um" class="form-label">Unit Measurement <span class="text-danger">*</span></label>
-                                    <input type="text" wire:model.live="um" id="um" class="form-control form-control-sm rounded" placeholder="Enter unit measurement" {{ $isView ? 'disabled' : '' }}>
-
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
+                                    <label for="um" class="form-label">Unit <span class="text-danger">*</span></label>
+                                    <input type="text" wire:model.live="um" id="um" class="form-control form-control-sm rounded" placeholder="e.g. PCS, BOX" {{ $isView ? 'disabled' : '' }}>
                                     @error('um') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
+                        </div>
+
+                        <div class="item-form-section-title">Pricing</div>
+                        <div class="row g-1 g-lg-2">
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
                                     <label for="cost" class="form-label">Cost <span class="text-danger">*</span></label>
                                     <input type="number" step="0.01" wire:model.live="cost" min="0" id="cost" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
                                     @error('cost') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
-                                    <label for="cash_price" class="form-label">Cash Price <span class="text-danger">*</span></label>
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
+                                    <label for="cash_price" class="form-label">Cash <span class="text-danger">*</span></label>
                                     <input type="number" step="0.01" wire:model.live="cash_price" min="0" id="cash_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
                                     @error('cash_price') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
-                                    <label for="term_price" class="form-label">Term Price <span class="text-danger">*</span></label>
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
+                                    <label for="term_price" class="form-label">Term <span class="text-danger">*</span></label>
                                     <input type="number" step="0.01" wire:model.live="term_price" min="0" id="term_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
                                     @error('term_price') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
-                                    <label for="cust_price" class="form-label">Customer Price <span class="text-danger">*</span></label>
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
+                                    <label for="cust_price" class="form-label">Cust. <span class="text-danger">*</span></label>
                                     <input type="number" step="0.01" wire:model.live="cust_price" min="0" id="cust_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
                                     @error('cust_price') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
 
-                        <div class="item-form-section-title">Inventory Settings</div>
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <div class="form-group mb-2">
+                        @if($item && ($canEditQtyForUpsDervet ?? false))
+                        <div class="row g-1 g-lg-2">
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group mb-1">
+                                    <label for="qty" class="form-label">Qty (direct)</label>
+                                    <input type="number" step="any" wire:model.live="qty" id="qty" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                    @error('qty') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        <div class="item-form-section-title">Inventory</div>
+                        <div class="row g-1 g-lg-2">
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group mb-1">
+                                    <label for="stock_alert_level" class="form-label">Stock alert</label>
+                                    <input type="number" wire:model.live="stock_alert_level" min="0" id="stock_alert_level" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                    @error('stock_alert_level') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group mb-1">
                                     <label for="supplier" class="form-label">Supplier</label>
                                     <select wire:model.live="supplier" id="supplier" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
                                         <option value="">— None —</option>
@@ -141,10 +161,9 @@
                                     </select>
                                     @error('supplier') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="form-group mb-2">
+                            </div>
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group mb-1">
                                     <label for="warehouse" class="form-label">Warehouse</label>
                                     <select wire:model.live="warehouse" id="warehouse" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
                                         <option value="">— None —</option>
@@ -153,104 +172,74 @@
                                         @endforeach
                                     </select>
                                     @error('warehouse') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
                             </div>
-                        </div>
-
-                        <div class="col-md-4">
-                        <div class="form-group mb-2">
-                            <label for="location" class="form-label">Location</label>
-                            <select wire:model.live="location" id="location" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group mb-1">
+                                    <label for="location" class="form-label">Location</label>
+                                    <select wire:model.live="location" id="location" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
                                         <option value="">— None —</option>
                                         @foreach($locations as $location)
                                             <option value="{{ $location->id }}">{{ $location->location_name }}</option>
                                         @endforeach
                                     </select>
-                            @error('location') <span class="text-danger">{{ $message }}</span> @enderror
-                        </div>
-                        </div>
-
-                        <div class="row g-2">
-                            <div class="col-md-12">
-                                <div class="form-group mb-2">
-                                    <label for="stock_alert_level" class="form-label">Stock Alert Level</label>
-                                    <input type="number" wire:model.live="stock_alert_level" min="0" id="stock_alert_level" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                    @error('stock_alert_level') <span class="text-danger">{{ $message }}</span> @enderror
+                                    @error('location') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
 
                         <div class="item-form-section-title">Notes</div>
-                        <div class="row g-2">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
+                        <div class="row g-1 g-lg-2">
+                            <div class="col-lg-6">
+                                <div class="form-group mb-1">
                                     <label for="memo" class="form-label">Memo</label>
-                                    <textarea id="memo" wire:model.defer="memo" class="form-control form-control-sm rounded" rows="3" placeholder="Enter memo or special handling notes" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
+                                    <textarea id="memo" wire:model.defer="memo" class="form-control form-control-sm rounded item-form-textarea" rows="2" placeholder="Memo / special handling" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
                                     @error('memo') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
+                            <div class="col-lg-6">
+                                <div class="form-group mb-1">
                                     <label for="details" class="form-label">Details</label>
-                                    <textarea id="details" wire:model.defer="details" class="form-control form-control-sm rounded" rows="3" placeholder="Enter item details (shown in DO, PO, Quotation)" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
+                                    <textarea id="details" wire:model.defer="details" class="form-control form-control-sm rounded item-form-textarea" rows="2" placeholder="Shown on DO" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
                                     @error('details') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
 
                         <div class="item-form-section-title">Image</div>
-                        <div>
-                            <!-- Image upload section with preview -->
-                            <div class="mb-4">
-                                <label for="image" class="block text-gray-700">Item Image</label>
-                                
-                                <div class="mt-2 justify-items-center">
-                                
-                                    @if($imagePreview || ($item && $item->image))
-                                        <div class="relative w-32 h-32 mt-3">
-                                            <img src="{{ $imagePreview }}" alt="Item Preview" class="w-32 h-32 object-cover rounded">
-                                            @if(!$isView)
-                                                <button type="button" wire:click="deleteImage" 
-                                                        class="absolute top-0 right-0 bg-red-500 text-white py-1 px-2 hover:bg-red-600">
-                                                    Delete Image
-                                                </button>
-                                            @endif
-                                        </div>
+                        <div class="row g-1 g-lg-2 align-items-start">
+                            <div class="col-lg-8">
+                                <div class="form-group mb-1">
+                                    <label for="image" class="form-label mb-1">Item image</label>
+                                    @if(!$isView)
+                                        <input type="file" wire:model="image" id="image"
+                                            accept="image/*"
+                                            class="form-control form-control-sm">
+                                        <div wire:loading wire:target="image" class="mt-1 small text-muted">Uploading…</div>
+                                        @error('image')
+                                            <span class="text-danger small">{{ $message }}</span>
+                                        @enderror
+                                    @elseif(!$imagePreview && !($item && $item->image))
+                                        <p class="small text-muted mb-0">No image</p>
                                     @endif
-                                
                                 </div>
-
-                                @if(!$isView)
-                                <div class="mt-2">
-                                    <input type="file" wire:model="image" id="image" 
-                                        accept="image/*"
-                                        class="mt-1 block w-full text-sm text-gray-500
-                                                file:mr-4 file:py-2 file:px-4
-                                                file:rounded-full file:border-0
-                                                file:text-sm file:font-semibold
-                                                file:bg-violet-50 file:text-violet-700
-                                                hover:file:bg-violet-100">
-                                    
-                                    <div wire:loading wire:target="image" class="mt-2 text-sm text-gray-500">
-                                        <div class="flex items-center">
-                                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-violet-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Uploading...
-                                        </div>
+                            </div>
+                            <div class="col-lg-4 text-lg-end">
+                                @if($imagePreview || ($item && $item->image))
+                                    <div class="d-inline-block position-relative item-form-image-thumb">
+                                        <img src="{{ $imagePreview }}" alt="Preview" class="rounded border">
+                                        @if(!$isView)
+                                            <button type="button" wire:click="deleteImage" class="btn btn-danger btn-sm py-0 px-1 position-absolute top-0 end-0 m-1">×</button>
+                                        @endif
                                     </div>
-                                    
-                                    @error('image') 
-                                        <span class="text-red-500 text-xs mt-2">{{ $message }}</span>
-                                    @enderror
-                                </div>
                                 @endif
                             </div>
+                        </div>
 
                             @if($item)
-                            <div class="mt-4">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="fw-bold">Batch Tracking Information</h6>
+                            <div class="mt-2 pt-2 border-top item-form-batch-block">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold mb-0 small text-uppercase text-secondary">Batch tracking</h6>
                                 </div>
 
                                 @if(count($batchTrackings) > 0)
@@ -351,34 +340,16 @@
                             </div>
                             @endif
 
-
-                        @if(!$isView)
-                            <div class="card-footer mb-2">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <button type="submit" 
-                                            class="btn btn-primary btn-sm"
-                                            wire:loading.attr="disabled"
-                                            wire:target="image"
-                                            {{ $isImageUploading ? 'disabled' : '' }}>
-                                            <span wire:loading wire:target="image" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                            {{ $item ? 'Update' : 'Add' }}
-                                        </button>
-                                    </div>
-                        @endif
-                        @if(!$isView && $item)
-                                    <div class="col-md-6 text-end">
-                                        <button wire:confirm="Are you sure you want to delete this item? This will also delete all related batch tracking, purchase order, delivery order, and transaction records!" wire:click="deleteItem({{ $item->id }})" type="button" class="btn btn-danger btn-sm">Delete</button>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-
+                    </form>
                 </div>
             </div>
         </div>
     </div>
     <style>
+        .item-form-page .item-form-shell {
+            max-width: 1280px;
+        }
+
         .item-form-page .card {
             border: 1px solid #d8deea;
         }
@@ -391,43 +362,62 @@
         }
 
         .item-form-page .item-form-body {
-            padding-top: 0.85rem;
-            padding-bottom: 0.85rem;
+            padding-top: 0.55rem;
+            padding-bottom: 0.55rem;
         }
 
         .item-form-page .item-form-grid .form-group {
-            margin-bottom: 0.45rem !important;
+            margin-bottom: 0.25rem !important;
         }
 
         .item-form-page .item-form-section-title {
-            font-size: 0.76rem;
+            font-size: 0.72rem;
             font-weight: 700;
             letter-spacing: 0.05em;
             text-transform: uppercase;
             color: #5f6f86;
             border-top: 1px solid #e7ecf4;
-            padding-top: 0.55rem;
-            margin-top: 0.45rem;
-            margin-bottom: 0.2rem;
+            padding-top: 0.35rem;
+            margin-top: 0.3rem;
+            margin-bottom: 0.15rem;
         }
 
         .item-form-page .item-form-grid .form-label {
-            font-size: 0.82rem;
+            font-size: 0.78rem;
             font-weight: 600;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0.12rem;
             color: #2f3b4b;
         }
 
         .item-form-page .item-form-grid .form-control,
         .item-form-page .item-form-grid .form-select {
-            font-size: 0.84rem;
-            min-height: calc(1.45em + 0.45rem + 2px);
-            padding-top: 0.22rem;
-            padding-bottom: 0.22rem;
+            font-size: 0.8rem;
+            min-height: calc(1.35em + 0.35rem + 2px);
+            padding-top: 0.18rem;
+            padding-bottom: 0.18rem;
         }
 
-        .item-form-page .item-form-grid textarea.form-control {
-            min-height: 72px;
+        .item-form-page .item-form-grid textarea.item-form-textarea {
+            min-height: 48px;
+            resize: vertical;
+        }
+
+        .item-form-page .item-form-image-thumb img {
+            max-width: 100px;
+            max-height: 100px;
+            width: auto;
+            height: auto;
+            object-fit: cover;
+        }
+
+        .item-form-page .item-form-batch-block .table {
+            font-size: 0.8rem;
+        }
+
+        .item-form-page .item-form-batch-block .table th,
+        .item-form-page .item-form-batch-block .table td {
+            padding: 0.35rem 0.45rem;
+            vertical-align: middle;
         }
 
         .item-form-page .text-danger {

@@ -1,31 +1,32 @@
-<div>
+<div class="list-page-unified-density">
     <div class="container my-3" style="padding-left: 0.25rem; padding-right: 0.25rem;">
     <div class="row">
             <div class="col-md-11 m-auto">
             <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold fs-5 mb-0">
+                <div class="card-header transaction-log-page-header d-flex align-items-start justify-content-between gap-3 flex-wrap py-3">
+                    <div class="min-w-0 flex-grow-1">
                         @if($filteredItem)
-                            Transaction Log for {{ $filteredItem->item_name }} ({{ $filteredItem->item_code }})
+                            <div class="transaction-log-header-eyebrow text-muted fw-semibold">Transaction log</div>
+                            <div class="d-flex flex-wrap align-items-center gap-2 mt-1 mb-1">
+                                <span class="badge rounded-pill bg-light text-dark border font-monospace px-2 py-1">{{ $filteredItem->item_code }}</span>
+                            </div>
+                            <p class="transaction-log-header-item-name mb-0 text-body" title="{{ $filteredItem->item_name }}">{{ $filteredItem->item_name }}</p>
                         @else
-                            Manage Transactions
+                            <h5 class="fw-bold mb-0 list-page-unified-title">Manage transactions</h5>
                         @endif
-                    </h5>
-                    @if($filteredItem)
-                    <div class="col-4 text-end">
-
-                    <a href="javascript:history.back()" class="btn btn-primary btn-sm">Back</a>
                     </div>
+                    @if($filteredItem)
+                        <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm flex-shrink-0 align-self-start">Back</a>
                     @endif
                 </div>
                 
                 <div class="card-body" style="padding-left: 0.5rem; padding-right: 0.5rem;">
-                    <div class="row mb-3">
+                    <div class="row mb-3 g-2 align-items-end list-page-unified-filters">
                         <div class="col-md-2">
                             <label class="form-label">Group</label>
                             <select 
                                 wire:model.live="selectedGroupId" 
-                                class="form-control rounded"
+                                class="form-select form-select-sm rounded"
                             >
                                 <option value="">All Groups</option>
                                 @foreach($groups ?? [] as $group)
@@ -41,14 +42,14 @@
                                     <div class="input-group">
                                         <input 
                                             type="text" 
-                                            class="form-control rounded" 
+                                            class="form-control form-control-sm rounded" 
                                             value="{{ $selectedCompanyName }}"
                                             readonly
                                         >
                                         <button 
                                             type="button"
                                             wire:click="clearCompany"
-                                            class="btn btn-outline-secondary"
+                                            class="btn btn-outline-secondary btn-sm"
                                             style="border-top-left-radius: 0; border-bottom-left-radius: 0;"
                                         >
                                             <i class="fas fa-times"></i>
@@ -60,7 +61,7 @@
                                         wire:model.debounce.300ms="companySearchTerm"
                                         wire:input.debounce.300ms="searchCompanies"
                                         x-on:focus="open = true"
-                                        class="form-control rounded" 
+                                        class="form-control form-control-sm rounded" 
                                         placeholder="Search company..."
                                         autocomplete="off"
                                     >
@@ -113,7 +114,7 @@
                             <input 
                                 type="text" 
                                 wire:model.live.debounce.300ms="searchTerm" 
-                                class="form-control rounded" 
+                                class="form-control form-control-sm rounded" 
                                 placeholder="Search item code, name, or doc number"
                             >
                         </div>
@@ -122,7 +123,7 @@
                             <label class="form-label">Source Type</label>
                             <select 
                                 wire:model.live="sourceTypeFilter" 
-                                class="form-control rounded"
+                                class="form-select form-select-sm rounded"
                             >
                                 <option value="">All Types</option>
                                 @foreach($sourceTypeOptions as $type)
@@ -136,7 +137,7 @@
                             <input 
                                 type="date" 
                                 wire:model.live="startDate" 
-                                class="form-control rounded"
+                                class="form-control form-control-sm rounded"
                             >
                         </div>
                         
@@ -145,7 +146,7 @@
                             <input 
                                 type="date" 
                                 wire:model.live="endDate" 
-                                class="form-control rounded"
+                                class="form-control form-control-sm rounded"
                             >
                         </div>
                     </div>
@@ -154,7 +155,8 @@
                         <div class="col-md-12 d-flex justify-content-end">
                             <button 
                                 wire:click="clearFilters" 
-                                class="btn btn-outline-secondary"
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm"
                             >
                                 Reset
                             </button>
@@ -231,9 +233,14 @@
                                 white-space: nowrap;
                                 overflow: visible;
                                 text-overflow: clip;
-                                padding: 4px 8px;
+                                padding: 0.5rem;
                                 vertical-align: middle;
                                 border: 1px solid #dee2e6;
+                            }
+
+                            .table.transaction-log-table tbody td {
+                                font-size: 0.8rem;
+                                line-height: 1.25;
                             }
                             
                             /* Table borders - clearer lines */
@@ -244,6 +251,8 @@
                                 border-right: 1px solid #dee2e6;
                                 background-color: #f8f9fa;
                                 font-weight: 600;
+                                font-size: 0.78rem;
+                                line-height: 1.4;
                             }
                             
                             .table.transaction-log-table thead th:first-child {
@@ -360,6 +369,7 @@
                                 border-top: 1px solid #dee2e6;
                                 background-color: #fff;
                                 z-index: 10;
+                                font-size: 0.8rem;
                             }
                         </style>
                         
@@ -613,4 +623,50 @@
             </div>
         </div>
     </div>
+    <style>
+        /* Align with Manage Inventory (item-list) typography */
+        .list-page-unified-density .list-page-unified-filters .form-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+            color: #2f3b4b;
+        }
+        .list-page-unified-density .form-control-sm,
+        .list-page-unified-density .form-select-sm {
+            font-size: 0.8rem;
+            min-height: calc(1.35em + 0.35rem + 2px);
+            padding-top: 0.18rem;
+            padding-bottom: 0.18rem;
+        }
+        .list-page-unified-density .list-page-unified-title {
+            font-size: 1.25rem;
+        }
+        .list-page-unified-density .btn-sm {
+            font-size: 0.78rem;
+        }
+        .list-page-unified-density .alert {
+            font-size: 0.8rem;
+        }
+        .transaction-log-page-header {
+            background: #f7f9fc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .transaction-log-header-eyebrow {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .transaction-log-header-item-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            line-height: 1.25;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            max-width: min(100%, 52rem);
+        }
+        .transaction-log-page-header .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    </style>
 </div>

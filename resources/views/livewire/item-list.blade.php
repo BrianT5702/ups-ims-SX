@@ -147,11 +147,10 @@
                         </div>
 
                         <!-- Item Table -->
-                        <div class="table-responsive mt-3">
-                            <table class="table table-hover inventory-list">
+                        <div class="table-responsive mt-3 inventory-table-wrap">
+                            <table class="table table-hover table-bordered inventory-list">
                                 <thead>
-                                    <tr align="center">
-                                        <th>No</th>
+                                    <tr>
                                         <th>Item Code</th>
                                         <th>
                                             <button type="button" wire:click="sortBy('item_name')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
@@ -160,12 +159,12 @@
                                         </th>
                                         <th>Quantity</th>
                                         <th>Cost</th>
-                                        <th>Cash Price</th>
-                                        <th>Term Price</th>
-                                        <th>Customer Price</th>
+                                        <th>Cash</th>
+                                        <th>Term</th>
+                                        <th>Cust.</th>
                                         <th>
-                                            <button type="button" wire:click="sortBy('updated_at')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
-                                                Created/Updated At{{ $sortField === 'updated_at' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
+                                            <button type="button" wire:click="sortBy('created_at')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
+                                                Created at{{ $sortField === 'created_at' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
                                             </button>
                                         </th>
                                         <th>Action</th>
@@ -173,14 +172,15 @@
                                 </thead>
                                 <tbody>
                                     @forelse($items as $item)
-                                        <tr align="center">
-                                            <td>{{ $loop->iteration }}</td>
-                                            <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->item_code }}</a></td>
+                                        <tr>
+                                            <td><a wire:navigate href="{{ route('items.edit', $item->id) }}" title="{{ $item->item_code }}">{{ $item->item_code }}</a></td>
                                             <td x-data="{ showMemo: false, hoverTimeout: null }"
                                                 style="position: relative;"
                                                 @mouseenter="hoverTimeout = setTimeout(() => { showMemo = true }, 800)"
                                                 @mouseleave="clearTimeout(hoverTimeout); showMemo = false">
-                                                <a wire:navigate href="{{ route('items.edit', $item->id) }}" 
+                                                <a wire:navigate href="{{ route('items.edit', $item->id) }}"
+                                                   class="inventory-item-name-link"
+                                                   title="{{ $item->item_name }}"
                                                    style="cursor: pointer;">
                                                     {{ $item->item_name }}
                                                 </a>
@@ -203,26 +203,22 @@
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->term_price }}</a></td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->cust_price }}</a></td>
                                             <td>
-                                                <span>{{ $item->created_at->format('Y-m-d H:i') }}</span><br>
-                                                <span class="small">Updated {{ $item->updated_at->diffForHumans() }}</span>
+                                                <span>{{ $item->created_at->format('d/m/y H:i') }}</span>
                                             </td>
                                             <td>
-                                                <button wire:click.prevent="addToRestockList({{ $item->id }})">
+                                                <button
+                                                    wire:click.prevent="addToRestockList({{ $item->id }})"
+                                                    type="button"
+                                                    class="btn btn-link btn-sm p-0 border-0"
+                                                    title="Add to Restock List"
+                                                    aria-label="Add to Restock List">
                                                     <i class="fa-solid fa-file-circle-plus"></i>
-                                                </button>
-                                                <div class="py-2"></div>
-                                                <button wire:click.prevent="showItemTransactions({{ $item->id }})">
-                                                    <i class="fa-solid fa-clock-rotate-left"></i>
-                                                </button>
-                                                <div class="py-2"></div>
-                                                <button wire:click.prevent="showImage({{ $item->id }})">
-                                                    <i class="fa-solid fa-image"></i>
                                                 </button>
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="10" class="text-center">No items found.</td>
+                                            <td colspan="9" class="text-center">No items found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -234,23 +230,6 @@
             </div>
         </div>
     </div>
-
-    @if($selectedImage)
-    <div class="modal fade show" tabindex="-1" style="display: block;" aria-modal="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Item Image</h5>
-                    <button type="button" class="btn-close" wire:click="closeImageModal" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body d-flex justify-content-center align-items-center">
-                    <img src="{{ $selectedImage }}" class="img-fluid" alt="Item Image" style="max-height: 80vh;">
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
-
 
     <script>
         // Prevent dropdown from closing when selecting options
@@ -276,9 +255,25 @@
         }
         
         /* Fixed table layout for consistent column widths */
-        .table.inventory-list { 
+        .inventory-table-wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+        }
+
+        .table.inventory-list {
             table-layout: fixed;
             width: 100%;
+            --bs-table-border-color: #d0d7e2;
+            border-color: var(--bs-table-border-color);
+        }
+
+        .table.inventory-list > :not(caption) > * > * {
+            border-color: var(--bs-table-border-color);
+        }
+
+        .table.inventory-list thead th {
+            background-color: #f4f6fa;
+            border-bottom-width: 1px;
         }
         
         /* Common styles for all cells */
@@ -288,11 +283,13 @@
             vertical-align: middle;
             word-wrap: break-word;
             min-width: 0; /* Allows columns to shrink below content width */
+            font-size: 0.8rem;
+            line-height: 1.25;
         }
         
         /* Header specific styles */
         .table.inventory-list th {
-            font-size: 0.9em;
+            font-size: 0.78rem;
             line-height: 1.4;
             vertical-align: middle;
             white-space: nowrap; /* Prevent wrapping - keep headers on one line */
@@ -300,42 +297,64 @@
             text-overflow: ellipsis;
         }
         
-        /* Column widths */
-        .table.inventory-list th:nth-child(1), 
-        .table.inventory-list td:nth-child(1) { width: 4%; } /* No */
-        
-        .table.inventory-list th:nth-child(2), 
-        .table.inventory-list td:nth-child(2) { width: 10%; } /* Item Code */
-        
-        .table.inventory-list th:nth-child(3), 
-        .table.inventory-list td:nth-child(3) { width: 25%; } /* Item Name - wider */
-        
-        .table.inventory-list th:nth-child(4), 
-        .table.inventory-list td:nth-child(4) { width: 7%; } /* Quantity */
-        
-        .table.inventory-list th:nth-child(5), 
-        .table.inventory-list td:nth-child(5) { width: 8%; } /* Cost */
-        
-        .table.inventory-list th:nth-child(6), 
-        .table.inventory-list td:nth-child(6) { width: 9%; } /* Cash Price */
-        
-        .table.inventory-list th:nth-child(7), 
-        .table.inventory-list td:nth-child(7) { width: 9%; } /* Term Price */
-        
-        .table.inventory-list th:nth-child(8), 
-        .table.inventory-list td:nth-child(8) { width: 10%; } /* Customer Price */
-        
-        .table.inventory-list th:nth-child(9), 
-        .table.inventory-list td:nth-child(9) { width: 12%; } /* Created/Updated At */
-        
-        .table.inventory-list th:nth-child(10), 
-        .table.inventory-list td:nth-child(10) { width: 5%; } /* Action - narrower, right-aligned */
-        
-        /* Action column alignment */
-        .table.inventory-list th:nth-child(10),
-        .table.inventory-list td:nth-child(10) {
-            text-align: right;
-            padding-right: 1rem;
+        /* Column widths (after removing No column) */
+        .table.inventory-list th:nth-child(1),
+        .table.inventory-list td:nth-child(1) { width: 15%; } /* Item Code */
+
+        .table.inventory-list th:nth-child(2),
+        .table.inventory-list td:nth-child(2) { width: 35%; } /* Item Name */
+
+        .table.inventory-list th:nth-child(3),
+        .table.inventory-list td:nth-child(3) { width: 8%; } /* Quantity */
+
+        .table.inventory-list th:nth-child(4),
+        .table.inventory-list td:nth-child(4) { width: 7%; } /* Cost */
+
+        .table.inventory-list th:nth-child(5),
+        .table.inventory-list td:nth-child(5) { width: 7%; } /* Cash */
+
+        .table.inventory-list th:nth-child(6),
+        .table.inventory-list td:nth-child(6) { width: 7%; } /* Term */
+
+        .table.inventory-list th:nth-child(7),
+        .table.inventory-list td:nth-child(7) { width: 7%; } /* Cust. */
+
+        .table.inventory-list th:nth-child(8),
+        .table.inventory-list td:nth-child(8) { width: 11%; } /* Created/Updated At */
+
+        .table.inventory-list th:nth-child(9),
+        .table.inventory-list td:nth-child(9) {
+            width: 5%; /* Action — single control */
+            text-align: center;
+        }
+
+        /* Item Code + Item Name: one line with ellipsis (Item Code had no rules before, so long codes wrapped) */
+        .table.inventory-list th:nth-child(1),
+        .table.inventory-list td:nth-child(1),
+        .table.inventory-list th:nth-child(2),
+        .table.inventory-list td:nth-child(2) {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .table.inventory-list td:nth-child(1) > a,
+        .table.inventory-list td:nth-child(2) > a.inventory-item-name-link {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .table.inventory-list .btn {
+            font-size: 0.78rem;
+        }
+
+        /* Center numeric columns for quick scanning */
+        .table.inventory-list th:nth-child(n+3):nth-child(-n+7),
+        .table.inventory-list td:nth-child(n+3):nth-child(-n+7) {
+            text-align: center;
         }
     </style>
 </div>
