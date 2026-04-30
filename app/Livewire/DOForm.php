@@ -68,6 +68,7 @@ class DOForm extends Component
     public ?int $itemPickerRowIndex = null;
 
     public string $itemPickerSearchTerm = '';
+    public string $itemPickerSearchMode = '';
 
     /** @var \Illuminate\Database\Eloquent\Collection<int, Item>|array */
     public $itemPickerResults = [];
@@ -364,21 +365,23 @@ class DOForm extends Component
             return;
         }
         $this->itemPickerRowIndex = $rowIndex;
+        $this->itemPickerSearchMode = '';
         $this->itemPickerSearchTerm = '';
         $this->itemPickerResults = [];
-        $this->itemPickerLoading = true;
+        $this->itemPickerLoading = false;
         $this->showItemPickerModal = true;
-        // Heavy query runs in a follow-up request via wire:init so F2 feels instant.
-        $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
+        $this->js('setTimeout(() => document.getElementById("do-item-picker-choice-code")?.focus(), 10)');
     }
 
     public function closeItemPickerModal(): void
     {
         $this->showItemPickerModal = false;
         $this->itemPickerRowIndex = null;
+        $this->itemPickerSearchMode = '';
         $this->itemPickerSearchTerm = '';
         $this->itemPickerResults = [];
         $this->itemPickerLoading = false;
+        $this->js('setTimeout(() => document.getElementById("do-item-picker-choice-code")?.focus(), 10)');
     }
 
     /**
@@ -386,7 +389,12 @@ class DOForm extends Component
      */
     public function loadItemPickerResults(): void
     {
-        if (!$this->showItemPickerModal || $this->isPosted || $this->isView) {
+        if (
+            !$this->showItemPickerModal ||
+            $this->isPosted ||
+            $this->isView ||
+            !in_array($this->itemPickerSearchMode, ['code', 'name'], true)
+        ) {
             $this->itemPickerLoading = false;
 
             return;
@@ -406,6 +414,47 @@ class DOForm extends Component
         if ($this->showItemPickerModal && !$this->isView && !$this->isPosted) {
             $this->refreshItemPickerResults();
         }
+    }
+
+    public function updatedItemPickerSearchMode(): void
+    {
+        if ($this->itemPickerSearchMode !== '' && !in_array($this->itemPickerSearchMode, ['code', 'name'], true)) {
+            $this->itemPickerSearchMode = '';
+        }
+
+        if ($this->showItemPickerModal && !$this->isView && !$this->isPosted && in_array($this->itemPickerSearchMode, ['code', 'name'], true)) {
+            $this->itemPickerLoading = true;
+            $this->refreshItemPickerResults();
+            $this->itemPickerLoading = false;
+            $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
+        }
+    }
+
+    public function chooseItemPickerSearchMode(string $mode): void
+    {
+        if (!in_array($mode, ['code', 'name'], true)) {
+            return;
+        }
+
+        $this->itemPickerSearchMode = $mode;
+        $this->itemPickerSearchTerm = '';
+        $this->itemPickerResults = [];
+        $this->itemPickerLoading = true;
+        $this->refreshItemPickerResults();
+        $this->itemPickerLoading = false;
+        $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
+    }
+
+    public function backToItemPickerModeSelection(): void
+    {
+        if (!$this->showItemPickerModal || $this->isView || $this->isPosted) {
+            return;
+        }
+
+        $this->itemPickerSearchMode = '';
+        $this->itemPickerSearchTerm = '';
+        $this->itemPickerResults = [];
+        $this->itemPickerLoading = false;
     }
 
     public function selectItemFromPicker(int $itemId): void
@@ -435,14 +484,41 @@ class DOForm extends Component
                 ->get();
         } else {
             $isFractionSearch = preg_match('/\d+\s*\/\s*\d+/', $term) === 1;
-            $query->where('item_name', 'like', '%' . $term . '%');
+            $isNameSearch = $this->itemPickerSearchMode !== 'code';
+            if ($this->itemPickerSearchMode === 'code') {
+                $escapedCodeTerm = addcslashes($term, '\%_');
+                $query->where('item_code', 'like', $escapedCodeTerm . '%');
+            } else {
+                // Word-by-word search: match only when a token starts with the term.
+                // Examples: "1/4" matches "... 1/4 ...", not "... 11/4 ...".
+                $regexTerm = preg_quote($term, '/');
+                $query->whereRaw(
+                    "REGEXP_REPLACE(item_name, '^[[:space:]@#*~^$]+', '') REGEXP ?",
+                    ['(^|[[:space:][:punct:]])' . $regexTerm]
+                );
+            }
 
             $fetchLimit = $isFractionSearch ? 600 : 200;
-            $results = $this->applyItemPickerDescriptionOrder($query)
-                ->limit($fetchLimit)
-                ->get();
+            if ($isNameSearch) {
+                $displayExpr = $this->itemPickerDisplayNameSqlExpression();
+                $lowerTerm = mb_strtolower($term);
+                $results = $query
+                    // Best rank: display name starts with term.
+                    ->orderByRaw("CASE WHEN LOWER($displayExpr) LIKE ? THEN 0 ELSE 1 END", [$lowerTerm . '%'])
+                    // Next: earliest token-start position.
+                    ->orderByRaw("LOCATE(?, LOWER($displayExpr)) ASC", [$lowerTerm])
+                    // Tie-breaker: alphabetical display name.
+                    ->orderByRaw($displayExpr . ' ASC')
+                    ->orderBy('id')
+                    ->limit($fetchLimit)
+                    ->get();
+            } else {
+                $results = $this->applyItemPickerDescriptionOrder($query)
+                    ->limit($fetchLimit)
+                    ->get();
+            }
 
-            if ($isFractionSearch) {
+            if ($isFractionSearch && $this->itemPickerSearchMode !== 'code') {
                 $results = $results
                     ->filter(fn ($item) => $this->itemDescriptionFractionSearchKeepsRow($item->item_name ?? '', $term))
                     ->sortBy(fn ($item) => mb_strtolower($this->itemPickerDescriptionSortKey($item->item_name ?? '')))
@@ -478,9 +554,14 @@ class DOForm extends Component
      */
     private function applyItemPickerDescriptionOrder($query)
     {
-        $expr = "COALESCE(NULLIF(TRIM(REGEXP_REPLACE(item_name, '^[[:space:]@#*~^$]+', '')), ''), item_name)";
+        $expr = $this->itemPickerDisplayNameSqlExpression();
 
         return $query->orderByRaw($expr . ' ASC')->orderBy('id');
+    }
+
+    private function itemPickerDisplayNameSqlExpression(): string
+    {
+        return "COALESCE(NULLIF(TRIM(REGEXP_REPLACE(item_name, '^[[:space:]@#*~^$]+', '')), ''), item_name)";
     }
 
     private function itemDescriptionFractionSearchKeepsRow(string $itemName, string $term): bool

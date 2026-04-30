@@ -876,71 +876,112 @@
                     <h5 class="modal-title mb-0">Add item — row {{ ($itemPickerRowIndex ?? 0) + 1 }}</h5>
                     <button type="button" class="btn-close" wire:click="closeItemPickerModal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-3" wire:init="loadItemPickerResults" wire:key="do-item-picker-open-{{ $itemPickerRowIndex }}">
-                    <label class="form-label small text-muted mb-1">Search by description</label>
-                    <input type="text"
-                        class="form-control form-control-sm mb-2"
-                        wire:model.live.debounce.300ms="itemPickerSearchTerm"
-                        placeholder="Type to filter… (leave empty to show first items)"
-                        autocomplete="off"
-                        id="do-item-picker-search">
-                    <p class="small text-muted mb-2">
-                        Showing up to {{ trim($itemPickerSearchTerm) === '' ? '500' : '200' }} matches, sorted by description (leading @ * # ~ ^ $ and spaces stripped). Click a row to add.
-                    </p>
-                    <div class="table-responsive border rounded do-item-picker-table-wrap" style="max-height: min(55vh, 480px); overflow: auto;">
-                        <table class="table table-sm table-bordered table-hover table-striped mb-0 do-item-picker-table">
-                            <thead class="table-light sticky-top">
-                                <tr>
-                                    <th scope="col" style="width: 11%;">Stock Code</th>
-                                    <th scope="col">Stock Description</th>
-                                    <th scope="col" class="text-end" style="width: 9%;">On Hand</th>
-                                    <th scope="col" class="text-center" style="width: 8%;">U.O.M</th>
-                                    <th scope="col" class="text-end" style="width: 10%;">Price</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if($itemPickerLoading && count($itemPickerResults) === 0)
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted py-4">
-                                            <span class="spinner-border spinner-border-sm me-2 align-middle" role="status" aria-hidden="true"></span>
-                                            <span class="align-middle">Loading items…</span>
-                                        </td>
-                                    </tr>
-                                @else
-                                @forelse($itemPickerResults as $result)
-                                    @php
-                                        $pickerUm = ($result->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($result->um ?? 'UNITS');
-                                        $pickerPrice = (float) ($result->cash_price ?? 0);
-                                        $rawPickerDesc = (string) ($result->item_name ?? '');
-                                        $pickerDesc = preg_replace('/^[\s@*#~^$]+/u', '', $rawPickerDesc);
-                                        $pickerDesc = ltrim($pickerDesc);
-                                        if ($pickerDesc === '') {
-                                            $pickerDesc = $rawPickerDesc;
-                                        }
-                                    @endphp
-                                    <tr class="do-item-picker-row"
-                                        wire:click="selectItemFromPicker({{ $result->id }})"
-                                        wire:key="do-picker-item-{{ $result->id }}"
-                                        role="button"
-                                        tabindex="0"
-                                        style="cursor: pointer;">
-                                        <td class="small fw-semibold text-nowrap">{{ $result->item_code }}</td>
-                                        <td class="small">{{ $pickerDesc }}</td>
-                                        <td class="small text-end font-monospace @if($result->qty < 0) text-danger @elseif((float) $result->qty == 0.0) text-warning @endif">
-                                            {{ number_format((float) $result->qty, 2) }}
-                                        </td>
-                                        <td class="small text-center text-nowrap">{{ $pickerUm }}</td>
-                                        <td class="small text-end font-monospace">{{ number_format($pickerPrice, 2) }}</td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5" class="text-muted small py-3 px-3">No items found. Try a different search.</td>
-                                    </tr>
-                                @endforelse
-                                @endif
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="modal-body p-3" wire:key="do-item-picker-open-{{ $itemPickerRowIndex }}">
+                    @if($itemPickerSearchMode === '')
+                        <div class="border rounded p-3 bg-light"
+                             data-do-picker-mode-select="1"
+                             data-do-picker-active-index="0">
+                            <label class="form-label small text-muted mb-2">Choose search mode first</label>
+                            <div class="list-group">
+                                <button type="button"
+                                        class="list-group-item list-group-item-action active"
+                                        id="do-item-picker-choice-code"
+                                        data-do-picker-choice="code"
+                                        wire:click="chooseItemPickerSearchMode('code')">
+                                    1. Search by Item Code
+                                </button>
+                                <button type="button"
+                                        class="list-group-item list-group-item-action"
+                                        id="do-item-picker-choice-name"
+                                        data-do-picker-choice="name"
+                                        wire:click="chooseItemPickerSearchMode('name')">
+                                    2. Search by Item Name
+                                </button>
+                            </div>
+                            <p class="small text-muted mb-0 mt-2">
+                                Use <strong>Arrow Up/Down</strong> to switch, then press <strong>Enter</strong>.
+                                Or press <strong>1</strong> / <strong>2</strong> to choose directly.
+                            </p>
+                        </div>
+                    @else
+                        <div wire:init="loadItemPickerResults">
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                <label class="form-label small text-muted mb-0">
+                                    Search by {{ $itemPickerSearchMode === 'code' ? 'item code' : 'item name' }}
+                                </label>
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        wire:click="backToItemPickerModeSelection">
+                                    Back to choose mode
+                                </button>
+                            </div>
+                            <input type="text"
+                                class="form-control form-control-sm mb-2"
+                                wire:model.live.debounce.300ms="itemPickerSearchTerm"
+                                placeholder="{{ $itemPickerSearchMode === 'code' ? 'Type item code…' : 'Type item name…' }} (leave empty to show first items)"
+                                autocomplete="off"
+                                id="do-item-picker-search">
+                            <p class="small text-muted mb-2">
+                                Showing up to {{ trim($itemPickerSearchTerm) === '' ? '500' : '200' }} matches,
+                                filtered by {{ $itemPickerSearchMode === 'code' ? 'item code' : 'item name' }}
+                                and sorted by description (leading @ * # ~ ^ $ and spaces stripped). Click a row to add.
+                            </p>
+                            <div class="table-responsive border rounded do-item-picker-table-wrap" style="max-height: min(55vh, 480px); overflow: auto;">
+                                <table class="table table-sm table-bordered table-hover table-striped mb-0 do-item-picker-table">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th scope="col" style="width: 11%;">Stock Code</th>
+                                            <th scope="col">Stock Description</th>
+                                            <th scope="col" class="text-end" style="width: 9%;">On Hand</th>
+                                            <th scope="col" class="text-center" style="width: 8%;">U.O.M</th>
+                                            <th scope="col" class="text-end" style="width: 10%;">Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if($itemPickerLoading && count($itemPickerResults) === 0)
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-4">
+                                                    <span class="spinner-border spinner-border-sm me-2 align-middle" role="status" aria-hidden="true"></span>
+                                                    <span class="align-middle">Loading items…</span>
+                                                </td>
+                                            </tr>
+                                        @else
+                                        @forelse($itemPickerResults as $result)
+                                            @php
+                                                $pickerUm = ($result->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($result->um ?? 'UNITS');
+                                                $pickerPrice = (float) ($result->cash_price ?? 0);
+                                                $rawPickerDesc = (string) ($result->item_name ?? '');
+                                                $pickerDesc = preg_replace('/^[\s@*#~^$]+/u', '', $rawPickerDesc);
+                                                $pickerDesc = ltrim($pickerDesc);
+                                                if ($pickerDesc === '') {
+                                                    $pickerDesc = $rawPickerDesc;
+                                                }
+                                            @endphp
+                                            <tr class="do-item-picker-row"
+                                                wire:click="selectItemFromPicker({{ $result->id }})"
+                                                wire:key="do-picker-item-{{ $result->id }}"
+                                                role="button"
+                                                tabindex="0"
+                                                style="cursor: pointer;">
+                                                <td class="small fw-semibold text-nowrap">{{ $result->item_code }}</td>
+                                                <td class="small">{{ $pickerDesc }}</td>
+                                                <td class="small text-end font-monospace @if($result->qty < 0) text-danger @elseif((float) $result->qty == 0.0) text-warning @endif">
+                                                    {{ number_format((float) $result->qty, 2) }}
+                                                </td>
+                                                <td class="small text-center text-nowrap">{{ $pickerUm }}</td>
+                                                <td class="small text-end font-monospace">{{ number_format($pickerPrice, 2) }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="5" class="text-muted small py-3 px-3">No items found. Try a different search.</td>
+                                            </tr>
+                                        @endforelse
+                                        @endif
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
                 </div>
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-secondary btn-sm" wire:click="closeItemPickerModal">Cancel</button>
@@ -1395,6 +1436,76 @@
                 if (comp) comp.call('closeItemPickerModal');
             });
         })();
+        (function () {
+            function getModeButtons(container) {
+                if (!container) return [];
+                return Array.from(container.querySelectorAll('[data-do-picker-choice]'));
+            }
+
+            function setActiveChoice(container, index) {
+                var buttons = getModeButtons(container);
+                if (buttons.length === 0) return;
+
+                var clamped = Math.max(0, Math.min(index, buttons.length - 1));
+                container.setAttribute('data-do-picker-active-index', String(clamped));
+
+                buttons.forEach(function (btn, i) {
+                    if (i === clamped) {
+                        btn.classList.add('active');
+                        btn.focus();
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
+
+            document.addEventListener('keydown', function (e) {
+                var container = document.querySelector('.do-item-picker-modal [data-do-picker-mode-select="1"]');
+                if (!container) return;
+
+                var buttons = getModeButtons(container);
+                if (buttons.length === 0) return;
+
+                var activeIndex = parseInt(container.getAttribute('data-do-picker-active-index') || '0', 10);
+                if (isNaN(activeIndex)) activeIndex = 0;
+
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setActiveChoice(container, activeIndex - 1);
+                    return;
+                }
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setActiveChoice(container, activeIndex + 1);
+                    return;
+                }
+                if (e.key === '1') {
+                    e.preventDefault();
+                    buttons[0].click();
+                    return;
+                }
+                if (e.key === '2') {
+                    e.preventDefault();
+                    if (buttons[1]) buttons[1].click();
+                    return;
+                }
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    var chosen = buttons[activeIndex] || buttons[0];
+                    if (chosen) chosen.click();
+                }
+            });
+
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest('[data-do-picker-choice]');
+                if (!btn) return;
+                var container = btn.closest('[data-do-picker-mode-select="1"]');
+                if (!container) return;
+                var buttons = getModeButtons(container);
+                var idx = buttons.indexOf(btn);
+                if (idx >= 0) container.setAttribute('data-do-picker-active-index', String(idx));
+            });
+        })();
     </script>
     <script>
         (function () {
@@ -1547,6 +1658,81 @@
                     nextRow = nextRow.nextElementSibling;
                 }
                 // If no suitable next-row description is found, do nothing else (focus stays put).
+            });
+        })();
+    </script>
+    <script>
+        (function() {
+            // Arrow key handling inside DO item grid:
+            // - Left / Right: move between fields in the same row
+            // - Up / Down: move to the same field role in previous/next row
+            var roles = ['qty', 'uom', 'desc', 'price'];
+
+            function focusField(row, role) {
+                if (!row) return false;
+                var selector = '[data-do-role="' + role + '"]:not([disabled])';
+                var target = row.querySelector(selector);
+                if (!target) return false;
+                target.focus();
+                if (typeof target.select === 'function') target.select();
+                return true;
+            }
+
+            document.addEventListener('keydown', function (e) {
+                if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+                if (e.defaultPrevented) return;
+
+                var source = e.target;
+                if (!source || !source.matches('[data-do-role]')) return;
+
+                // Only handle movement inside the DO form.
+                var form = source.closest('form[wire\\:submit\\.prevent="addDO"]');
+                if (!form) return;
+
+                var currentRow = source.closest('tr.item-row');
+                if (!currentRow) return;
+
+                var currentRole = source.getAttribute('data-do-role');
+                var roleIdx = roles.indexOf(currentRole);
+                if (roleIdx === -1) return;
+
+                var rows = Array.from(form.querySelectorAll('tr.item-row'));
+                var rowIdx = rows.indexOf(currentRow);
+                if (rowIdx === -1) return;
+
+                var moved = false;
+
+                if (e.key === 'ArrowLeft') {
+                    for (var leftIdx = roleIdx - 1; leftIdx >= 0; leftIdx--) {
+                        if (focusField(currentRow, roles[leftIdx])) {
+                            moved = true;
+                            break;
+                        }
+                    }
+                } else if (e.key === 'ArrowRight') {
+                    for (var rightIdx = roleIdx + 1; rightIdx < roles.length; rightIdx++) {
+                        if (focusField(currentRow, roles[rightIdx])) {
+                            moved = true;
+                            break;
+                        }
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    for (var upRowIdx = rowIdx - 1; upRowIdx >= 0; upRowIdx--) {
+                        if (focusField(rows[upRowIdx], currentRole)) {
+                            moved = true;
+                            break;
+                        }
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    for (var downRowIdx = rowIdx + 1; downRowIdx < rows.length; downRowIdx++) {
+                        if (focusField(rows[downRowIdx], currentRole)) {
+                            moved = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (moved) e.preventDefault();
             });
         })();
     </script>
