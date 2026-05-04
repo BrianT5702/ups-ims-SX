@@ -14,4 +14,9 @@ if [ ! -L public/storage ] && [ -d storage/app/public ]; then
     php artisan storage:link 2>/dev/null || true
 fi
 
+# Apply DB migrations on each deploy (Render/docker: build does not run artisan migrate).
+if [ "${SKIP_DB_MIGRATE:-}" != "1" ]; then
+    php artisan migrate --force --no-interaction
+fi
+
 exec "$@"
