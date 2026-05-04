@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * purchase_orders.is_updated was first added only on the default connection.
+     * Tenant DBs (ups, urs, ucs, …) need the same column.
+     */
     public function up(): void
     {
         $connections = ['mysql', 'ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'];
