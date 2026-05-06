@@ -210,7 +210,7 @@ class TransactionLog extends Component
                 return $q;
             });
 
-        $query = $this->applyLatestDoEntryFilter($query)
+        $query = $this->applyTransactionLogVisibilityRules($query)
             ->orderBy('created_at', 'desc');
 
         $transactions = $query->paginate(20);
@@ -294,7 +294,7 @@ class TransactionLog extends Component
                 return $q;
             });
 
-        $transactionsQuery = $this->applyLatestDoEntryFilter($transactionsQuery)
+        $transactionsQuery = $this->applyTransactionLogVisibilityRules($transactionsQuery)
             ->orderBy('created_at', 'desc');
 
         $transactions = $transactionsQuery->get();
@@ -413,15 +413,23 @@ class TransactionLog extends Component
         return ['DO', 'Delivery Order'];
     }
 
-    private function applyLatestDoEntryFilter(Builder $query): Builder
+    private function getDoReversalSourceTypes(): array
+    {
+        return ['DO Reversal', 'DO Status Reversal', 'DO Delta Reversal', 'DO Draft Delta'];
+    }
+
+    private function applyTransactionLogVisibilityRules(Builder $query): Builder
     {
         $doSourceTypes = $this->getDoSourceTypes();
+        $doReversalTypes = $this->getDoReversalSourceTypes();
 
-        return $query->where(function ($mainQuery) use ($doSourceTypes) {
+        return $query->where(function ($mainQuery) use ($doReversalTypes) {
+            $mainQuery->whereNotIn('source_type', $doReversalTypes);
+        })->where(function ($mainQuery) use ($doSourceTypes) {
             $mainQuery->whereNotIn('source_type', $doSourceTypes)
                 ->orWhereIn('id', function ($subQuery) use ($doSourceTypes) {
                     $subQuery->from('transactions as t2')
-                        ->selectRaw('MIN(t2.id)')
+                        ->selectRaw('MAX(t2.id)')
                         ->whereIn('t2.source_type', $doSourceTypes)
                         ->where('t2.transaction_type', 'Stock Out')
                         ->groupBy('t2.source_doc_num', 't2.item_id');
