@@ -408,21 +408,22 @@ class TransactionLog extends Component
         return redirect()->route('transaction-log.');
     }
 
-    private function getDoFamilySourceTypes(): array
+    private function getDoSourceTypes(): array
     {
-        return ['DO', 'Delivery Order', 'DO Reversal', 'DO Status Reversal', 'DO Delta Reversal', 'DO Draft Delta'];
+        return ['DO', 'Delivery Order'];
     }
 
     private function applyLatestDoEntryFilter(Builder $query): Builder
     {
-        $doFamilyTypes = $this->getDoFamilySourceTypes();
+        $doSourceTypes = $this->getDoSourceTypes();
 
-        return $query->where(function ($mainQuery) use ($doFamilyTypes) {
-            $mainQuery->whereNotIn('source_type', $doFamilyTypes)
-                ->orWhereIn('id', function ($subQuery) use ($doFamilyTypes) {
+        return $query->where(function ($mainQuery) use ($doSourceTypes) {
+            $mainQuery->whereNotIn('source_type', $doSourceTypes)
+                ->orWhereIn('id', function ($subQuery) use ($doSourceTypes) {
                     $subQuery->from('transactions as t2')
-                        ->selectRaw('MAX(t2.id)')
-                        ->whereIn('t2.source_type', $doFamilyTypes)
+                        ->selectRaw('MIN(t2.id)')
+                        ->whereIn('t2.source_type', $doSourceTypes)
+                        ->where('t2.transaction_type', 'Stock Out')
                         ->groupBy('t2.source_doc_num', 't2.item_id');
                 });
         });
