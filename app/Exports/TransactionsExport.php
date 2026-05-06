@@ -35,7 +35,12 @@ class TransactionsExport implements FromCollection, WithHeadings, WithMapping
     {
         $row = [];
         foreach ($this->columns as $column) {
-            $row[] = $transaction->{$column};
+            if (is_array($transaction)) {
+                $row[] = $transaction[$column] ?? null;
+                continue;
+            }
+
+            $row[] = $transaction->{$column} ?? null;
         }
         return $row;
     }

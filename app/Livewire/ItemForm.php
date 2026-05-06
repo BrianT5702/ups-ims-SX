@@ -330,7 +330,7 @@ class ItemForm extends Component
             return;
         }
     
-        $newQuantity = $this->batchTrackings[$batchIndex]['quantity'];
+        $newQuantity = (float) $this->batchTrackings[$batchIndex]['quantity'];
     
         if ($newQuantity < 0) {
             toastr()->error('Quantity must be positive value');
@@ -338,9 +338,10 @@ class ItemForm extends Component
         }
     
         $batch = BatchTracking::findOrFail($batchId);
-        $oldQuantity = $batch->quantity;
-    
-        if ($oldQuantity === $newQuantity) {
+        $oldQuantity = (float) $batch->quantity;
+        $quantityDelta = abs($newQuantity - $oldQuantity);
+
+        if ($quantityDelta <= 0.00001) {
             return;
         }
 
@@ -361,7 +362,7 @@ class ItemForm extends Component
             'qty_on_hand' => $qtyAfter,
             'qty_before' => $qtyBefore,
             'qty_after' => $qtyAfter,
-            'transaction_qty' => abs($newQuantity - $oldQuantity),
+            'transaction_qty' => $quantityDelta,
             'transaction_type' => $newQuantity > $oldQuantity ? 'Stock In' : 'Stock Out',
             'source_type' => 'Batch Adjustment',
             'source_doc_num' => $batch->batch_num
@@ -451,9 +452,14 @@ class ItemForm extends Component
                 foreach ($this->batchTrackings as $index => $batch) {
                     $batchRecord = BatchTracking::find($batch['id']);
                     
-                    if ($batchRecord && $batchRecord->quantity !== $batch['quantity']) {
-                        $oldQuantity = $batchRecord->quantity;
-                        $newQuantity = $batch['quantity'];
+                    if ($batchRecord) {
+                        $oldQuantity = (float) $batchRecord->quantity;
+                        $newQuantity = (float) $batch['quantity'];
+                        $quantityDelta = abs($newQuantity - $oldQuantity);
+
+                        if ($quantityDelta <= 0.00001) {
+                            continue;
+                        }
         
                         if ($newQuantity >= 0) {
                             // Get total quantity across all batches before update
@@ -473,7 +479,7 @@ class ItemForm extends Component
                                 'qty_on_hand' => $qtyAfterAll,
                                 'qty_before' => $qtyBeforeAll,
                                 'qty_after' => $qtyAfterAll,
-                                'transaction_qty' => abs($newQuantity - $oldQuantity),
+                                'transaction_qty' => $quantityDelta,
                                 'transaction_type' => $newQuantity > $oldQuantity ? 'Stock In' : 'Stock Out',
                                 'source_type' => 'Batch Adjustment',
                                 'source_doc_num' => '-',
