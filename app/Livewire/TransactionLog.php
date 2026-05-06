@@ -429,7 +429,7 @@ class TransactionLog extends Component
             $mainQuery->whereNotIn('source_type', $doSourceTypes)
                 ->orWhereIn('id', function ($subQuery) use ($doSourceTypes) {
                     $subQuery->from('transactions as t2')
-                        ->selectRaw('MAX(t2.id)')
+                        ->selectRaw('MIN(t2.id)')
                         ->whereIn('t2.source_type', $doSourceTypes)
                         ->where('t2.transaction_type', 'Stock Out')
                         ->groupBy('t2.source_doc_num', 't2.item_id');
