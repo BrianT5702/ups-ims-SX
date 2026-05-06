@@ -483,9 +483,11 @@
                                                 $inQty = '';
                                                 $outQty = '';
                                                 
+                                                $isDoReversal = in_array($transaction->source_type, ['DO Reversal', 'DO Status Reversal', 'DO Delta Reversal', 'DO Draft Delta'], true);
+
                                                 if ($transaction->transaction_type === 'Stock In') {
                                                     $inQty = $transaction->transaction_qty;
-                                                } elseif ($transaction->transaction_type === 'Stock Out') {
+                                                } elseif ($transaction->transaction_type === 'Stock Out' && !$isDoReversal) {
                                                     $outQty = abs($transaction->transaction_qty);
                                                 }
 
@@ -576,9 +578,11 @@
                                             $inQty = '';
                                             $outQty = '';
                                             
+                                            $isDoReversal = in_array($transaction->source_type, ['DO Reversal', 'DO Status Reversal', 'DO Delta Reversal', 'DO Draft Delta'], true);
+
                                             if ($transaction->transaction_type === 'Stock In') {
                                                 $inQty = $transaction->transaction_qty;
-                                            } elseif ($transaction->transaction_type === 'Stock Out') {
+                                            } elseif ($transaction->transaction_type === 'Stock Out' && !$isDoReversal) {
                                                 $outQty = abs($transaction->transaction_qty);
                                             }
 

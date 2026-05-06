@@ -11,6 +11,7 @@ use App\Models\Supplier;
 use Livewire\WithPagination;
 use Livewire\Attributes\Title;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 
 #[Title('UR | Transaction Log')]
 class TransactionLog extends Component
@@ -207,7 +208,9 @@ class TransactionLog extends Component
                     });
                 }
                 return $q;
-            })
+            });
+
+        $query = $this->applyLatestDoEntryFilter($query)
             ->orderBy('created_at', 'desc');
 
         $transactions = $query->paginate(20);
@@ -289,7 +292,9 @@ class TransactionLog extends Component
                     });
                 }
                 return $q;
-            })
+            });
+
+        $transactionsQuery = $this->applyLatestDoEntryFilter($transactionsQuery)
             ->orderBy('created_at', 'desc');
 
         $transactions = $transactionsQuery->get();
@@ -401,5 +406,25 @@ class TransactionLog extends Component
         }
     
         return redirect()->route('transaction-log.');
+    }
+
+    private function getDoFamilySourceTypes(): array
+    {
+        return ['DO', 'Delivery Order', 'DO Reversal', 'DO Status Reversal', 'DO Delta Reversal', 'DO Draft Delta'];
+    }
+
+    private function applyLatestDoEntryFilter(Builder $query): Builder
+    {
+        $doFamilyTypes = $this->getDoFamilySourceTypes();
+
+        return $query->where(function ($mainQuery) use ($doFamilyTypes) {
+            $mainQuery->whereNotIn('source_type', $doFamilyTypes)
+                ->orWhereIn('id', function ($subQuery) use ($doFamilyTypes) {
+                    $subQuery->from('transactions as t2')
+                        ->selectRaw('MAX(t2.id)')
+                        ->whereIn('t2.source_type', $doFamilyTypes)
+                        ->groupBy('t2.source_doc_num', 't2.item_id');
+                });
+        });
     }
 }
