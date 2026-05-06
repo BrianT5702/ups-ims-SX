@@ -46,18 +46,16 @@ class TransactionReport extends Component
     public $reportDownloadUrl = null;
     
     public $availableColumns = [
-        'created_at' => 'Transaction Time',
         'item_code' => 'Item Code',
         'item_name' => 'Item Name',
-        'qty_on_hand' => 'Quantity on Hand',
-        'qty_before' => 'Transaction Quantity Before',
-        'qty_after' => 'Transaction Quantity After',
-        'transaction_qty' => 'Transaction Quantity',
-        'transaction_type' => 'Transaction Type',
-        'source_type' => 'Source Type',
-        'source_doc_num' => 'Source Document Number',
-        'username' => 'User',
-        'batch_num' => 'Batch Number'
+        'um' => 'UOM',
+        'bf' => 'Balance Forward',
+        'in' => 'Stock In',
+        'out' => 'Stock Out',
+        'balance' => 'Final Balance',
+        'group_name' => 'Group',
+        'family_name' => 'Family',
+        'cat_name' => 'Category',
     ];
 
     public $transactionTypes = [
@@ -77,7 +75,7 @@ class TransactionReport extends Component
 
     public function mount()
     {
-        $this->selectedColumns = ['item_code', 'item_name', 'created_at', 'qty_on_hand', 'transaction_type', 'transaction_qty'];
+        $this->selectedColumns = ['item_code', 'item_name', 'bf', 'in', 'out', 'balance'];
         $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::now()->format('Y-m-d');
         $this->stockFilter = 'all';
