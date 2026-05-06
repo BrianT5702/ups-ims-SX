@@ -443,9 +443,20 @@ class TransactionReport extends Component
     protected function downloadExcel($transactions)
     {
         try {
+            $excelColumns = ['item_code', 'item_name', 'um', 'bf', 'in', 'out', 'balance'];
+            $excelLabels = [
+                'item_code' => 'STOCK CODE',
+                'item_name' => 'DESCRIPTION',
+                'um' => 'UOM',
+                'bf' => 'B/F',
+                'in' => 'IN',
+                'out' => 'OUT',
+                'balance' => 'BALANCE',
+            ];
+
             return Excel::download(
-                new TransactionsExport($transactions, $this->selectedColumns), 
-                'inventory_report_' . date('Y-m-d') . '.xlsx'
+                new TransactionsExport($transactions, $excelColumns, $excelLabels, true), 
+                'stock_balance_report_' . date('Y-m-d') . '.xlsx'
             );
         } catch (\Exception $e) {
             throw new \Exception('Excel generation failed: ' . $e->getMessage());
