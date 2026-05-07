@@ -19,7 +19,7 @@ class GenerateInventoryPdfReport implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /** One attempt: full-catalog DomPDF can exceed worker time/memory; retries repeat minutes of CPU. */
-    public int $tries = 1;
+    public int $tries = 3;
 
     public int $timeout = 1200;
 
