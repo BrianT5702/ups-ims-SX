@@ -230,7 +230,8 @@ class Report extends Component
                     selectedGroupId: $this->selectedGroupId ? (int) $this->selectedGroupId : null,
                     selectedFamilyId: $this->selectedFamilyId ? (int) $this->selectedFamilyId : null,
                     selectedCategoryId: $this->selectedCategoryId ? (int) $this->selectedCategoryId : null,
-                    showGrouping: (bool) $this->showGrouping
+                    showGrouping: (bool) $this->showGrouping,
+                    databaseConnection: session('active_db'),
                 );
 
                 $this->reportStatusMessage = 'PDF report is generating in background...';

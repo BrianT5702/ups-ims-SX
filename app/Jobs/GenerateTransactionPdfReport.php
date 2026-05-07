@@ -44,11 +44,13 @@ class GenerateTransactionPdfReport implements ShouldQueue
                 'progress' => 70,
             ]), now()->addDays(7));
 
+            $dbConn = $this->resolveDatabaseConnection();
+
             $pdf = Pdf::loadView('reports.transactions', [
                 'stockBalances' => collect($this->stockBalances),
                 'startDate' => $this->context['startDate'] ?? null,
                 'endDate' => $this->context['endDate'] ?? null,
-                'companyProfile' => CompanyProfile::first(),
+                'companyProfile' => CompanyProfile::on($dbConn)->first(),
                 'groupName' => $this->context['groupName'] ?? 'ALL',
                 'familyName' => $this->context['familyName'] ?? 'ALL',
                 'categoryName' => $this->context['categoryName'] ?? 'ALL',
@@ -93,5 +95,15 @@ class GenerateTransactionPdfReport implements ShouldQueue
     private function cacheKey(string $token): string
     {
         return 'transaction_report_pdf:' . $token;
+    }
+
+    private function resolveDatabaseConnection(): string
+    {
+        $name = $this->context['databaseConnection'] ?? null;
+        if ($name && array_key_exists($name, config('database.connections'))) {
+            return $name;
+        }
+
+        return (string) config('database.default');
     }
 }

@@ -28,7 +28,8 @@ class GenerateInventoryPdfReport implements ShouldQueue
         public ?int $selectedGroupId,
         public ?int $selectedFamilyId,
         public ?int $selectedCategoryId,
-        public bool $showGrouping
+        public bool $showGrouping,
+        public ?string $databaseConnection = null,
     ) {
     }
 
@@ -36,6 +37,7 @@ class GenerateInventoryPdfReport implements ShouldQueue
     {
         $cacheKey = $this->cacheKey($this->token);
         $originalMemoryLimit = ini_get('memory_limit');
+        $dbConn = $this->resolveDatabaseConnection();
 
         try {
             Cache::put($cacheKey, [
@@ -46,7 +48,7 @@ class GenerateInventoryPdfReport implements ShouldQueue
 
             $finalColumns = array_unique(array_merge(['item_code', 'item_name'], $this->selectedColumns));
 
-            $query = Item::select(['items.item_code', 'items.item_name'])
+            $query = Item::on($dbConn)->select(['items.item_code', 'items.item_name'])
                 ->leftJoin('categories', 'items.cat_id', '=', 'categories.id')
                 ->leftJoin('families', 'items.family_id', '=', 'families.id')
                 ->leftJoin('groups', 'items.group_id', '=', 'groups.id')
@@ -131,7 +133,7 @@ class GenerateInventoryPdfReport implements ShouldQueue
             $pdf = PDF::loadView('reports.items', [
                 'items' => $items,
                 'columns' => $columnsForView,
-                'companyProfile' => CompanyProfile::first(),
+                'companyProfile' => CompanyProfile::on($dbConn)->first(),
                 'useGrouping' => $this->showGrouping,
                 'showTotals' => $showTotals,
                 'grandTotal' => $grandTotal,
@@ -207,5 +209,20 @@ class GenerateInventoryPdfReport implements ShouldQueue
     private function cacheKey(string $token): string
     {
         return 'inventory_report_pdf:' . $token;
+    }
+
+    /**
+     * Queued jobs have no HTTP session; match the browser's company DB (SwitchDatabase / active_db).
+     */
+    private function resolveDatabaseConnection(): string
+    {
+        if (
+            $this->databaseConnection
+            && array_key_exists($this->databaseConnection, config('database.connections'))
+        ) {
+            return $this->databaseConnection;
+        }
+
+        return (string) config('database.default');
     }
 }

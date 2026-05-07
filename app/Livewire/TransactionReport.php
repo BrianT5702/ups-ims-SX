@@ -599,6 +599,7 @@ class TransactionReport extends Component
             'categoryName' => $categoryName,
             'companyName' => $companyName,
             'stockFilter' => $stockFilterName,
+            'databaseConnection' => session('active_db'),
         ];
     }
 
