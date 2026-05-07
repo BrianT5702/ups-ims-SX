@@ -2,6 +2,39 @@
 
 use Illuminate\Support\Str;
 
+if (! function_exists('upsImsMysqlPdoOptions')) {
+    /**
+     * MySQL PDO options. Do not enable client SSL unless MYSQL_USE_SSL=true.
+     * Local/Docker MySQL typically has no SSL; forcing PDO::MYSQL_ATTR_SSL_CA
+     * (system CA) causes "SSL: Handshake timed out" and hangs sessions/queue.
+     */
+    function upsImsMysqlPdoOptions(): array
+    {
+        if (! extension_loaded('pdo_mysql')) {
+            return [];
+        }
+
+        $opts = [
+            PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci',
+        ];
+
+        if (! filter_var(env('MYSQL_USE_SSL', false), FILTER_VALIDATE_BOOLEAN)) {
+            return $opts;
+        }
+
+        $opts[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+        $envCa = env('MYSQL_ATTR_SSL_CA');
+        $systemCa = '/etc/ssl/certs/ca-certificates.crt';
+        if ($envCa && @is_readable($envCa)) {
+            $opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
+        } elseif (@is_readable($systemCa)) {
+            $opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
+        }
+
+        return $opts;
+    }
+}
+
 return [
 
     /*
@@ -57,20 +90,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-			'options' => extension_loaded('pdo_mysql') ? (function () {
-				$opts = [
-					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-					PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-				];
-				$envCa = env('MYSQL_ATTR_SSL_CA');
-				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
-				if ($envCa && @is_readable($envCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
-				} elseif (@is_readable($systemCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
-				}
-				return $opts;
-			})() : [],
+			'options' => upsImsMysqlPdoOptions(),
         ],
 
 		// Local development tenant connections (UPS, URS, UCS)
@@ -89,20 +109,7 @@ return [
 			'prefix_indexes' => true,
 			'strict' => true,
 			'engine' => null,
-			'options' => extension_loaded('pdo_mysql') ? (function () {
-				$opts = [
-					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-					PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-				];
-				$envCa = env('MYSQL_ATTR_SSL_CA');
-				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
-				if ($envCa && @is_readable($envCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
-				} elseif (@is_readable($systemCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
-				}
-				return $opts;
-			})() : [],
+			'options' => upsImsMysqlPdoOptions(),
 		],
 
 		'urs' => [
@@ -120,20 +127,7 @@ return [
 			'prefix_indexes' => true,
 			'strict' => true,
 			'engine' => null,
-			'options' => extension_loaded('pdo_mysql') ? (function () {
-				$opts = [
-					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-					PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-				];
-				$envCa = env('MYSQL_ATTR_SSL_CA');
-				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
-				if ($envCa && @is_readable($envCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
-				} elseif (@is_readable($systemCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
-				}
-				return $opts;
-			})() : [],
+			'options' => upsImsMysqlPdoOptions(),
 		],
 
 		'ucs' => [
@@ -151,20 +145,7 @@ return [
 			'prefix_indexes' => true,
 			'strict' => true,
 			'engine' => null,
-			'options' => extension_loaded('pdo_mysql') ? (function () {
-				$opts = [
-					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-					PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-				];
-				$envCa = env('MYSQL_ATTR_SSL_CA');
-				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
-				if ($envCa && @is_readable($envCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
-				} elseif (@is_readable($systemCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
-				}
-				return $opts;
-			})() : [],
+			'options' => upsImsMysqlPdoOptions(),
 		],
 
 		// Department 2 company connections (UPS2, URS2, UCS2)
@@ -183,20 +164,7 @@ return [
 			'prefix_indexes' => true,
 			'strict' => true,
 			'engine' => null,
-			'options' => extension_loaded('pdo_mysql') ? (function () {
-				$opts = [
-					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-					PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-				];
-				$envCa = env('MYSQL_ATTR_SSL_CA');
-				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
-				if ($envCa && @is_readable($envCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
-				} elseif (@is_readable($systemCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
-				}
-				return $opts;
-			})() : [],
+			'options' => upsImsMysqlPdoOptions(),
 		],
 
 		'urs2' => [
@@ -214,20 +182,7 @@ return [
 			'prefix_indexes' => true,
 			'strict' => true,
 			'engine' => null,
-			'options' => extension_loaded('pdo_mysql') ? (function () {
-				$opts = [
-					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-					PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-				];
-				$envCa = env('MYSQL_ATTR_SSL_CA');
-				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
-				if ($envCa && @is_readable($envCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
-				} elseif (@is_readable($systemCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
-				}
-				return $opts;
-			})() : [],
+			'options' => upsImsMysqlPdoOptions(),
 		],
 
 		'ucs2' => [
@@ -245,20 +200,7 @@ return [
 			'prefix_indexes' => true,
 			'strict' => true,
 			'engine' => null,
-			'options' => extension_loaded('pdo_mysql') ? (function () {
-				$opts = [
-					PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-					PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-				];
-				$envCa = env('MYSQL_ATTR_SSL_CA');
-				$systemCa = '/etc/ssl/certs/ca-certificates.crt';
-				if ($envCa && @is_readable($envCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $envCa;
-				} elseif (@is_readable($systemCa)) {
-					$opts[PDO::MYSQL_ATTR_SSL_CA] = $systemCa;
-				}
-				return $opts;
-			})() : [],
+			'options' => upsImsMysqlPdoOptions(),
 		],
 
         'mariadb' => [
