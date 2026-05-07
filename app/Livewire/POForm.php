@@ -170,8 +170,11 @@ class POForm extends Component
             $this->purchaseOrder = $purchaseOrder;
             $this->po_num = $purchaseOrder->po_num;
             $this->ref_num = $purchaseOrder->ref_num;
-            $this->selectedSupplier = $purchaseOrder->sup_id;
             $this->supplier_id = $purchaseOrder->sup_id;
+            $this->selectedSupplier = $purchaseOrder->supplier;
+            $this->supplierSearchTerm = $purchaseOrder->supplierSnapshot->sup_name
+                ?? optional($purchaseOrder->supplier)->sup_name
+                ?? '';
             $this->date = $purchaseOrder->date;
             $this->remark = $purchaseOrder->remark;
             $this->status = $purchaseOrder->status;
@@ -235,6 +238,10 @@ class POForm extends Component
                     $this->backupStackedItems = $this->stackedItems;
                     $this->backupTaxRate = $this->tax_rate;
                     $this->isRevising = true;
+                    $this->selectedSupplier = $this->purchaseOrder->supplier;
+                    $this->supplierSearchTerm = $this->purchaseOrder->supplierSnapshot->sup_name
+                        ?? optional($this->purchaseOrder->supplier)->sup_name
+                        ?? '';
                 }
         } else {
             $this->date = now()->toDateString();
@@ -341,12 +348,17 @@ class POForm extends Component
 
     public function selectSupplier($supplierId)
     {
-        if (!$this->isView) {
-            $this->selectedSupplier = Supplier::find($supplierId);
-            $this->supplier_id = $supplierId;
-            $this->supplierSearchTerm = $this->selectedSupplier->sup_name;
-            $this->supplierSearchResults = [];
+        if ($this->isView) {
+            return;
         }
+        // Existing PO: only allow supplier change while revising
+        if ($this->purchaseOrder && ! $this->isRevising) {
+            return;
+        }
+        $this->selectedSupplier = Supplier::find($supplierId);
+        $this->supplier_id = $supplierId;
+        $this->supplierSearchTerm = $this->selectedSupplier?->sup_name ?? '';
+        $this->supplierSearchResults = [];
     }
 
     public function addItem($itemId)
@@ -435,6 +447,10 @@ class POForm extends Component
                 $this->backupStackedItems = $this->stackedItems;
                 $this->backupTaxRate = $this->tax_rate;
                 $this->isRevising = true;
+                $this->selectedSupplier = $this->purchaseOrder->supplier;
+                $this->supplierSearchTerm = $this->purchaseOrder->supplierSnapshot->sup_name
+                    ?? optional($this->purchaseOrder->supplier)->sup_name
+                    ?? '';
 
                 // Mark PO as needing update again once user enters revise mode.
                 if ($this->purchaseOrder && $this->purchaseOrder->is_updated === 'Y') {
@@ -454,6 +470,12 @@ class POForm extends Component
                 $this->backupStackedItems = [];
                 $this->backupTaxRate = null;
                 $this->isRevising = false;
+                $this->supplier_id = $this->purchaseOrder->sup_id;
+                $this->selectedSupplier = $this->purchaseOrder->supplier;
+                $this->supplierSearchTerm = $this->purchaseOrder->supplierSnapshot->sup_name
+                    ?? optional($this->purchaseOrder->supplier)->sup_name
+                    ?? '';
+                $this->supplierSearchResults = [];
                 toastr()->info('Revision cancelled');
             }
         }
@@ -465,9 +487,15 @@ class POForm extends Component
             return;
         }
         $this->validate( [
+            'supplier_id' => ['required', new ExistsInCurrentDatabase('suppliers', 'id')],
             'stackedItems.*.item_qty' => 'required|numeric|min:0.01',
             'stackedItems.*.item_unit_price' => 'required|numeric|min:0',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
+        ], [
+            'supplier_id.required' => 'The supplier field is required.',
+            'supplier_id.exists' => 'The selected supplier does not exist.',
+        ], [
+            'supplier_id' => 'supplier',
         ]);
 
         try {
@@ -554,6 +582,33 @@ class POForm extends Component
 
             $this->calculateTotalPrice();
 
+            $originalSupId = (int) $this->purchaseOrder->sup_id;
+            if ((int) $this->supplier_id !== $originalSupId) {
+                $supplier = Supplier::find($this->supplier_id);
+                if (! $supplier) {
+                    throw new \RuntimeException('Supplier not found.');
+                }
+                $supplierSnapshot = SupplierSnapshot::create([
+                    'supplier_id' => $supplier->id,
+                    'account' => $supplier->account,
+                    'sup_name' => $supplier->sup_name,
+                    'address_line1' => $supplier->address_line1,
+                    'address_line2' => $supplier->address_line2,
+                    'address_line3' => $supplier->address_line3,
+                    'address_line4' => $supplier->address_line4,
+                    'phone_num' => $supplier->phone_num,
+                    'fax_num' => $supplier->fax_num,
+                    'email' => $supplier->email,
+                    'area' => $supplier->area,
+                    'term' => $supplier->term,
+                    'business_registration_no' => $supplier->business_registration_no,
+                    'gst_registration_no' => $supplier->gst_registration_no,
+                    'currency' => $supplier->currency,
+                ]);
+                $this->purchaseOrder->sup_id = $this->supplier_id;
+                $this->purchaseOrder->supplier_snapshot_id = $supplierSnapshot->id;
+            }
+
             // Update PO totals
             $this->purchaseOrder->ref_num = $this->ref_num;
             $this->purchaseOrder->remark = $this->remark ?? null;
@@ -617,6 +672,9 @@ class POForm extends Component
             $this->purchaseOrder->is_updated = 'N';
             $this->purchaseOrder->updated_by = auth()->id();
             $this->purchaseOrder->save();
+
+            $this->purchaseOrder->refresh();
+            $this->purchaseOrder->load(['supplier', 'supplierSnapshot']);
 
             toastr()->success('Revision saved');
 

@@ -54,12 +54,17 @@
                                     </div>
                                 @endif
 
-                                @if(!$isView)
-                                @if(!$purchaseOrder || ($purchaseOrder && (!$purchaseOrder->status === 'Pending Approval' || !$purchaseOrder->status === 'Rejected')))
+                                @php
+                                    $showSupplierPicker = !$isView && (
+                                        !$purchaseOrder
+                                        || ($isRevising && $purchaseOrder && $purchaseOrder->status === 'In Progress')
+                                    );
+                                @endphp
+                                @if($showSupplierPicker)
                                     <div class="{{ $purchaseOrder ? 'mt-2' : '' }}">
                                     <label for="supplier">Supplier <span class="text-danger">*</span></label>
                                     <input type="text" wire:model.debounce.100ms="supplierSearchTerm" wire:input.debounce.200ms="searchSuppliers" id="searchSupplier"
-                                        class="form-control rounded" placeholder="Search Supplier" {{ $isView ? 'disabled' : ''}} autocomplete="off"
+                                        class="form-control rounded" placeholder="Search Supplier" autocomplete="off"
                                         x-on:keydown.arrow-down.prevent="(() => { const list = $refs.supList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
                                         x-on:keydown.arrow-up.prevent="(() => { const list = $refs.supList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
                                         x-on:keydown.enter.prevent="(() => { const list = $refs.supList; const items = list ? list.querySelectorAll('li') : []; const el = items && items[hi]; if(el) el.click(); })()">
@@ -81,21 +86,27 @@
                                     @endif
                                     </div>
                                 @endif
-                                @endif
 
                                 @if($isView || $purchaseOrder)
+                                    @php
+                                        $supDisplay = ($isRevising && $selectedSupplier instanceof \App\Models\Supplier)
+                                            ? $selectedSupplier
+                                            : null;
+                                    @endphp
                                     <div class="do-customer-detail mt-2">
                                         @if($isView)
                                             <p class="fw-bold mb-1 do-customer-detail-title">{{ $purchaseOrder->supplierSnapshot->sup_name ?? $purchaseOrder->supplier->sup_name }}</p>
+                                        @elseif($supDisplay)
+                                            <p class="fw-bold mb-1 do-customer-detail-title">{{ $supDisplay->sup_name }}</p>
                                         @endif
-                                        <p class="mb-0"><span class="text-muted">Currency:</span> {{ $purchaseOrder->supplierSnapshot->currency ?? $purchaseOrder->supplier->currency ?? 'RM' }}</p>
-                                        <p class="mb-0">{{ $purchaseOrder->supplierSnapshot->address_line1 ?? $purchaseOrder->supplier->address_line1 }}</p>
-                                        <p class="mb-0">{{ $purchaseOrder->supplierSnapshot->address_line2 ?? $purchaseOrder->supplier->address_line2 }}</p>
-                                        @if($purchaseOrder->supplierSnapshot->address_line3 ?? $purchaseOrder->supplier->address_line3)
-                                            <p class="mb-0">{{ $purchaseOrder->supplierSnapshot->address_line3 ?? $purchaseOrder->supplier->address_line3 }}</p>
+                                        <p class="mb-0"><span class="text-muted">Currency:</span> {{ $supDisplay?->currency ?? $purchaseOrder->supplierSnapshot->currency ?? $purchaseOrder->supplier->currency ?? 'RM' }}</p>
+                                        <p class="mb-0">{{ $supDisplay?->address_line1 ?? $purchaseOrder->supplierSnapshot->address_line1 ?? $purchaseOrder->supplier->address_line1 }}</p>
+                                        <p class="mb-0">{{ $supDisplay?->address_line2 ?? $purchaseOrder->supplierSnapshot->address_line2 ?? $purchaseOrder->supplier->address_line2 }}</p>
+                                        @if($supDisplay?->address_line3 ?? $purchaseOrder->supplierSnapshot->address_line3 ?? $purchaseOrder->supplier->address_line3)
+                                            <p class="mb-0">{{ $supDisplay?->address_line3 ?? $purchaseOrder->supplierSnapshot->address_line3 ?? $purchaseOrder->supplier->address_line3 }}</p>
                                         @endif
-                                        @if($purchaseOrder->supplierSnapshot->address_line4 ?? $purchaseOrder->supplier->address_line4)
-                                            <p class="mb-0">{{ $purchaseOrder->supplierSnapshot->address_line4 ?? $purchaseOrder->supplier->address_line4 }}</p>
+                                        @if($supDisplay?->address_line4 ?? $purchaseOrder->supplierSnapshot->address_line4 ?? $purchaseOrder->supplier->address_line4)
+                                            <p class="mb-0">{{ $supDisplay?->address_line4 ?? $purchaseOrder->supplierSnapshot->address_line4 ?? $purchaseOrder->supplier->address_line4 }}</p>
                                         @endif
                                     </div>
                                 @endif
