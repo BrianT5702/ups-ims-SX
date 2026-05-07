@@ -35,6 +35,31 @@ services:
       - "${APP_PUBLISH_PORT:-8080}:80"
     volumes:
       - ./.env:/var/www/html/.env:ro
+      - app_storage:/var/www/html/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SKIP_DB_MIGRATE: "1"
+    command:
+      [
+        "php",
+        "artisan",
+        "queue:work",
+        "--queue=default",
+        "--sleep=3",
+        "--tries=3",
+        "--timeout=1200",
+      ]
+    volumes:
+      - ./.env:/var/www/html/.env:ro
+      - app_storage:/var/www/html/storage
     depends_on:
       mysql:
         condition: service_healthy
@@ -56,3 +81,4 @@ services:
 
 volumes:
   mysql_data:
+  app_storage:
