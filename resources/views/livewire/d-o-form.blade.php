@@ -1,4 +1,17 @@
 <div>
+    <script>
+        (function () {
+            function saveDoFormReturnUrl() {
+                var path = window.location.pathname || '';
+                var normalized = (path.replace(/\/+$/, '') || '/');
+                if (normalized === '/delivery-orders') return;
+                if (path.indexOf('/delivery-orders') === -1) return;
+                sessionStorage.setItem('returnToDOList', window.location.href);
+            }
+            saveDoFormReturnUrl();
+            document.addEventListener('DOMContentLoaded', saveDoFormReturnUrl);
+        })();
+    </script>
     <div class="container-fluid my-3 px-2 px-md-3">
         <div class="do-form-page">
             <div class="card shadow-sm">
@@ -771,11 +784,6 @@
                                         Preview
                                     </button>
                                 </div>
-                                <script>
-                                    document.addEventListener('DOMContentLoaded', function() {
-                                        sessionStorage.setItem('returnToDOList', document.referrer);
-                                    });
-                                </script>
                             </div>
                             @endif
                             @if($isView && $deliveryOrder)
@@ -785,7 +793,7 @@
                                 </div>
                                 <div class="text-end">
                                     <a href="{{ route('delivery-orders.edit', $deliveryOrder->id) }}" class="btn btn-primary me-2">Edit</a>
-                                    <a href="{{ route('print.delivery-order.preview', $deliveryOrder->id) }}" class="btn btn-info">Preview</a>
+                                    <a href="{{ route('print.delivery-order.preview', ['id' => $deliveryOrder->id, 'return' => request()->fullUrl()]) }}" class="btn btn-info">Preview</a>
                                 </div>
                             </div>
                             @endif
@@ -1733,6 +1741,17 @@
                 }
 
                 if (moved) e.preventDefault();
+            });
+        })();
+    </script>
+    <script>
+        (function () {
+            if (window.__doDuplicatePreviewBackBound) return;
+            window.__doDuplicatePreviewBackBound = true;
+            window.addEventListener('message', function (e) {
+                if (!e.data || e.data.type !== 'do-duplicate-preview-back') return;
+                if (typeof Livewire === 'undefined') return;
+                Livewire.dispatch('do-duplicate-preview-back');
             });
         })();
     </script>

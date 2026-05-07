@@ -883,13 +883,32 @@
         <button onclick="goBack()" class="back-button">Back</button>
         <script>
             function goBack() {
-                const returnUrl = sessionStorage.getItem('returnToDOList');
-                if (returnUrl && returnUrl.includes('/delivery-orders')) {
-                    window.location.href = returnUrl;
-                } else {
-                    window.location.href = '/delivery-orders';
+                if (window.self !== window.top) {
+                    window.parent.postMessage({ type: 'do-duplicate-preview-back' }, '*');
+                    return;
+                }
+                function sameOriginNavigate(href) {
+                    try {
+                        var u = new URL(href, window.location.origin);
+                        if (u.origin === window.location.origin) {
+                            window.location.href = u.href;
+                            return true;
+                        }
+                    } catch (e) {}
+                    return false;
+                }
+                var params = new URLSearchParams(window.location.search);
+                var fromQuery = params.get('return');
+                if (fromQuery && sameOriginNavigate(fromQuery)) {
+                    return;
+                }
+                var stored = sessionStorage.getItem('returnToDOList');
+                if (stored && sameOriginNavigate(stored)) {
+                    sessionStorage.removeItem('returnToDOList');
+                    return;
                 }
                 sessionStorage.removeItem('returnToDOList');
+                window.location.href = '/delivery-orders';
             }
         </script>
         <div class="content">

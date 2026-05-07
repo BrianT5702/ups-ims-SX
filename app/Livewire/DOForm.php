@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use Livewire\Component;
+use Livewire\Attributes\On;
 use App\Models\DeliveryOrder;
 use App\Models\DeliveryOrderItem;
 use App\Models\Customer;
@@ -3186,9 +3187,9 @@ class DOForm extends Component
 
         // If order is already completed, don't change status or stock
         if ($this->deliveryOrder && $this->deliveryOrder->status === 'Completed') {
-            return redirect()->route('print.delivery-order.preview', $this->deliveryOrder->id);
+            return $this->redirectToDeliveryOrderPreview($this->deliveryOrder->id);
         }
-        
+
         // Preview should not post stock movement.
         // Save as draft (or keep as draft) before redirecting to preview.
         $this->isPreviewMode = true;
@@ -3196,8 +3197,20 @@ class DOForm extends Component
         $this->addDO();
         $this->isPreviewMode = false;
         if ($this->deliveryOrder && $this->deliveryOrder->id) {
-            return redirect()->route('print.delivery-order.preview', $this->deliveryOrder->id);
+            return $this->redirectToDeliveryOrderPreview($this->deliveryOrder->id);
         }
+    }
+
+    /**
+     * Redirect to print preview. Always send users back to the edit screen for this DO id.
+     * Referer is wrong after "Preview" without prior save (still on /add while the draft now has an id).
+     */
+    private function redirectToDeliveryOrderPreview(int $deliveryOrderId)
+    {
+        return redirect()->route('print.delivery-order.preview', [
+            'id' => $deliveryOrderId,
+            'return' => route('delivery-orders.edit', $deliveryOrderId),
+        ]);
     }
 
     /**
@@ -3218,6 +3231,15 @@ class DOForm extends Component
         $this->showDuplicateModal = false;
         $this->duplicateSelectedDoId = null;
         $this->duplicateDoSearchTerm = '';
+    }
+
+    #[On('do-duplicate-preview-back')]
+    public function clearDuplicatePreviewSelection(): void
+    {
+        if (! $this->showDuplicateModal) {
+            return;
+        }
+        $this->duplicateSelectedDoId = null;
     }
 
     /**
