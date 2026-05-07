@@ -18,8 +18,12 @@ class GenerateInventoryPdfReport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    /** One attempt: full-catalog DomPDF can exceed worker time/memory; retries repeat minutes of CPU. */
+    public int $tries = 1;
+
     public int $timeout = 1200;
+
+    public bool $failOnTimeout = true;
 
     public function __construct(
         public string $token,
