@@ -11,6 +11,12 @@
                                 <span class="badge rounded-pill bg-light text-dark border font-monospace px-2 py-1">{{ $filteredItem->item_code }}</span>
                             </div>
                             <p class="transaction-log-header-item-name mb-0 text-body" title="{{ $filteredItem->item_name }}">{{ $filteredItem->item_name }}</p>
+                            <p class="small text-muted mb-0 mt-2">
+                                Current on hand:
+                                <span class="fw-semibold text-body">{{ number_format((float) $filteredItem->qty, 2) }}</span>
+                                <span class="mx-2">·</span>
+                                Table is <strong>newest first</strong>. Balance is stock <strong>right after</strong> that line only — later moves (including hidden DO adjustments) can change on-hand without an extra visible row.
+                            </p>
                         @else
                             <h5 class="fw-bold mb-0 list-page-unified-title">Manage transactions</h5>
                         @endif
@@ -270,6 +276,21 @@
                             .table.transaction-log-table tbody tr:hover {
                                 background-color: #f8f9fa;
                             }
+
+                            /* Superseded DO posting (replaced by a later edit / repost on the same DO).
+                               Kept visible so the audit trail stays intact, but muted so the user knows
+                               this row is no longer the current state of that DO. */
+                            .table.transaction-log-table tbody tr.tx-row-superseded td,
+                            .table.transaction-log-table tbody tr.tx-row-superseded td a {
+                                color: #b58105;
+                                font-style: italic;
+                            }
+                            .table.transaction-log-table tbody tr.tx-row-superseded {
+                                background-color: #fffaf0;
+                            }
+                            .table.transaction-log-table tbody tr.tx-row-superseded:hover {
+                                background-color: #fff4d6;
+                            }
                             
                             .table.transaction-log-table tbody td:first-child {
                                 border-left: 1px solid #212529;
@@ -491,13 +512,19 @@
                                                     $outQty = abs($transaction->transaction_qty);
                                                 }
 
-                                                // Batch number display
+                                                // Batch number display:
+                                                // - Real batches show their actual batch_num
+                                                // - Placeholder names (the import seed BATCH-00000000-000 and the
+                                                //   AUTO-YYYYMMDDHHMMSS placeholder created when an item has no
+                                                //   batches yet) are not real batches the user manages, so we hide
+                                                //   them as '-' to avoid confusion.
                                                 $batchNumber = $transaction->batch->batch_num ?? '-';
-                                                if ($batchNumber === 'BATCH-00000000-000') {
+                                                if ($batchNumber === 'BATCH-00000000-000' || str_starts_with($batchNumber, 'AUTO-')) {
                                                     $batchNumber = '-';
                                                 }
                                             @endphp
-                                            <tr align="left" style="cursor: pointer;">
+                                            @php $isSuperseded = isset(($supersededDoMap ?? [])[$transaction->id]); @endphp
+                                            <tr align="left" class="{{ $isSuperseded ? 'tx-row-superseded' : '' }}" @if($isSuperseded) title="Superseded by a later edit/repost on the same DO" @endif style="cursor: pointer;">
                                                 <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
                                                 <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
                                                 <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
@@ -587,15 +614,18 @@
                                             }
 
                                             // Batch number display:
-                                            // - For PO / stock-in batches, show the actual batch number
-                                            // - For the special initial import batch 'BATCH-00000000-000', hide it (show '-')
-                                            //   because it's just a placeholder used during Excel import
+                                            // - Real batches show their actual batch_num
+                                            // - Placeholder names (the import seed BATCH-00000000-000 and the
+                                            //   AUTO-YYYYMMDDHHMMSS placeholder created when an item has no
+                                            //   batches yet) are not real batches the user manages, so we hide
+                                            //   them as '-' to avoid confusion.
                                             $batchNumber = $transaction->batch->batch_num ?? '-';
-                                            if ($batchNumber === 'BATCH-00000000-000') {
+                                            if ($batchNumber === 'BATCH-00000000-000' || str_starts_with($batchNumber, 'AUTO-')) {
                                                 $batchNumber = '-';
                                             }
                                         @endphp
-                                        <tr align="left" style="cursor: pointer;">
+                                        @php $isSuperseded = isset(($supersededDoMap ?? [])[$transaction->id]); @endphp
+                                        <tr align="left" class="{{ $isSuperseded ? 'tx-row-superseded' : '' }}" @if($isSuperseded) title="Superseded by a later edit/repost on the same DO" @endif style="cursor: pointer;">
                                             <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
                                             <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
                                             <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
