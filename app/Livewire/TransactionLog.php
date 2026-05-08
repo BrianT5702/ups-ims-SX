@@ -215,6 +215,11 @@ class TransactionLog extends Component
 
         $transactions = $query->paginate(20);
 
+        // Replace transaction_qty on the visible DO Stock Out rows with the net qty
+        // shipped for that (DO, item) -- summing repeated lines and subtracting any
+        // reversal Stock Ins so the In/Out column matches reality.
+        $this->aggregateDoStockOutQuantities($transactions);
+
         // Get the item details if filtering by item
         $filteredItem = $this->filterItemId 
             ? Item::findOrFail($this->filterItemId) 
@@ -298,6 +303,10 @@ class TransactionLog extends Component
             ->orderBy('created_at', 'desc');
 
         $transactions = $transactionsQuery->get();
+
+        // Replace transaction_qty on visible DO Stock Out rows with the net qty
+        // shipped for that (DO, item). Same reasoning as in render().
+        $this->aggregateDoStockOutQuantities($transactions);
 
         // Group transactions by item_id
         $transactionsByItem = $transactions->groupBy('item_id');
@@ -423,17 +432,96 @@ class TransactionLog extends Component
         $doSourceTypes = $this->getDoSourceTypes();
         $doReversalTypes = $this->getDoReversalSourceTypes();
 
+        // For each (source_doc_num, item_id) under a DO source type, only show ONE
+        // representative Stock Out row -- specifically the LAST one (MAX id) so its
+        // qty_after correctly reflects the running balance after every movement
+        // (including any reversal/re-issue cycles) for that DO + item combination.
+        // Reversal source types are hidden from the log entirely; their qty is
+        // folded into the representative row's displayed quantity by
+        // aggregateDoStockOutQuantities().
         return $query->where(function ($mainQuery) use ($doReversalTypes) {
             $mainQuery->whereNotIn('source_type', $doReversalTypes);
         })->where(function ($mainQuery) use ($doSourceTypes) {
             $mainQuery->whereNotIn('source_type', $doSourceTypes)
                 ->orWhereIn('id', function ($subQuery) use ($doSourceTypes) {
                     $subQuery->from('transactions as t2')
-                        ->selectRaw('MIN(t2.id)')
+                        ->selectRaw('MAX(t2.id)')
                         ->whereIn('t2.source_type', $doSourceTypes)
                         ->where('t2.transaction_type', 'Stock Out')
                         ->groupBy('t2.source_doc_num', 't2.item_id');
                 });
         });
+    }
+
+    /**
+     * For each DO Stock Out row in the result set, replace transaction_qty with the
+     * NET quantity actually shipped for that (source_doc_num, item_id):
+     *   net_out = SUM(Stock Out qty)  -  SUM(Stock In qty from DO reversals)
+     * across every transaction (visible or hidden) that shares the same DO number
+     * and item. This makes the In/Out column accurate when a DO has multiple lines
+     * for the same item, or when a DO was reversed and re-issued.
+     *
+     * @param  iterable<\App\Models\Transaction>  $transactions
+     */
+    private function aggregateDoStockOutQuantities($transactions): void
+    {
+        $doSourceTypes = $this->getDoSourceTypes();
+        $doReversalTypes = $this->getDoReversalSourceTypes();
+        $allDoRelatedTypes = array_merge($doSourceTypes, $doReversalTypes);
+
+        // Collect the (source_doc_num, item_id) pairs we need totals for.
+        $pairs = [];
+        foreach ($transactions as $tx) {
+            if (in_array($tx->source_type, $doSourceTypes, true)
+                && $tx->transaction_type === 'Stock Out'
+                && !empty($tx->source_doc_num)
+                && !empty($tx->item_id)
+            ) {
+                $pairs[$tx->source_doc_num . '|' . $tx->item_id] = [
+                    'source_doc_num' => $tx->source_doc_num,
+                    'item_id' => $tx->item_id,
+                ];
+            }
+        }
+
+        if (empty($pairs)) {
+            return;
+        }
+
+        $sums = Transaction::query()
+            ->selectRaw(
+                'source_doc_num, item_id, '
+                . 'SUM(CASE '
+                . "WHEN transaction_type = 'Stock Out' THEN ABS(transaction_qty) "
+                . "WHEN transaction_type = 'Stock In'  THEN -ABS(transaction_qty) "
+                . 'ELSE 0 END) AS net_out'
+            )
+            ->whereIn('source_type', $allDoRelatedTypes)
+            ->where(function ($q) use ($pairs) {
+                foreach ($pairs as $pair) {
+                    $q->orWhere(function ($qq) use ($pair) {
+                        $qq->where('source_doc_num', $pair['source_doc_num'])
+                           ->where('item_id', $pair['item_id']);
+                    });
+                }
+            })
+            ->groupBy('source_doc_num', 'item_id')
+            ->get()
+            ->keyBy(fn ($row) => $row->source_doc_num . '|' . $row->item_id);
+
+        foreach ($transactions as $tx) {
+            if (!in_array($tx->source_type, $doSourceTypes, true)
+                || $tx->transaction_type !== 'Stock Out'
+                || empty($tx->source_doc_num)
+                || empty($tx->item_id)
+            ) {
+                continue;
+            }
+
+            $key = $tx->source_doc_num . '|' . $tx->item_id;
+            if (isset($sums[$key])) {
+                $tx->transaction_qty = (int) $sums[$key]->net_out;
+            }
+        }
     }
 }

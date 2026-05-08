@@ -401,8 +401,15 @@
                                     <div class="row mb-0 mt-3 pt-3 border-top">
                                         <div class="col-md-8 col-lg-6" x-data="{ hi: 0 }">
                                             <label for="po-search-item-bottom" class="fw-semibold">Search Items <span class="text-muted small fw-normal">(F2)</span></label>
+                                            <div class="btn-group btn-group-sm my-2" role="group" aria-label="Search by field">
+                                                <input type="radio" class="btn-check" name="po_item_search_field" id="po-search-by-code" value="code" wire:model.live="itemSearchField" autocomplete="off">
+                                                <label class="btn btn-outline-secondary" for="po-search-by-code">By code</label>
+                                                <input type="radio" class="btn-check" name="po_item_search_field" id="po-search-by-name" value="name" wire:model.live="itemSearchField" autocomplete="off">
+                                                <label class="btn btn-outline-secondary" for="po-search-by-name">By name</label>
+                                            </div>
                                             <input type="text" wire:model.debounce.100ms="itemSearchTerm" wire:input.debounce.200ms="searchItems" id="po-search-item-bottom"
-                                                class="form-control rounded" placeholder="Search by Item Code or Name" autocomplete="off"
+                                                class="form-control rounded"
+                                                placeholder="{{ $itemSearchField === 'code' ? 'Search by item code…' : 'Search by item name…' }}" autocomplete="off"
                                                 x-on:input="hi = 0"
                                                 x-on:keydown.arrow-down.prevent="(() => { const list = $refs.poItemListBottom; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
                                                 x-on:keydown.arrow-up.prevent="(() => { const list = $refs.poItemListBottom; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"

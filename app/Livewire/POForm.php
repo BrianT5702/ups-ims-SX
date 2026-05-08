@@ -35,6 +35,8 @@ class POForm extends Component
     /** Default for new POs (no approval step). Legacy default was Pending Approval. */
     public $status = 'In Progress';
     public $itemSearchTerm = '';
+    /** `code` — filter/sort by item code (default); `name` — by item name. */
+    public $itemSearchField = 'code';
     public $itemSearchResults = [];
     public $itemHighlightIndex = -1;
     public $supplierSearchTerm = '';
@@ -293,6 +295,14 @@ class POForm extends Component
         }
     }
 
+    public function updatedItemSearchField(): void
+    {
+        if (!$this->isView) {
+            $this->searchItems();
+            $this->itemHighlightIndex = (count($this->itemSearchResults) > 0) ? 0 : -1;
+        }
+    }
+
     public function updatedSupplierSearchTerm()
     {
         if (!$this->isView) {
@@ -303,10 +313,12 @@ class POForm extends Component
     public function searchItems()
     {
         if (!empty($this->itemSearchTerm)) {
-            $this->itemSearchResults = Item::where('item_code', 'like', '%' . $this->itemSearchTerm . '%')
-                ->orWhere('item_name', 'like', '%' . $this->itemSearchTerm . '%')
-                ->orderBy('item_name','asc')
-                ->limit(50)
+            $byCode = $this->itemSearchField === 'code';
+            $column = $byCode ? 'item_code' : 'item_name';
+            $sortColumn = $byCode ? 'item_code' : 'item_name';
+
+            $this->itemSearchResults = Item::where($column, 'like', '%' . $this->itemSearchTerm . '%')
+                ->orderBy($sortColumn, 'asc')
                 ->get();
             $this->itemHighlightIndex = (count($this->itemSearchResults) > 0) ? 0 : -1;
         } else {
