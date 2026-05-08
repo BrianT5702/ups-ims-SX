@@ -10,20 +10,22 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use setasign\Fpdi\Fpdi;
 
 class GenerateInventoryPdfReport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /** One attempt: full-catalog DomPDF can exceed worker time/memory; retries repeat minutes of CPU. */
     public int $tries = 3;
 
     public int $timeout = 1200;
 
     public bool $failOnTimeout = true;
+    private int $chunkSize = 400;
 
     public function __construct(
         public string $token,
@@ -134,14 +136,8 @@ class GenerateInventoryPdfReport implements ShouldQueue
                 }
             }
 
-            $pdf = PDF::loadView('reports.items', [
-                'items' => $items,
-                'columns' => $columnsForView,
-                'companyProfile' => CompanyProfile::on($dbConn)->first(),
-                'useGrouping' => $this->showGrouping,
-                'showTotals' => $showTotals,
-                'grandTotal' => $grandTotal,
-            ])->setPaper('a4', 'portrait')->setOptions([
+            $companyProfile = CompanyProfile::on($dbConn)->first();
+            $pdfOptions = [
                 'isRemoteEnabled' => false,
                 'isHtml5ParserEnabled' => false,
                 'isPhpEnabled' => true,
@@ -150,11 +146,68 @@ class GenerateInventoryPdfReport implements ShouldQueue
                 'isJavascriptEnabled' => false,
                 'fontCache' => sys_get_temp_dir(),
                 'chroot' => base_path(),
-            ]);
+            ];
+
+            $chunkedItems = $this->buildItemChunks($items);
+            $pdfBinary = '';
+
+            if ($chunkedItems->count() <= 1) {
+                $pdfBinary = PDF::loadView('reports.items', [
+                    'items' => $items,
+                    'columns' => $columnsForView,
+                    'companyProfile' => $companyProfile,
+                    'useGrouping' => $this->showGrouping,
+                    'showTotals' => $showTotals,
+                    'grandTotal' => $grandTotal,
+                    'showGrandTotal' => true,
+                    'suppressHeader' => false,
+                ])->setPaper('a4', 'portrait')->setOptions($pdfOptions)->output();
+            } else {
+                $cacheTtl = now()->addHours(2);
+                $totalChunks = $chunkedItems->count();
+                $tempFiles = [];
+
+                foreach ($chunkedItems as $index => $chunk) {
+                    $chunkNumber = $index + 1;
+                    $chunkProgress = 70 + (int) floor(($chunkNumber / max(1, $totalChunks)) * 25);
+                    Cache::put($cacheKey, [
+                        'status' => 'processing',
+                        'message' => 'Rendering PDF chunk ' . $chunkNumber . ' of ' . $totalChunks . '...',
+                        'progress' => min(95, $chunkProgress),
+                    ], $cacheTtl);
+
+                    $chunkPdf = PDF::loadView('reports.items', [
+                        'items' => $chunk,
+                        'columns' => $columnsForView,
+                        'companyProfile' => $companyProfile,
+                        'useGrouping' => $this->showGrouping,
+                        'showTotals' => $showTotals,
+                        'grandTotal' => $grandTotal,
+                        'showGrandTotal' => $chunkNumber === $totalChunks,
+                        'suppressHeader' => $chunkNumber > 1,
+                    ])->setPaper('a4', 'portrait')->setOptions($pdfOptions)->output();
+
+                    $tempPath = 'reports/tmp/chunk_' . $this->token . '_' . $chunkNumber . '.pdf';
+                    Storage::disk('local')->put($tempPath, $chunkPdf);
+                    $tempFiles[] = $tempPath;
+                }
+
+                Cache::put($cacheKey, [
+                    'status' => 'processing',
+                    'message' => 'Merging PDF chunks...',
+                    'progress' => 96,
+                ], $cacheTtl);
+
+                $pdfBinary = $this->mergePdfFiles($tempFiles);
+
+                foreach ($tempFiles as $tempFile) {
+                    Storage::disk('local')->delete($tempFile);
+                }
+            }
 
             $filename = 'inventory_report_' . now()->format('Y-m-d_His') . '.pdf';
             $path = 'reports/' . $filename;
-            Storage::disk('local')->put($path, $pdf->output());
+            Storage::disk('local')->put($path, $pdfBinary);
 
             Cache::put($cacheKey, [
                 'status' => 'ready',
@@ -213,6 +266,81 @@ class GenerateInventoryPdfReport implements ShouldQueue
     private function cacheKey(string $token): string
     {
         return 'inventory_report_pdf:' . $token;
+    }
+
+    /**
+     * Split items into safe chunks while preserving group boundaries
+     * so the existing subtotal logic remains intact.
+     */
+    private function buildItemChunks(Collection $items): Collection
+    {
+        if ($items->count() <= $this->chunkSize) {
+            return collect([$items->values()]);
+        }
+
+        if (!$this->showGrouping) {
+            return $items->chunk($this->chunkSize)->map(fn (Collection $chunk) => $chunk->values())->values();
+        }
+
+        $chunks = collect();
+        $currentChunk = collect();
+        $currentKey = null;
+
+        foreach ($items as $item) {
+            $key = $this->groupKey($item);
+
+            if (
+                $currentChunk->isNotEmpty()
+                && $currentChunk->count() >= $this->chunkSize
+                && $currentKey !== null
+                && $key !== $currentKey
+            ) {
+                $chunks->push($currentChunk->values());
+                $currentChunk = collect();
+            }
+
+            $currentChunk->push($item);
+            $currentKey = $key;
+        }
+
+        if ($currentChunk->isNotEmpty()) {
+            $chunks->push($currentChunk->values());
+        }
+
+        return $chunks->values();
+    }
+
+    private function groupKey(object $item): string
+    {
+        $group = trim((string) ($item->group_name ?? ''));
+        $brand = trim((string) ($item->family_name ?? ''));
+        $type = trim((string) ($item->cat_name ?? ''));
+        if (strtoupper($type) === 'UNDEFINED') {
+            $type = '';
+        }
+
+        return $group . '|' . $brand . '|' . $type;
+    }
+
+    private function mergePdfFiles(array $paths): string
+    {
+        $disk = Storage::disk('local');
+        $pdf = new Fpdi();
+
+        foreach ($paths as $path) {
+            $absolute = $disk->path($path);
+            $pageCount = $pdf->setSourceFile($absolute);
+
+            for ($page = 1; $page <= $pageCount; $page++) {
+                $templateId = $pdf->importPage($page);
+                $size = $pdf->getTemplateSize($templateId);
+                $orientation = $size['width'] > $size['height'] ? 'L' : 'P';
+                $pdf->AddPage($orientation, [$size['width'], $size['height']]);
+                $pdf->useTemplate($templateId);
+            }
+        }
+
+        return $pdf->Output('S');
     }
 
     /**

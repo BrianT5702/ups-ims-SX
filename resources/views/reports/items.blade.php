@@ -149,10 +149,15 @@
 <body>
     @php
         $itemsCollection = is_array($items) ? collect($items) : $items;
+        $suppressHeader = (bool) ($suppressHeader ?? false);
+        $showGrandTotal = (bool) ($showGrandTotal ?? true);
         
         // Calculate grand total if needed
-        $grandTotal = 0;
-        if (isset($showTotals) && $showTotals) {
+        $hasGrandTotal = isset($grandTotal);
+        if (!$hasGrandTotal) {
+            $grandTotal = 0;
+        }
+        if (isset($showTotals) && $showTotals && !$hasGrandTotal) {
             foreach ($itemsCollection as $item) {
                 $qty = $item->qty ?? 0;
                 $cost = $item->cost ?? 0;
@@ -161,6 +166,7 @@
         }
     @endphp
     
+    @if(!$suppressHeader)
     <div class="header">
         <div class="company-name">{{ $companyProfile->company_name ?? 'UNITED REFRIGERATION SYSTEM (M) SDN BHD' }}</div>
         <div class="report-title">STOCK LISTING</div>
@@ -168,6 +174,7 @@
             DATE : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y') }} | TIME : {{ \Carbon\Carbon::now('Asia/Kuala_Lumpur')->format('H:i:s') }}
         </div>
     </div>
+    @endif
 
     <table>
         <thead>
@@ -353,7 +360,7 @@
                 </tr>
                 @endforeach
             @endif
-            @if(isset($showTotals) && $showTotals)
+            @if(isset($showTotals) && $showTotals && $showGrandTotal)
             @php
                 $colCountTotal = 2;
                 if (isset($columns['qty'])) $colCountTotal++;
