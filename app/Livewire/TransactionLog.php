@@ -220,6 +220,10 @@ class TransactionLog extends Component
         // reversal Stock Ins so the In/Out column matches reality.
         $this->aggregateDoStockOutQuantities($transactions);
 
+        // Recompute Balance (qty_after) as a running cumulative over the simplified
+        // ledger so In/Out and Balance always tally on screen.
+        $this->recomputeDisplayBalances($transactions);
+
         // Get the item details if filtering by item
         $filteredItem = $this->filterItemId 
             ? Item::findOrFail($this->filterItemId) 
@@ -307,6 +311,10 @@ class TransactionLog extends Component
         // Replace transaction_qty on visible DO Stock Out rows with the net qty
         // shipped for that (DO, item). Same reasoning as in render().
         $this->aggregateDoStockOutQuantities($transactions);
+
+        // Recompute Balance (qty_after) as a running cumulative on the simplified
+        // ledger so In/Out and Balance always tally on screen.
+        $this->recomputeDisplayBalances($transactions);
 
         // Group transactions by item_id
         $transactionsByItem = $transactions->groupBy('item_id');
@@ -433,19 +441,19 @@ class TransactionLog extends Component
         $doReversalTypes = $this->getDoReversalSourceTypes();
 
         // For each (source_doc_num, item_id) under a DO source type, only show ONE
-        // representative Stock Out row -- specifically the LAST one (MAX id) so its
-        // qty_after correctly reflects the running balance after every movement
-        // (including any reversal/re-issue cycles) for that DO + item combination.
-        // Reversal source types are hidden from the log entirely; their qty is
-        // folded into the representative row's displayed quantity by
-        // aggregateDoStockOutQuantities().
+        // representative Stock Out row -- specifically the FIRST one (MIN id) so the
+        // row is anchored to the DO's original creation date in the timeline.
+        // Reversal source types are hidden from the log entirely; the displayed
+        // quantity for the representative row is set by aggregateDoStockOutQuantities()
+        // to the net qty actually shipped (sum of all Stock Out minus reversal Stock In)
+        // for that DO + item.
         return $query->where(function ($mainQuery) use ($doReversalTypes) {
             $mainQuery->whereNotIn('source_type', $doReversalTypes);
         })->where(function ($mainQuery) use ($doSourceTypes) {
             $mainQuery->whereNotIn('source_type', $doSourceTypes)
                 ->orWhereIn('id', function ($subQuery) use ($doSourceTypes) {
                     $subQuery->from('transactions as t2')
-                        ->selectRaw('MAX(t2.id)')
+                        ->selectRaw('MIN(t2.id)')
                         ->whereIn('t2.source_type', $doSourceTypes)
                         ->where('t2.transaction_type', 'Stock Out')
                         ->groupBy('t2.source_doc_num', 't2.item_id');
@@ -454,12 +462,16 @@ class TransactionLog extends Component
     }
 
     /**
-     * For each DO Stock Out row in the result set, replace transaction_qty with the
-     * NET quantity actually shipped for that (source_doc_num, item_id):
-     *   net_out = SUM(Stock Out qty)  -  SUM(Stock In qty from DO reversals)
-     * across every transaction (visible or hidden) that shares the same DO number
-     * and item. This makes the In/Out column accurate when a DO has multiple lines
-     * for the same item, or when a DO was reversed and re-issued.
+     * For each visible DO Stock Out row, replace transaction_qty with the NET
+     * quantity actually shipped for that (source_doc_num, item_id):
+     *     net_out = SUM(Stock Out qty)  -  SUM(Stock In qty)
+     * across every transaction (visible or hidden) that shares the same DO
+     * number and item, restricted to DO + DO-reversal source types. This is
+     * what powers the In/Out column.
+     *
+     * Balance (qty_after) is NOT touched here -- it is recomputed later as a
+     * running cumulative by recomputeDisplayBalances() so that Out and Balance
+     * always tally on the simplified ledger the user actually sees.
      *
      * @param  iterable<\App\Models\Transaction>  $transactions
      */
@@ -469,7 +481,6 @@ class TransactionLog extends Component
         $doReversalTypes = $this->getDoReversalSourceTypes();
         $allDoRelatedTypes = array_merge($doSourceTypes, $doReversalTypes);
 
-        // Collect the (source_doc_num, item_id) pairs we need totals for.
         $pairs = [];
         foreach ($transactions as $tx) {
             if (in_array($tx->source_type, $doSourceTypes, true)
@@ -521,6 +532,103 @@ class TransactionLog extends Component
             $key = $tx->source_doc_num . '|' . $tx->item_id;
             if (isset($sums[$key])) {
                 $tx->transaction_qty = (int) $sums[$key]->net_out;
+            }
+        }
+    }
+
+    /**
+     * Recompute the Balance (qty_after) shown on each visible row as a running
+     * cumulative over the SIMPLIFIED ledger (the rows the user is allowed to
+     * see, after DO Stock Out qty has been collapsed to its net by
+     * aggregateDoStockOutQuantities()). This guarantees that Out and Balance
+     * tally on screen, no matter how many reversal/re-issue cycles a DO went
+     * through.
+     *
+     * For each item that appears on the current page we:
+     *   1. Load every visible transaction for that item across its full history
+     *      (NOT just the page) sorted chronologically.
+     *   2. Apply the DO Out aggregation so each DO Stock Out row carries its
+     *      net quantity.
+     *   3. Walk the rows from oldest to newest, starting with BF = qty_before
+     *      of the item's earliest transaction (typically 0 for new items, or
+     *      the imported opening stock), adding Stock In qty and subtracting
+     *      Stock Out qty as we go.
+     *   4. Project the computed balance onto the rows that actually live on
+     *      the current page.
+     *
+     * @param  iterable<\App\Models\Transaction>  $pageTransactions
+     */
+    private function recomputeDisplayBalances($pageTransactions): void
+    {
+        $itemIds = collect($pageTransactions)
+            ->pluck('item_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($itemIds)) {
+            return;
+        }
+
+        // Pull the full visible ledger for these items.
+        $visibleQuery = Transaction::query()->whereIn('item_id', $itemIds);
+        $visibleQuery = $this->applyTransactionLogVisibilityRules($visibleQuery);
+        $allVisible = $visibleQuery
+            ->orderBy('item_id', 'asc')
+            ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        if ($allVisible->isEmpty()) {
+            return;
+        }
+
+        // Make sure DO Stock Out rows in this set carry the net qty before we
+        // walk them; otherwise the running balance would double-count repeated
+        // DO lines or ignore reversals.
+        $this->aggregateDoStockOutQuantities($allVisible);
+
+        // Opening balance (BF) per item = qty_before of that item's earliest
+        // transaction in the raw ledger (visible or hidden). This is the only
+        // anchor that matches reality at t = -infinity.
+        $bfRows = Transaction::query()
+            ->whereIn('item_id', $itemIds)
+            ->whereIn('id', function ($q) use ($itemIds) {
+                $q->from('transactions')
+                  ->selectRaw('MIN(id)')
+                  ->whereIn('item_id', $itemIds)
+                  ->groupBy('item_id');
+            })
+            ->get(['id', 'item_id', 'qty_before'])
+            ->keyBy('item_id');
+
+        $balances = [];
+        $balanceByTxId = [];
+
+        foreach ($allVisible as $tx) {
+            $iid = (int) $tx->item_id;
+
+            if (!array_key_exists($iid, $balances)) {
+                $balances[$iid] = isset($bfRows[$iid])
+                    ? (int) $bfRows[$iid]->qty_before
+                    : 0;
+            }
+
+            $qty = abs((int) $tx->transaction_qty);
+            if ($tx->transaction_type === 'Stock In') {
+                $balances[$iid] += $qty;
+            } elseif ($tx->transaction_type === 'Stock Out') {
+                $balances[$iid] -= $qty;
+            }
+
+            $balanceByTxId[(int) $tx->id] = $balances[$iid];
+        }
+
+        foreach ($pageTransactions as $tx) {
+            $key = (int) $tx->id;
+            if (isset($balanceByTxId[$key])) {
+                $tx->qty_after = $balanceByTxId[$key];
             }
         }
     }
