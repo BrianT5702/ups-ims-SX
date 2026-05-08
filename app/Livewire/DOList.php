@@ -77,6 +77,7 @@ class DOList extends Component
         );
         
         $query = DeliveryOrder::with(['customer', 'user', 'updatedBy'])
+            ->withCount('items')
             ->when(!$isPrivileged, function($q) use ($user) {
                 // Non-admins (and non-super-admin) only see their own records
                 return $q->where('user_id', $user->id);

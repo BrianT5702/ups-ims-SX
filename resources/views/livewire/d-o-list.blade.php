@@ -302,6 +302,13 @@
                                 .do-print-flag {
                                     font-weight: 500;
                                 }
+                                /* Cancelled DO visual marker (zero item lines). */
+                                .do-row-cancelled td,
+                                .do-row-cancelled td a,
+                                .do-row-cancelled .do-print-flag,
+                                .do-row-cancelled .do-status {
+                                    color: #b02a37 !important;
+                                }
                                 
                                 /* Fixed pagination container - separate from scrollable table */
                                 .do-list-pagination {
@@ -337,7 +344,10 @@
 
                                     <tbody>
                                         @forelse($delivery_orders as $delivery_order)
-                                            <tr>
+                                            @php
+                                                $isCancelledStyle = ((int)($delivery_order->items_count ?? 0) === 0);
+                                            @endphp
+                                            <tr class="{{ $isCancelledStyle ? 'do-row-cancelled' : '' }}">
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}"> {{ $delivery_order->do_num }}</a></td>
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}"> {{ $delivery_order->created_at->format('d/m/Y') }}</a></td>
                                                 <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->customerSnapshot->cust_name ?? $delivery_order->customer->cust_name }}</a></td>
