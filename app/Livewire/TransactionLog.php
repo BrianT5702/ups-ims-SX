@@ -30,6 +30,12 @@ class TransactionLog extends Component
     public $companySearchCustomers = [];
     public $companySearchSuppliers = [];
 
+    /**
+     * Per-request cache for the DO posting-event index.
+     * @var array<string, array{visible_ids: array<int,int>, event_qty: array<int,float>, is_latest: array<int,bool>}>
+     */
+    private array $doEventsCache = [];
+
     // Reset pagination when filters change
     public function updatingSearchTerm()
     {
@@ -225,6 +231,10 @@ class TransactionLog extends Component
         // separate map [tx_id => balance] for the view to render.
         $displayBalances = $this->recomputeDisplayBalances($transactions);
 
+        // Mark rows that were superseded by a later edit / repost on the same
+        // (DO, item) so the view can render them in a muted style.
+        $supersededDoMap = $this->buildSupersededDoMap($transactions);
+
         // Get the item details if filtering by item
         $filteredItem = $this->filterItemId 
             ? Item::findOrFail($this->filterItemId) 
@@ -261,6 +271,7 @@ class TransactionLog extends Component
             'startDate' => $this->startDate,
             'endDate' => $this->endDate,
             'displayBalances' => $displayBalances,
+            'supersededDoMap' => $supersededDoMap,
         ])->layout('layouts.app');
     }
 
@@ -317,6 +328,10 @@ class TransactionLog extends Component
         // Recompute Balance (qty_after) as a running cumulative on the simplified
         // ledger so In/Out and Balance always tally on screen.
         $displayBalances = $this->recomputeDisplayBalances($transactions);
+
+        // Mark rows that were superseded by a later edit / repost on the same
+        // (DO, item) so the view can render them in a muted style.
+        $supersededDoMap = $this->buildSupersededDoMap($transactions);
 
         // Group transactions by item_id
         $transactionsByItem = $transactions->groupBy('item_id');
@@ -394,6 +409,7 @@ class TransactionLog extends Component
             'startDate' => $this->startDate,
             'endDate' => $this->endDate,
             'displayBalances' => $displayBalances,
+            'supersededDoMap' => $supersededDoMap,
         ])->layout('layouts.app');
     }
 
@@ -438,132 +454,204 @@ class TransactionLog extends Component
         return ['DO Reversal', 'DO Status Reversal', 'DO Delta Reversal', 'DO Draft Delta'];
     }
 
+    /**
+     * Build a "posting-event" index for DO Stock Out rows.
+     *
+     * A posting event for a (source_doc_num, item_id) pair is a contiguous run
+     * of DO `Stock Out` rows (ordered by id) that are NOT separated by a
+     * reversal `Stock In` row (`DO Reversal` / `DO Status Reversal` /
+     * `DO Delta Reversal` / `DO Draft Delta`). Each event represents one real
+     * posting moment from the user's perspective:
+     *
+     *   - Original Completed save                -> event 1
+     *   - <reversal Stock In(s) from edit>        (event boundary, hidden)
+     *   - Re-deduct after editing qty             -> event 2
+     *
+     * For each event we choose ONE representative row to display: MAX(id), so
+     * the row's `qty_after` reflects the running balance right after the whole
+     * batch of Stock Outs for that posting event. Older events for the same
+     * (DO, item) are flagged "superseded" so the view can render them in a
+     * muted / yellow style.
+     *
+     * Cached per request (per filter scope) to avoid repeated scans.
+     *
+     * @return array{visible_ids: array<int,int>, event_qty: array<int,float>, is_latest: array<int,bool>}
+     */
+    private function buildDoStockOutEvents(): array
+    {
+        $cacheKey = ($this->filterItemId ? 'item:' . $this->filterItemId : 'no-item')
+            . '|' . ($this->selectedGroupId ? 'group:' . $this->selectedGroupId : 'no-group');
+
+        if (isset($this->doEventsCache[$cacheKey])) {
+            return $this->doEventsCache[$cacheKey];
+        }
+
+        $doSourceTypes = $this->getDoSourceTypes();
+        $reversalTypes = $this->getDoReversalSourceTypes();
+
+        $query = Transaction::query()
+            ->whereIn('source_type', array_merge($doSourceTypes, $reversalTypes));
+
+        if ($this->filterItemId) {
+            $query->where('item_id', $this->filterItemId);
+        } elseif ($this->selectedGroupId) {
+            $groupId = $this->selectedGroupId;
+            $query->whereHas('item', function ($q) use ($groupId) {
+                $q->where('group_id', $groupId);
+            });
+        }
+
+        $rows = $query
+            ->orderBy('source_doc_num')
+            ->orderBy('item_id')
+            ->orderBy('id')
+            ->get(['id', 'source_doc_num', 'item_id', 'source_type', 'transaction_type', 'transaction_qty']);
+
+        $visibleIds = [];
+        $eventQty = [];
+        $isLatest = [];
+
+        $byPair = $rows->groupBy(fn ($r) => ($r->source_doc_num ?? '') . '|' . ($r->item_id ?? ''));
+
+        foreach ($byPair as $pairRows) {
+            $events = [];
+            $current = null;
+
+            foreach ($pairRows as $row) {
+                $isOut = in_array($row->source_type, $doSourceTypes, true)
+                    && $row->transaction_type === 'Stock Out';
+                $isReversalIn = in_array($row->source_type, $reversalTypes, true)
+                    && $row->transaction_type === 'Stock In';
+
+                if ($isOut) {
+                    if ($current === null) {
+                        $current = ['ids' => [], 'qty' => 0.0];
+                    }
+                    $current['ids'][] = (int) $row->id;
+                    $current['qty'] += abs((float) $row->transaction_qty);
+                } elseif ($isReversalIn) {
+                    if ($current !== null) {
+                        $events[] = $current;
+                        $current = null;
+                    }
+                }
+            }
+
+            if ($current !== null) {
+                $events[] = $current;
+            }
+
+            $eventCount = count($events);
+            foreach ($events as $idx => $ev) {
+                $repId = max($ev['ids']);
+                $visibleIds[] = $repId;
+                $eventQty[$repId] = $ev['qty'];
+                $isLatest[$repId] = ($idx === $eventCount - 1);
+            }
+        }
+
+        return $this->doEventsCache[$cacheKey] = [
+            'visible_ids' => $visibleIds,
+            'event_qty' => $eventQty,
+            'is_latest' => $isLatest,
+        ];
+    }
+
     private function applyTransactionLogVisibilityRules(Builder $query): Builder
     {
         $doSourceTypes = $this->getDoSourceTypes();
-        $doReversalTypes = $this->getDoReversalSourceTypes();
+        $reversalTypes = $this->getDoReversalSourceTypes();
+        $events = $this->buildDoStockOutEvents();
+        $visibleIds = $events['visible_ids'];
 
-        // For each (source_doc_num, item_id) under a DO source type, only show ONE
-        // representative Stock Out row -- specifically the FIRST one (MIN id) so the
-        // row is anchored to the DO's original creation date in the timeline.
-        // Reversal source types are hidden from the log entirely; the displayed
-        // quantity for the representative row is set by aggregateDoStockOutQuantities()
-        // to the net qty actually shipped (sum of all Stock Out minus reversal Stock In)
-        // for that DO + item.
-        return $query->where(function ($mainQuery) use ($doReversalTypes) {
-            $mainQuery->whereNotIn('source_type', $doReversalTypes);
-        })->where(function ($mainQuery) use ($doSourceTypes) {
-            $mainQuery->whereNotIn('source_type', $doSourceTypes)
-                ->orWhereIn('id', function ($subQuery) use ($doSourceTypes) {
-                    $subQuery->from('transactions as t2')
-                        ->selectRaw('MIN(t2.id)')
-                        ->whereIn('t2.source_type', $doSourceTypes)
-                        ->where('t2.transaction_type', 'Stock Out')
-                        ->groupBy('t2.source_doc_num', 't2.item_id');
-                });
+        // Hide reversal source types from the grid -- those are noise rows that
+        // exist only to keep the ledger consistent. Then for DO source types,
+        // show only the representative Stock Out row of each posting event
+        // (one row per real shipping moment, with edits showing as their own
+        // additional row instead of being silently swallowed into the original).
+        return $query->where(function ($q) use ($reversalTypes) {
+            $q->whereNotIn('source_type', $reversalTypes);
+        })->where(function ($q) use ($doSourceTypes, $visibleIds) {
+            $q->whereNotIn('source_type', $doSourceTypes);
+            if (!empty($visibleIds)) {
+                $q->orWhereIn('id', $visibleIds);
+            }
         });
     }
 
     /**
-     * For each visible DO Stock Out row, replace transaction_qty with the NET
-     * quantity actually shipped for that (source_doc_num, item_id):
-     *     net_out = SUM(Stock Out qty)  -  SUM(Stock In qty)
-     * across every transaction (visible or hidden) that shares the same DO
-     * number and item, restricted to DO + DO-reversal source types. This is
-     * what powers the In/Out column.
-     *
-     * Balance (qty_after) is NOT touched here -- it is recomputed later as a
-     * running cumulative by recomputeDisplayBalances() so that Out and Balance
-     * always tally on the simplified ledger the user actually sees.
+     * Replace transaction_qty on each visible DO Stock Out row with the SUM of
+     * Stock Out qty for that posting event only (so multiple FIFO batch lines
+     * shipped together appear as one "Out" number). Reversal Stock Ins are
+     * NOT subtracted here -- a reversal ends the event, and the next
+     * Stock Out chain starts a new event with its own representative row.
      *
      * @param  iterable<\App\Models\Transaction>  $transactions
      */
     private function aggregateDoStockOutQuantities($transactions): void
     {
         $doSourceTypes = $this->getDoSourceTypes();
-        $doReversalTypes = $this->getDoReversalSourceTypes();
-        $allDoRelatedTypes = array_merge($doSourceTypes, $doReversalTypes);
-
-        $pairs = [];
-        foreach ($transactions as $tx) {
-            if (in_array($tx->source_type, $doSourceTypes, true)
-                && $tx->transaction_type === 'Stock Out'
-                && !empty($tx->source_doc_num)
-                && !empty($tx->item_id)
-            ) {
-                $pairs[$tx->source_doc_num . '|' . $tx->item_id] = [
-                    'source_doc_num' => $tx->source_doc_num,
-                    'item_id' => $tx->item_id,
-                ];
-            }
-        }
-
-        if (empty($pairs)) {
-            return;
-        }
-
-        $sums = Transaction::query()
-            ->selectRaw(
-                'source_doc_num, item_id, '
-                . 'SUM(CASE '
-                . "WHEN transaction_type = 'Stock Out' THEN ABS(transaction_qty) "
-                . "WHEN transaction_type = 'Stock In'  THEN -ABS(transaction_qty) "
-                . 'ELSE 0 END) AS net_out'
-            )
-            ->whereIn('source_type', $allDoRelatedTypes)
-            ->where(function ($q) use ($pairs) {
-                foreach ($pairs as $pair) {
-                    $q->orWhere(function ($qq) use ($pair) {
-                        $qq->where('source_doc_num', $pair['source_doc_num'])
-                           ->where('item_id', $pair['item_id']);
-                    });
-                }
-            })
-            ->groupBy('source_doc_num', 'item_id')
-            ->get()
-            ->keyBy(fn ($row) => $row->source_doc_num . '|' . $row->item_id);
+        $events = $this->buildDoStockOutEvents();
+        $eventQty = $events['event_qty'];
 
         foreach ($transactions as $tx) {
             if (!in_array($tx->source_type, $doSourceTypes, true)
                 || $tx->transaction_type !== 'Stock Out'
-                || empty($tx->source_doc_num)
-                || empty($tx->item_id)
             ) {
                 continue;
             }
 
-            $key = $tx->source_doc_num . '|' . $tx->item_id;
-            if (isset($sums[$key])) {
-                $tx->transaction_qty = (int) $sums[$key]->net_out;
+            $id = (int) $tx->id;
+            if (isset($eventQty[$id])) {
+                $tx->transaction_qty = $eventQty[$id];
             }
         }
     }
 
     /**
+     * @param  iterable<\App\Models\Transaction>  $transactions
+     * @return array<int, bool> [transaction_id => true] for rows that were superseded
+     *   by a later edit/repost on the same (DO, item).
+     */
+    private function buildSupersededDoMap($transactions): array
+    {
+        $doSourceTypes = $this->getDoSourceTypes();
+        $events = $this->buildDoStockOutEvents();
+        $isLatest = $events['is_latest'];
+
+        $map = [];
+        foreach ($transactions as $tx) {
+            if (!in_array($tx->source_type, $doSourceTypes, true)
+                || $tx->transaction_type !== 'Stock Out'
+            ) {
+                continue;
+            }
+
+            $id = (int) $tx->id;
+            if (isset($isLatest[$id]) && $isLatest[$id] === false) {
+                $map[$id] = true;
+            }
+        }
+        return $map;
+    }
+
+    /**
      * Recompute the Balance (qty_after) shown on each visible row as a running
-     * cumulative over the SIMPLIFIED ledger (the rows the user is allowed to
-     * see, after DO Stock Out qty has been collapsed to its net by
-     * aggregateDoStockOutQuantities()). This guarantees that Out and Balance
-     * tally on screen, no matter how many reversal/re-issue cycles a DO went
-     * through.
+     * cumulative that matches **physical stock**, using the **complete** ledger
+     * for each item (no Transaction Log visibility filter).
      *
-     * For each item that appears on the current page we:
-     *   1. Load every visible transaction for that item across its full history
-     *      (NOT just the page) sorted chronologically.
-     *   2. Apply the DO Out aggregation so each DO Stock Out row carries its
-     *      net quantity.
-     *   3. Walk the rows from oldest to newest, starting with BF = qty_before
-     *      of the item's earliest transaction (typically 0 for new items, or
-     *      the imported opening stock), adding Stock In qty and subtracting
-     *      Stock Out qty as we go.
-     *   4. Project the computed balance onto the rows that actually live on
-     *      the current page.
+     * If we only walked "visible" rows, every DO reversal Stock In (`DO Delta Reversal`,
+     * `DO Status Reversal`, etc.) would be skipped — those rows are hidden from the
+     * grid but they still affect inventory. Example: edit DO 20→10 after a PO creates
+     * a reversal +10; the log would show wrong Balance (e.g. -20 vs actual 0) until
+     * we include hidden rows in this walk.
      *
-     * Returns a map of [transaction_id => display_balance] keyed by int id.
-     * The view should use this map (with $transaction->qty_after as a fallback)
-     * when rendering the Balance column. We return a map instead of mutating
-     * the model attribute directly because the underlying decimal column
-     * wouldn't accept an in-memory override on every Eloquent build.
+     * We use each row's stored `transaction_qty` as-is (no DO net aggregation here),
+     * ordered chronologically, so the running balance matches `items.qty` at the end
+     * and behaves correctly at every step.
+     *
+     * The Out column for DO lines is still adjusted separately by
+     * aggregateDoStockOutQuantities() on the paginated collection only.
      *
      * @param  iterable<\App\Models\Transaction>  $pageTransactions
      * @return array<int, float|int>
@@ -581,27 +669,20 @@ class TransactionLog extends Component
             return [];
         }
 
-        // Pull the full visible ledger for these items.
-        $visibleQuery = Transaction::query()->whereIn('item_id', $itemIds);
-        $visibleQuery = $this->applyTransactionLogVisibilityRules($visibleQuery);
-        $allVisible = $visibleQuery
+        // Full ledger — include hidden reversal rows so Balance matches reality.
+        $allRows = Transaction::query()
+            ->whereIn('item_id', $itemIds)
             ->orderBy('item_id', 'asc')
             ->orderBy('created_at', 'asc')
             ->orderBy('id', 'asc')
             ->get();
 
-        if ($allVisible->isEmpty()) {
+        if ($allRows->isEmpty()) {
             return [];
         }
 
-        // Make sure DO Stock Out rows in this set carry the net qty before we
-        // walk them; otherwise the running balance would double-count repeated
-        // DO lines or ignore reversals.
-        $this->aggregateDoStockOutQuantities($allVisible);
-
         // Opening balance (BF) per item = qty_before of that item's earliest
-        // transaction in the raw ledger (visible or hidden). This is the only
-        // anchor that matches reality at t = -infinity.
+        // transaction in the raw ledger. Unchanged.
         $bfRows = Transaction::query()
             ->whereIn('item_id', $itemIds)
             ->whereIn('id', function ($q) use ($itemIds) {
@@ -616,7 +697,7 @@ class TransactionLog extends Component
         $balances = [];
         $balanceByTxId = [];
 
-        foreach ($allVisible as $tx) {
+        foreach ($allRows as $tx) {
             $iid = (int) $tx->item_id;
 
             if (!array_key_exists($iid, $balances)) {

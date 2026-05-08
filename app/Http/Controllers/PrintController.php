@@ -104,8 +104,11 @@ class PrintController extends Controller
             return;
         }
 
-        // Get batches in FIFO order (oldest first)
+        // Get batches: positive-quantity first (so FIFO prefers real received
+        // stock over old empty placeholders like AUTO-...), then within each
+        // tier oldest-first by received_date / id.
         $batches = BatchTracking::where('item_id', $itemId)
+            ->orderByRaw('CASE WHEN quantity > 0 THEN 0 ELSE 1 END')
             ->orderBy('received_date', 'asc')
             ->orderBy('id', 'asc')
             ->get();

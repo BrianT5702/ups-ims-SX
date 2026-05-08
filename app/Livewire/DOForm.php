@@ -2860,8 +2860,12 @@ class DOForm extends Component
     }
 
     /**
-     * Revert previous stock-out transactions and batch deductions for the current DO.
-     * This restores batch quantities and item qty to state before this DO.
+     * Revert stock posted for this DO when moving Completed → Draft.
+     *
+     * Restores exactly the *net* quantity still committed for each line item (Stock Out minus
+     * prior reversal Stock Ins for this do_num). That avoids double-restoring batches when the form
+     * is edited multiple times: historical Stock Out rows stay in the table, but prior reversals
+     * are counted so we only put back what is still effectively deducted.
      */
     private function revertPreviousDoStock(): void
     {
@@ -2869,54 +2873,47 @@ class DOForm extends Component
             return;
         }
 
-        // Fetch previous DO items and reverse their batch deductions in reverse order of creation
-        $doItems = DeliveryOrderItem::where('do_id', $this->deliveryOrder->id)->get();
+        $doNum = $this->deliveryOrder->do_num;
+        $doSourceTypes = ['DO', 'Delivery Order'];
+        $reversalTypes = ['DO Reversal', 'DO Status Reversal', 'DO Delta Reversal', 'DO Draft Delta'];
 
-        foreach ($doItems as $doItem) {
-            $itemId = $doItem->item_id;
+        $itemIds = DeliveryOrderItem::where('do_id', $this->deliveryOrder->id)
+            ->whereNotNull('item_id')
+            ->distinct()
+            ->pluck('item_id');
 
-            // Retrieve transactions created for this DO and this item (Stock Out)
-            $transactions = Transaction::where('item_id', $itemId)
-                ->where('source_type', 'DO')
-                ->where('source_doc_num', $this->deliveryOrder->do_num)
-                ->where('transaction_type', 'Stock Out')
-                ->orderBy('created_at', 'desc')
-                ->get();
+        foreach ($itemIds as $itemId) {
+            $netOutstanding = Transaction::query()
+                ->where('item_id', $itemId)
+                ->where('source_doc_num', $doNum)
+                ->where(function ($q) use ($doSourceTypes, $reversalTypes) {
+                    $q->where(function ($q2) use ($doSourceTypes) {
+                        $q2->whereIn('source_type', $doSourceTypes)
+                            ->where('transaction_type', 'Stock Out');
+                    })->orWhere(function ($q2) use ($reversalTypes) {
+                        $q2->whereIn('source_type', $reversalTypes)
+                            ->where('transaction_type', 'Stock In');
+                    });
+                })
+                ->selectRaw(
+                    "SUM(CASE WHEN transaction_type = 'Stock Out' THEN ABS(transaction_qty) ELSE 0 END) - "
+                    . "SUM(CASE WHEN transaction_type = 'Stock In' THEN ABS(transaction_qty) ELSE 0 END) AS net"
+                )
+                ->value('net');
 
-            $restoredQty = 0;
+            $netOutstanding = $this->normalizeDoStockQty($netOutstanding ?? 0);
 
-            foreach ($transactions as $txn) {
-                if ($txn->batch_id) {
-                    $batch = BatchTracking::find($txn->batch_id);
-                    if ($batch) {
-                        $batch->quantity += $txn->transaction_qty;
-                        $batch->save();
-                        $restoredQty += $txn->transaction_qty;
-                        
-                        // Record the reversal transaction for audit trail
-                        Transaction::create([
-                            'item_id' => $itemId,
-                            'qty_on_hand' => BatchTracking::where('item_id', $itemId)->sum('quantity'),
-                            'qty_before' => $txn->qty_after, // Previous state after deduction
-                            'qty_after' => $txn->qty_after + $txn->transaction_qty, // Restored state
-                            'transaction_qty' => $txn->transaction_qty,
-                            'transaction_type' => 'Stock In', // Reversal is treated as stock in
-                            'user_id' => auth()->id(),
-                            'source_type' => 'DO Reversal',
-                            'source_doc_num' => $this->deliveryOrder->do_num,
-                            'batch_id' => $txn->batch_id,
-                        ]);
-                    }
-                }
+            if ($netOutstanding <= 0) {
+                continue;
             }
 
-            // Update item qty to reflect restored batches only if we actually restored something
-            if ($restoredQty > 0) {
-                $itemRecord = Item::find($itemId);
-                if ($itemRecord) {
-                    $itemRecord->qty = BatchTracking::where('item_id', $itemId)->sum('quantity');
-                    $itemRecord->save();
-                }
+            $this->restoreToBatchesFromDoTransactions((int) $itemId, $netOutstanding, false);
+
+            $itemRecord = Item::find($itemId);
+            if ($itemRecord) {
+                $itemRecord->qty = BatchTracking::where('item_id', $itemId)->sum('quantity');
+                $itemRecord->save();
+                $this->checkStockAlertLevel($itemRecord);
             }
         }
     }
@@ -2976,9 +2973,15 @@ class DOForm extends Component
             return;
         }
 
-        // Get all batches for this item (including zero/negative quantities)
+        // Get all batches for this item (including zero/negative quantities).
+        // Prefer batches that still have stock (qty > 0) so FIFO does not dump
+        // a deduction into an old empty placeholder (e.g. AUTO-...) when a real
+        // received batch can satisfy the qty. Within each tier we keep the
+        // standard oldest-first FIFO order.
         $batches = BatchTracking::where('item_id', $itemId)
+            ->orderByRaw('CASE WHEN quantity > 0 THEN 0 ELSE 1 END')
             ->orderBy('received_date', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
 
         // If no batches exist, create one to allow negative stock tracking
@@ -3101,7 +3104,7 @@ class DOForm extends Component
 
         // First, restore based on previous transactions of this DO (most recent first)
         $transactions = Transaction::where('item_id', $itemId)
-            ->where('source_type', 'DO')
+            ->whereIn('source_type', ['DO', 'Delivery Order'])
             ->where('source_doc_num', $this->do_num)
             ->where('transaction_type', 'Stock Out')
             ->orderBy('created_at', 'desc')
