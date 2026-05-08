@@ -769,18 +769,20 @@
                                             }
                                         }
                                         $hasContent = $hasItems || $hasFreeFormText;
+                                        $canSaveExistingDoEmpty = $deliveryOrder && $deliveryOrder->id;
+                                        $canPostOrSave = $hasContent || $canSaveExistingDoEmpty;
                                     @endphp
                                     @if(!$deliveryOrder || $deliveryOrder->status !== 'Completed')
-                                        <button type="submit" class="btn btn-success me-2" @if(!$hasContent) disabled @endif>Post</button>
+                                        <button type="submit" class="btn btn-success me-2" @if(!$canPostOrSave) disabled @endif>Post</button>
                                     @endif
-                                    <button type="button" class="btn btn-secondary me-2" wire:click="saveDraft" @if(!$hasContent && !($deliveryOrder && $deliveryOrder->status === 'Completed')) disabled @endif>
+                                    <button type="button" class="btn btn-secondary me-2" wire:click="saveDraft" @if(!$canPostOrSave && !($deliveryOrder && $deliveryOrder->status === 'Completed')) disabled @endif>
                                         @if($deliveryOrder && $deliveryOrder->status === 'Completed')
                                             Restore All
                                         @else
                                             Save Draft
                                         @endif
                                     </button>
-                                    <button type="button" class="btn btn-info" wire:click="preview" @if(!$hasContent) disabled @endif>
+                                    <button type="button" class="btn btn-info" wire:click="preview" @if(!$canPostOrSave) disabled @endif>
                                         Preview
                                     </button>
                                 </div>
@@ -932,7 +934,12 @@
                             <p class="small text-muted mb-2">
                                 Showing up to {{ trim($itemPickerSearchTerm) === '' ? '500' : '200' }} matches,
                                 filtered by {{ $itemPickerSearchMode === 'code' ? 'item code' : 'item name' }}
-                                and sorted by description (leading @ * # ~ ^ $ and spaces stripped). Click a row to add.
+                                @if($itemPickerSearchMode === 'code')
+                                    and sorted by stock code (A→Z).
+                                @else
+                                    and sorted by relevance then description (leading @ * # ~ ^ $ and spaces stripped).
+                                @endif
+                                Click a row to add.
                             </p>
                             <div class="table-responsive border rounded do-item-picker-table-wrap" style="max-height: min(55vh, 480px); overflow: auto;">
                                 <table class="table table-sm table-bordered table-hover table-striped mb-0 do-item-picker-table">

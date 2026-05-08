@@ -480,9 +480,15 @@ class DOForm extends Component
         $query = Item::query()->select(['id', 'item_code', 'item_name', 'qty', 'um', 'cash_price']);
 
         if ($term === '') {
-            $this->itemPickerResults = $this->applyItemPickerDescriptionOrder($query)
-                ->limit(500)
-                ->get();
+            if ($this->itemPickerSearchMode === 'code') {
+                $this->itemPickerResults = $query->orderBy('item_code')->orderBy('id')
+                    ->limit(500)
+                    ->get();
+            } else {
+                $this->itemPickerResults = $this->applyItemPickerDescriptionOrder($query)
+                    ->limit(500)
+                    ->get();
+            }
         } else {
             $isFractionSearch = preg_match('/\d+\s*\/\s*\d+/', $term) === 1;
             $isNameSearch = $this->itemPickerSearchMode !== 'code';
@@ -514,7 +520,7 @@ class DOForm extends Component
                     ->limit($fetchLimit)
                     ->get();
             } else {
-                $results = $this->applyItemPickerDescriptionOrder($query)
+                $results = $query->orderBy('item_code')->orderBy('id')
                     ->limit($fetchLimit)
                     ->get();
             }
@@ -2414,7 +2420,9 @@ class DOForm extends Component
             }
         }
         $hasContent = !empty($this->stackedItems) || $hasFreeFormText;
-        if (!$hasContent) {
+        $existingDoId = $this->deliveryOrder?->id;
+        $allowEmptyLines = (bool) $existingDoId;
+        if (!$hasContent && !$allowEmptyLines) {
             toastr()->error('Please add at least one item or enter some text before saving.');
             return;
         }
@@ -2579,28 +2587,8 @@ class DOForm extends Component
                 
                 if ($statusChanged) {
                     if ($previousStatus === 'Completed' && $newStatus === 'Save to Draft') {
-                        // Special case: Restore all stock when changing from Completed to Draft
-                        foreach ($this->stackedItems as $item) {
-                            // Skip text-only items
-                            if (isset($item['is_text_only']) && $item['is_text_only']) {
-                                continue;
-                            }
-                            
-                            $itemId = $item['item']['id'];
-                            $qty = $this->normalizeDoStockQty($item['item_qty'] ?? 0);
-                            
-                            if ($qty > 0) {
-                                $this->restoreToBatchesFifo($itemId, $qty);
-                                
-                                // Update item qty to reflect current batches
-                                $itemRecord = Item::find($itemId);
-                                if ($itemRecord) {
-                                    $itemRecord->qty = BatchTracking::where('item_id', $itemId)->sum('quantity');
-                                    $itemRecord->save();
-                                    $this->checkStockAlertLevel($itemRecord);
-                                }
-                            }
-                        }
+                        // Completed → Draft: reconcile from DB snapshot to form lines (handles cleared / reduced lines).
+                        $this->reconcileDoStockDeltas($previousQtyByItem, $newQtyByItem, true);
                     } elseif ($previousStatus === 'Save to Draft' && $newStatus === 'Completed') {
                         // Special case: Deduct stock when changing from Draft to Completed
                         // Allow negative stock - no validation
@@ -2629,6 +2617,9 @@ class DOForm extends Component
                         // Use delta logic for other status changes
                         $this->reconcileDoStockDeltas($previousQtyByItem, $newQtyByItem, $isDraft);
                     }
+                } elseif ($previousStatus === 'Completed') {
+                    // Same status Completed → Completed but line qtys changed (e.g. cancelled order: clear all lines).
+                    $this->reconcileDoStockDeltas($previousQtyByItem, $newQtyByItem, false);
                 }
                 // Create new customer snapshot
                 $customer = Customer::find($this->cust_id);
