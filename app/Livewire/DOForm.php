@@ -2587,8 +2587,12 @@ class DOForm extends Component
                 
                 if ($statusChanged) {
                     if ($previousStatus === 'Completed' && $newStatus === 'Save to Draft') {
-                        // Completed → Draft: reconcile from DB snapshot to form lines (handles cleared / reduced lines).
-                        $this->reconcileDoStockDeltas($previousQtyByItem, $newQtyByItem, true);
+                        // Completed → Draft: fully restore inventory that was posted for this DO.
+                        //
+                        // reconcileDoStockDeltas() is wrong here: when form line qty still matches the DB
+                        // (e.g. both 10), delta is 0 so nothing is restored — then Draft→Completed deducts
+                        // the full qty again (double Stock Out for the same DO).
+                        $this->revertPreviousDoStock();
                     } elseif ($previousStatus === 'Save to Draft' && $newStatus === 'Completed') {
                         // Special case: Deduct stock when changing from Draft to Completed
                         // Allow negative stock - no validation
