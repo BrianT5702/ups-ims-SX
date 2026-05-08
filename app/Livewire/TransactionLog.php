@@ -221,8 +221,9 @@ class TransactionLog extends Component
         $this->aggregateDoStockOutQuantities($transactions);
 
         // Recompute Balance (qty_after) as a running cumulative over the simplified
-        // ledger so In/Out and Balance always tally on screen.
-        $this->recomputeDisplayBalances($transactions);
+        // ledger so In/Out and Balance always tally on screen. We pass it as a
+        // separate map [tx_id => balance] for the view to render.
+        $displayBalances = $this->recomputeDisplayBalances($transactions);
 
         // Get the item details if filtering by item
         $filteredItem = $this->filterItemId 
@@ -258,7 +259,8 @@ class TransactionLog extends Component
             'selectedCompanyName' => $selectedCompanyName ?? null,
             'isGroupReportMode' => false,
             'startDate' => $this->startDate,
-            'endDate' => $this->endDate
+            'endDate' => $this->endDate,
+            'displayBalances' => $displayBalances,
         ])->layout('layouts.app');
     }
 
@@ -314,7 +316,7 @@ class TransactionLog extends Component
 
         // Recompute Balance (qty_after) as a running cumulative on the simplified
         // ledger so In/Out and Balance always tally on screen.
-        $this->recomputeDisplayBalances($transactions);
+        $displayBalances = $this->recomputeDisplayBalances($transactions);
 
         // Group transactions by item_id
         $transactionsByItem = $transactions->groupBy('item_id');
@@ -390,7 +392,8 @@ class TransactionLog extends Component
             'isGroupReportMode' => true,
             'selectedGroup' => Group::find($this->selectedGroupId),
             'startDate' => $this->startDate,
-            'endDate' => $this->endDate
+            'endDate' => $this->endDate,
+            'displayBalances' => $displayBalances,
         ])->layout('layouts.app');
     }
 
@@ -556,9 +559,16 @@ class TransactionLog extends Component
      *   4. Project the computed balance onto the rows that actually live on
      *      the current page.
      *
+     * Returns a map of [transaction_id => display_balance] keyed by int id.
+     * The view should use this map (with $transaction->qty_after as a fallback)
+     * when rendering the Balance column. We return a map instead of mutating
+     * the model attribute directly because the underlying decimal column
+     * wouldn't accept an in-memory override on every Eloquent build.
+     *
      * @param  iterable<\App\Models\Transaction>  $pageTransactions
+     * @return array<int, float|int>
      */
-    private function recomputeDisplayBalances($pageTransactions): void
+    private function recomputeDisplayBalances($pageTransactions): array
     {
         $itemIds = collect($pageTransactions)
             ->pluck('item_id')
@@ -568,7 +578,7 @@ class TransactionLog extends Component
             ->all();
 
         if (empty($itemIds)) {
-            return;
+            return [];
         }
 
         // Pull the full visible ledger for these items.
@@ -581,7 +591,7 @@ class TransactionLog extends Component
             ->get();
 
         if ($allVisible->isEmpty()) {
-            return;
+            return [];
         }
 
         // Make sure DO Stock Out rows in this set carry the net qty before we
@@ -611,11 +621,11 @@ class TransactionLog extends Component
 
             if (!array_key_exists($iid, $balances)) {
                 $balances[$iid] = isset($bfRows[$iid])
-                    ? (int) $bfRows[$iid]->qty_before
-                    : 0;
+                    ? (float) $bfRows[$iid]->qty_before
+                    : 0.0;
             }
 
-            $qty = abs((int) $tx->transaction_qty);
+            $qty = abs((float) $tx->transaction_qty);
             if ($tx->transaction_type === 'Stock In') {
                 $balances[$iid] += $qty;
             } elseif ($tx->transaction_type === 'Stock Out') {
@@ -625,11 +635,6 @@ class TransactionLog extends Component
             $balanceByTxId[(int) $tx->id] = $balances[$iid];
         }
 
-        foreach ($pageTransactions as $tx) {
-            $key = (int) $tx->id;
-            if (isset($balanceByTxId[$key])) {
-                $tx->qty_after = $balanceByTxId[$key];
-            }
-        }
+        return $balanceByTxId;
     }
 }

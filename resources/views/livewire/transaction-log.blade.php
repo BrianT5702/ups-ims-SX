@@ -506,7 +506,7 @@
                                                 <td class="text-right">{{ $unitPrice }}</td>
                                                 <td>{{ $inQty }}</td>
                                                 <td>{{ $outQty }}</td>
-                                                <td>{{ $transaction->qty_after }}</td>
+                                                <td>{{ ($displayBalances ?? [])[$transaction->id] ?? $transaction->qty_after }}</td>
                                                 <td>{{ $batchNumber }}</td>
                                                 <td>{{ $transaction->user->name }}</td>
                                             </tr>
@@ -604,7 +604,7 @@
                                             <td class="text-right">{{ $unitPrice }}</td>
                                             <td>{{ $inQty }}</td>
                                             <td>{{ $outQty }}</td>
-                                            <td>{{ $transaction->qty_after }}</td>
+                                            <td>{{ ($displayBalances ?? [])[$transaction->id] ?? $transaction->qty_after }}</td>
                                             <td>{{ $batchNumber }}</td>
                                             <td>{{ $transaction->user->name }}</td>
                                     </tr>
