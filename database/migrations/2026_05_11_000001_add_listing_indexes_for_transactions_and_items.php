@@ -1,6 +1,5 @@
 <?php
 
-use Closure;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -61,7 +60,7 @@ return new class extends Migration
         }
     }
 
-    private function addIndexUnlessExists(string $connection, string $table, Closure $callback): void
+    private function addIndexUnlessExists(string $connection, string $table, \Closure $callback): void
     {
         try {
             Schema::connection($connection)->table($table, $callback);

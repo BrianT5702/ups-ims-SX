@@ -47,5 +47,37 @@ class Customer extends BaseModel
     {
         return $this->belongsTo(User::class, 'salesman_id');
     }
-    
+
+    /**
+     * Name or account substring match, ordered for autocomplete: prefix on account,
+     * prefix on name, then substring matches (not "best match" by position within name).
+     */
+    public function scopeAutocompleteSearch($query, string $term)
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $escaped = addcslashes($term, '%_\\');
+        $contains = '%' . $escaped . '%';
+        $prefix = $escaped . '%';
+
+        return $query
+            ->where(function ($q) use ($contains) {
+                $q->where('cust_name', 'like', $contains)
+                    ->orWhere('account', 'like', $contains);
+            })
+            ->orderByRaw(
+                '(CASE
+                    WHEN `account` LIKE ? THEN 1
+                    WHEN `cust_name` LIKE ? THEN 2
+                    WHEN `account` LIKE ? THEN 3
+                    WHEN `cust_name` LIKE ? THEN 4
+                    ELSE 5 END)',
+                [$prefix, $prefix, $contains, $contains]
+            )
+            ->orderBy('account')
+            ->orderBy('cust_name');
+    }
 }
