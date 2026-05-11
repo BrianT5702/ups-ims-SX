@@ -1581,8 +1581,21 @@
             }
 
             document.addEventListener('keydown', function (e) {
-                var container = document.querySelector('.do-item-picker-modal [data-do-picker-mode-select="1"]')
-                    || document.querySelector('#do-client-item-picker-modal [data-do-client-picker-mode-select="1"]');
+                // Do not steal digits while typing in fields (e.g. item code/name search).
+                var t = e.target;
+                var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
+                if (tag === 'input' || tag === 'textarea' || tag === 'select' || (t && t.isContentEditable)) {
+                    return;
+                }
+
+                // Server modal: mode step only has this node; search step removes it — do not fall back to client.
+                var serverContainer = document.querySelector('.do-item-picker-modal [data-do-picker-mode-select="1"]');
+                var clientModal = document.getElementById('do-client-item-picker-modal');
+                var clientContainer = null;
+                if (clientModal && window.getComputedStyle(clientModal).display !== 'none') {
+                    clientContainer = clientModal.querySelector('[data-do-client-picker-mode-select="1"]');
+                }
+                var container = serverContainer || clientContainer;
                 if (!container) return;
 
                 var buttons = getModeButtons(container);
