@@ -23,6 +23,10 @@ class DeliveryOrder extends BaseModel
         return static::withoutGlobalScope(StealthModeScope::class);
     }
 
+    protected $casts = [
+        'date' => 'date',
+    ];
+
     protected $fillable = [
         'ref_num',
         'cust_id',

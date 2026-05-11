@@ -95,13 +95,14 @@ class DOList extends Component
                 });
             })
             ->when($this->startDate && $this->endDate, function($q) {
-               return $q->whereBetween('created_at', [
-                    Carbon::parse($this->startDate)->startOfDay(), 
-                    Carbon::parse($this->endDate)->endOfDay()
+                return $q->whereBetween('date', [
+                    Carbon::parse($this->startDate)->toDateString(),
+                    Carbon::parse($this->endDate)->toDateString(),
                 ]);
             });
-    
-        $delivery_orders = $query->orderBy('created_at', 'desc')
+
+        $delivery_orders = $query->orderByDesc('date')
+            ->orderByDesc('created_at')
             ->paginate(15);
 
         $filteredCustomer = $this->filterCustomerId

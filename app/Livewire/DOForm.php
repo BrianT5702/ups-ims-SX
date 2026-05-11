@@ -99,7 +99,10 @@ class DOForm extends Component
                 $this->do_num = DoNumberService::getNextDoNumberPreview($connection);
             }
             $this->ref_num = $deliveryOrder->ref_num;
-            $this->date = $deliveryOrder->date;
+            // HTML date inputs need Y-m-d; model casts `date` to Carbon, which breaks wire:model otherwise.
+            $this->date = $deliveryOrder->date
+                ? Carbon::parse($deliveryOrder->date)->toDateString()
+                : null;
             $this->cust_id = $deliveryOrder->cust_id;
             $this->selectedCustomer = $deliveryOrder->customer;
             $this->salesman_id = $deliveryOrder->salesman_id;
@@ -238,15 +241,18 @@ class DOForm extends Component
 
     public function searchCustomers()
     {
-        if (!empty($this->customerSearchTerm)) {
-            $this->customerSearchResults = Customer::where('cust_name', 'like', '%' . $this->customerSearchTerm . '%')
-                ->orWhere('account', 'like', '%' . $this->customerSearchTerm . '%')
-                ->orderBy('cust_name','asc')
-                ->limit(10)
-                ->get();
-        } else {
+        $term = trim((string) $this->customerSearchTerm);
+        if ($term === '') {
             $this->customerSearchResults = [];
+
+            return;
         }
+
+        $this->customerSearchResults = Customer::query()
+            ->select(['id', 'account', 'cust_name'])
+            ->autocompleteSearch($term)
+            ->limit(25)
+            ->get();
     }
 
     public function selectCustomer($custId)
@@ -256,9 +262,6 @@ class DOForm extends Component
             $this->cust_id = $custId; 
             $this->customerSearchTerm = $this->selectedCustomer->cust_name;
             $this->customerSearchResults = [];
-            
-            // Debug: Log the customer currency
-            \Log::info('Selected customer currency: ' . ($this->selectedCustomer->currency ?? 'null'));
 
             // Default salesman to customer's assigned salesman if present
             if ($this->selectedCustomer && $this->selectedCustomer->salesman_id) {
@@ -374,6 +377,32 @@ class DOForm extends Component
         $this->js('setTimeout(() => document.getElementById("do-item-picker-choice-code")?.focus(), 10)');
     }
 
+    /**
+     * Open picker already on code or name search (one round-trip after instant client mode step).
+     */
+    public function openItemPickerModalWithMode(int $rowIndex, string $mode): void
+    {
+        if ($this->isView || $this->isPosted) {
+            return;
+        }
+        if (!in_array($mode, ['code', 'name'], true)) {
+            return;
+        }
+
+        $this->itemPickerRowIndex = $rowIndex;
+        $this->itemPickerSearchMode = $mode;
+        $this->itemPickerSearchTerm = '';
+        $this->itemPickerResults = [];
+        $this->itemPickerLoading = true;
+        try {
+            $this->refreshItemPickerResults();
+        } finally {
+            $this->itemPickerLoading = false;
+        }
+        $this->showItemPickerModal = true;
+        $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
+    }
+
     public function closeItemPickerModal(): void
     {
         $this->showItemPickerModal = false;
@@ -383,31 +412,6 @@ class DOForm extends Component
         $this->itemPickerResults = [];
         $this->itemPickerLoading = false;
         $this->js('setTimeout(() => document.getElementById("do-item-picker-choice-code")?.focus(), 10)');
-    }
-
-    /**
-     * Load picker rows after the modal is shown (deferred from openItemPickerModal).
-     */
-    public function loadItemPickerResults(): void
-    {
-        if (
-            !$this->showItemPickerModal ||
-            $this->isPosted ||
-            $this->isView ||
-            !in_array($this->itemPickerSearchMode, ['code', 'name'], true)
-        ) {
-            $this->itemPickerLoading = false;
-
-            return;
-        }
-
-        try {
-            $this->refreshItemPickerResults();
-        } finally {
-            $this->itemPickerLoading = false;
-            // Re-focus after Livewire morphs the table (autofocus is unreliable on injected DOM).
-            $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
-        }
     }
 
     public function updatedItemPickerSearchTerm(): void
@@ -422,13 +426,8 @@ class DOForm extends Component
         if ($this->itemPickerSearchMode !== '' && !in_array($this->itemPickerSearchMode, ['code', 'name'], true)) {
             $this->itemPickerSearchMode = '';
         }
-
-        if ($this->showItemPickerModal && !$this->isView && !$this->isPosted && in_array($this->itemPickerSearchMode, ['code', 'name'], true)) {
-            $this->itemPickerLoading = true;
-            $this->refreshItemPickerResults();
-            $this->itemPickerLoading = false;
-            $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
-        }
+        // Intentionally no refresh here: mode is set from chooseItemPickerSearchMode / open/close only
+        // (not wire:model). Refreshing here duplicated chooseItemPickerSearchMode + wire:init.
     }
 
     public function chooseItemPickerSearchMode(string $mode): void
@@ -441,8 +440,11 @@ class DOForm extends Component
         $this->itemPickerSearchTerm = '';
         $this->itemPickerResults = [];
         $this->itemPickerLoading = true;
-        $this->refreshItemPickerResults();
-        $this->itemPickerLoading = false;
+        try {
+            $this->refreshItemPickerResults();
+        } finally {
+            $this->itemPickerLoading = false;
+        }
         $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
     }
 
@@ -3393,6 +3395,9 @@ class DOForm extends Component
     
     public function render()
     {
+        if ($this->date instanceof \DateTimeInterface) {
+            $this->date = Carbon::parse($this->date)->toDateString();
+        }
         $this->date = $this->date ?? now()->toDateString();
         // do_num is set in mount for new DOs; avoid overwriting here (would consume extra numbers)
         $this->user_id = $this->user_id ?? auth()->id();
