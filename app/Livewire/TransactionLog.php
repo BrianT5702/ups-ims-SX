@@ -12,6 +12,7 @@ use Livewire\WithPagination;
 use Livewire\Attributes\Title;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 
 #[Title('UR | Transaction Log')]
 class TransactionLog extends Component
@@ -240,11 +241,8 @@ class TransactionLog extends Component
             ? Item::findOrFail($this->filterItemId) 
             : null;
 
-        // Prepare source type options
-        $sourceTypeOptions = Transaction::distinct('source_type')->pluck('source_type');
-
-        // Get groups for dropdown
-        $groups = Group::orderBy('group_name')->get();
+        $sourceTypeOptions = $this->cachedSourceTypeOptions();
+        $groups = $this->cachedGroupsForFilter();
 
         // Get selected company name for display
         $selectedCompanyName = null;
@@ -378,11 +376,8 @@ class TransactionLog extends Component
             ? Item::findOrFail($this->filterItemId) 
             : null;
 
-        // Prepare source type options
-        $sourceTypeOptions = Transaction::distinct('source_type')->pluck('source_type');
-
-        // Get groups for dropdown
-        $groups = Group::orderBy('group_name')->get();
+        $sourceTypeOptions = $this->cachedSourceTypeOptions();
+        $groups = $this->cachedGroupsForFilter();
 
         // Get selected company name for display
         $selectedCompanyName = null;
@@ -717,5 +712,27 @@ class TransactionLog extends Component
         }
 
         return $balanceByTxId;
+    }
+
+    /**
+     * Distinct over `transactions` is expensive at scale; values change rarely.
+     * Key includes default connection so multi-company (switchdb) never shares cache.
+     */
+    private function cachedSourceTypeOptions()
+    {
+        $key = 'transaction_log:source_types:' . config('database.default');
+
+        return Cache::remember($key, 300, function () {
+            return Transaction::distinct('source_type')->pluck('source_type');
+        });
+    }
+
+    private function cachedGroupsForFilter()
+    {
+        $key = 'transaction_log:groups:' . config('database.default');
+
+        return Cache::remember($key, 300, function () {
+            return Group::orderBy('group_name')->get();
+        });
     }
 }
