@@ -31,13 +31,13 @@
                             <div class="col-xl-4 col-lg-12 d-flex flex-column" id="field-cust_id" x-data="{ hi: 0 }">
                                 @if(!$deliveryOrder || !$isView)
                                     <label for="customer">Customer <span class="text-danger">*</span></label>
-                                    <input type="text" wire:model.debounce.100ms="customerSearchTerm" 
-                                        wire:input.debounce.200ms="searchCustomers" 
-                                        id="searchCustomer" 
-                                        class="form-control rounded" 
-                                        placeholder="Search Customer" 
-                                        {{ ($isView || $this->isPosted) ? 'disabled' : '' }} 
+                                    <input type="text" wire:model.debounce.300ms.live="customerSearchTerm"
+                                        id="searchCustomer"
+                                        class="form-control rounded"
+                                        placeholder="Search customer"
+                                        {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                         autocomplete="off"
+                                        x-on:input="hi = 0"
                                         x-on:keydown.arrow-down.prevent="(() => { const list = $refs.custList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.min(hi + 1, items.length - 1); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
                                         x-on:keydown.arrow-up.prevent="(() => { const list = $refs.custList; const items = list ? list.querySelectorAll('li') : []; if(items.length===0) return; hi = Math.max(hi - 1, 0); $nextTick(() => { const el = items[hi]; if(!el) return; const elTop = el.offsetTop; const elBottom = elTop + el.offsetHeight; const viewTop = list.scrollTop; const viewBottom = viewTop + list.clientHeight; if (elTop < viewTop) { list.scrollTop = elTop; } else if (elBottom > viewBottom) { list.scrollTop = elBottom - list.clientHeight; } }); })()"
                                         x-on:keydown.enter.prevent="(() => { const list = $refs.custList; const items = list ? list.querySelectorAll('li') : []; const el = items && items[hi]; if(el) el.click(); })()">
@@ -876,6 +876,49 @@
     </div>
     @endif
 
+    {{-- Instant (client-only) mode step for F2: shown before any Livewire round-trip; wire:ignore keeps Livewire from stripping it. --}}
+    <div id="do-client-item-picker-modal" class="do-client-item-picker-modal" style="display: none;" wire:ignore>
+        <div class="modal-backdrop fade show do-client-item-picker-backdrop" data-do-client-picker-close="1"></div>
+        <div class="do-client-item-picker-center">
+            <div class="modal-content modal-xl shadow">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title mb-0" id="do-client-item-picker-title">Add item</h5>
+                    <button type="button" class="btn-close" data-do-client-picker-close="1" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="border rounded p-3 bg-light"
+                         data-do-client-picker-mode-select="1"
+                         data-do-picker-active-index="0">
+                        <label class="form-label small text-muted mb-2">Choose search mode first</label>
+                        <div class="list-group">
+                            <button type="button"
+                                    class="list-group-item list-group-item-action active"
+                                    id="do-client-item-picker-choice-code"
+                                    data-do-picker-choice="code"
+                                    data-do-client-picker-choose="code">
+                                1. Search by Item Code
+                            </button>
+                            <button type="button"
+                                    class="list-group-item list-group-item-action"
+                                    id="do-client-item-picker-choice-name"
+                                    data-do-picker-choice="name"
+                                    data-do-client-picker-choose="name">
+                                2. Search by Item Name
+                            </button>
+                        </div>
+                        <p class="small text-muted mb-0 mt-2">
+                            Use <strong>Arrow Up/Down</strong> to switch, then press <strong>Enter</strong>.
+                            Or press <strong>1</strong> / <strong>2</strong> to choose directly.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-do-client-picker-close="1">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Add Item picker (F2): full list + search in a modal --}}
     @if($showItemPickerModal)
     <div class="modal fade show do-item-picker-modal" tabindex="-1" style="display: block;" aria-modal="true" role="dialog">
@@ -914,7 +957,7 @@
                             </p>
                         </div>
                     @else
-                        <div wire:init="loadItemPickerResults">
+                        <div>
                             <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
                                 <label class="form-label small text-muted mb-0">
                                     Search by {{ $itemPickerSearchMode === 'code' ? 'item code' : 'item name' }}
@@ -927,17 +970,21 @@
                             </div>
                             <input type="text"
                                 class="form-control form-control-sm mb-2"
-                                wire:model.live.debounce.300ms="itemPickerSearchTerm"
+                                wire:model.live.debounce.200ms="itemPickerSearchTerm"
                                 placeholder="{{ $itemPickerSearchMode === 'code' ? 'Type item code…' : 'Type item name…' }} (leave empty to show first items)"
                                 autocomplete="off"
                                 id="do-item-picker-search">
+                            <div class="d-flex align-items-center gap-2 mb-2 small text-primary" wire:loading wire:target="itemPickerSearchTerm">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span>Updating list…</span>
+                            </div>
                             <p class="small text-muted mb-2">
                                 Showing up to {{ trim($itemPickerSearchTerm) === '' ? '500' : '200' }} matches,
                                 filtered by {{ $itemPickerSearchMode === 'code' ? 'item code' : 'item name' }}
                                 @if($itemPickerSearchMode === 'code')
                                     and sorted by stock code (A→Z).
                                 @else
-                                    and sorted by relevance then description (leading @ * # ~ ^ $ and spaces stripped).
+                                    and sorted by relevance then description (leading @@ * # ~ ^ {{ '$' }} and spaces stripped).
                                 @endif
                                 Click a row to add.
                             </p>
@@ -1395,6 +1442,33 @@
             text-align: center;
         }
 
+        .do-client-item-picker-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 20070;
+        }
+        .do-client-item-picker-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 20071;
+            background: rgba(0, 0, 0, 0.45);
+        }
+        .do-client-item-picker-center {
+            position: fixed;
+            inset: 0;
+            z-index: 20072;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            pointer-events: none;
+        }
+        .do-client-item-picker-center .modal-content {
+            pointer-events: auto;
+            width: 100%;
+            max-width: 720px;
+        }
+
         @media (max-width: 1200px) {
             .do-fixed-table th,
             .do-fixed-table td {
@@ -1424,6 +1498,13 @@
                     return;
                 }
 
+                var clientModal = document.getElementById('do-client-item-picker-modal');
+                if (clientModal && clientModal.style.display !== 'none') {
+                    clientModal.style.display = 'none';
+                    clientModal.removeAttribute('data-row-index');
+                    return;
+                }
+
                 var currentRow = e.target.closest('tr.item-row');
                 var targetRow = currentRow;
                 if (!targetRow) {
@@ -1435,12 +1516,37 @@
                 var rowIdx = parseInt(targetRow.dataset.rowIndex, 10);
                 if (isNaN(rowIdx)) return;
 
-                comp.call('openItemPickerModal', rowIdx);
+                if (!clientModal) return;
+
+                clientModal.setAttribute('data-row-index', String(rowIdx));
+                var titleEl = document.getElementById('do-client-item-picker-title');
+                if (titleEl) {
+                    titleEl.textContent = 'Add item — row ' + (rowIdx + 1);
+                }
+                var modeBox = clientModal.querySelector('[data-do-client-picker-mode-select="1"]');
+                if (modeBox) {
+                    modeBox.setAttribute('data-do-picker-active-index', '0');
+                }
+                var modeBtns = clientModal.querySelectorAll('[data-do-client-picker-choose]');
+                modeBtns.forEach(function (b, i) {
+                    b.classList.toggle('active', i === 0);
+                });
+                clientModal.style.display = 'block';
+                clientModal.setAttribute('aria-modal', 'true');
+                setTimeout(function () {
+                    document.getElementById('do-client-item-picker-choice-code')?.focus();
+                }, 0);
             });
         })();
         (function () {
             document.addEventListener('keydown', function (e) {
                 if (e.key !== 'Escape') return;
+                var clientModal = document.getElementById('do-client-item-picker-modal');
+                if (clientModal && clientModal.style.display !== 'none') {
+                    clientModal.style.display = 'none';
+                    clientModal.removeAttribute('data-row-index');
+                    return;
+                }
                 var modal = document.querySelector('.do-item-picker-modal');
                 if (!modal) return;
                 var form = document.querySelector('form[wire\\:submit\\.prevent="addDO"]');
@@ -1475,7 +1581,8 @@
             }
 
             document.addEventListener('keydown', function (e) {
-                var container = document.querySelector('.do-item-picker-modal [data-do-picker-mode-select="1"]');
+                var container = document.querySelector('.do-item-picker-modal [data-do-picker-mode-select="1"]')
+                    || document.querySelector('#do-client-item-picker-modal [data-do-client-picker-mode-select="1"]');
                 if (!container) return;
 
                 var buttons = getModeButtons(container);
@@ -1514,11 +1621,43 @@
             document.addEventListener('click', function (e) {
                 var btn = e.target.closest('[data-do-picker-choice]');
                 if (!btn) return;
-                var container = btn.closest('[data-do-picker-mode-select="1"]');
+                var container = btn.closest('[data-do-picker-mode-select="1"]')
+                    || btn.closest('[data-do-client-picker-mode-select="1"]');
                 if (!container) return;
                 var buttons = getModeButtons(container);
                 var idx = buttons.indexOf(btn);
                 if (idx >= 0) container.setAttribute('data-do-picker-active-index', String(idx));
+            });
+        })();
+        (function () {
+            document.addEventListener('click', function (e) {
+                if (e.target.closest('[data-do-client-picker-close]')) {
+                    var cm = document.getElementById('do-client-item-picker-modal');
+                    if (cm && cm.style.display !== 'none') {
+                        cm.style.display = 'none';
+                        cm.removeAttribute('data-row-index');
+                    }
+                    return;
+                }
+                var choose = e.target.closest('[data-do-client-picker-choose]');
+                if (!choose) return;
+                var cm = document.getElementById('do-client-item-picker-modal');
+                if (!cm || cm.style.display === 'none') return;
+                var rowIdx = parseInt(cm.getAttribute('data-row-index') || '', 10);
+                if (isNaN(rowIdx)) return;
+                var mode = choose.getAttribute('data-do-client-picker-choose');
+                if (mode !== 'code' && mode !== 'name') return;
+
+                var form = document.querySelector('form[wire\\:submit\\.prevent="addDO"]');
+                if (!form) return;
+                var lwRoot = form.closest('[wire\\:id]');
+                if (!lwRoot || typeof Livewire === 'undefined') return;
+                var comp = Livewire.find(lwRoot.getAttribute('wire:id'));
+                if (!comp) return;
+
+                cm.style.display = 'none';
+                cm.removeAttribute('data-row-index');
+                comp.call('openItemPickerModalWithMode', rowIdx, mode);
             });
         })();
     </script>
