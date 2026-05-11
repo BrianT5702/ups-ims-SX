@@ -23,7 +23,7 @@ return new class extends Migration
                 continue;
             }
 
-            $schema->table('customers', function (Blueprint $table) {
+            $this->addIndexUnlessExists($connection, 'customers', function (Blueprint $table) {
                 $table->index('cust_name', 'customers_cust_name_index');
             });
         }
@@ -38,9 +38,35 @@ return new class extends Migration
                 continue;
             }
 
-            Schema::connection($connection)->table('customers', function (Blueprint $table) {
-                $table->dropIndex('customers_cust_name_index');
+            $this->dropIndexIfExists($connection, 'customers', 'customers_cust_name_index');
+        }
+    }
+
+    private function addIndexUnlessExists(string $connection, string $table, \Closure $callback): void
+    {
+        try {
+            Schema::connection($connection)->table($table, $callback);
+        } catch (\Throwable $e) {
+            $msg = strtolower($e->getMessage());
+            if (str_contains($msg, 'duplicate') || str_contains($msg, 'already exists')) {
+                return;
+            }
+            throw $e;
+        }
+    }
+
+    private function dropIndexIfExists(string $connection, string $table, string $indexName): void
+    {
+        try {
+            Schema::connection($connection)->table($table, function (Blueprint $table) use ($indexName) {
+                $table->dropIndex($indexName);
             });
+        } catch (\Throwable $e) {
+            $msg = strtolower($e->getMessage());
+            if (str_contains($msg, "doesn't exist") || str_contains($msg, 'check that column/key exists') || str_contains($msg, 'unknown key')) {
+                return;
+            }
+            throw $e;
         }
     }
 };
