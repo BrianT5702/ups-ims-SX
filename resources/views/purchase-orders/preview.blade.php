@@ -163,10 +163,12 @@
             margin-bottom: 20px;
         }
 
+        /* Hang indent: first line (To: + name) pulled left; address lines use smaller hang so they sit less far right */
         .supplier-info-frame {
+            --po-supplier-hang: 28px;
             border: 1px solid #000;
             padding: 6px;
-            padding-left: 40px;
+            padding-left: var(--po-supplier-hang);
             width: 100%;
             font-size: 1.1em;
             line-height: 1.3; /* Already matches print */
@@ -177,7 +179,7 @@
         }
 
         .supplier-info-frame p:first-child {
-            text-indent: -40px; /* Pull 'To:' line back to margin */
+            text-indent: calc(-1 * var(--po-supplier-hang)); /* Pull 'To:' line back toward left edge */
         }
 
         .supplier-info-date {
@@ -647,17 +649,16 @@
             }
             
             /*
-             * Match preview: left padding + negative first-line indent so “To:” sits left
-             * while address / contact lines align under the company name (inside the border).
+             * Same hang as screen (--po-supplier-hang): “To:” line pulled left; address less indented than old 40px.
              */
             .supplier-info-frame {
-                padding: 4px 8px 4px 40px !important;
+                padding: 4px 8px 4px var(--po-supplier-hang, 28px) !important;
                 box-sizing: border-box !important;
-                font-size: 1.05em !important;
+                font-size: 0.98em !important;
                 line-height: 1.22 !important;
             }
             .supplier-info-frame p:first-child {
-                text-indent: -40px !important;
+                text-indent: calc(-1 * var(--po-supplier-hang, 28px)) !important;
             }
 
             .print-button, .back-button {
@@ -817,18 +818,18 @@
              * the table and row 26 drops to sheet 2 even though the on-screen .print-page looks fine.
              */
             .pages-container .items-table th {
-                font-size: 0.9em !important;
-                padding: 4px 6px 3px 6px !important;
-                line-height: 1.3 !important;
+                font-size: 0.8em !important;
+                padding: 7px 8px 5px 8px !important;
+                line-height: 1.4 !important;
                 white-space: nowrap !important;
                 overflow: visible !important;
                 text-overflow: unset !important;
             }
 
-            .pages-container .items-table td {
-                padding: 2px 3px !important;
-                font-size: 1.1em !important;
-                line-height: 1.25 !important;
+            .items-table td {
+                padding: 4px 4px !important;
+                font-size: 1.0em !important;
+                line-height: 1.2 !important;
                 vertical-align: top !important;
             }
 
