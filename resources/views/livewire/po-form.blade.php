@@ -3,7 +3,7 @@
     <div class="do-form-page">
         <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold fs-5">{{ $isView ? 'View' : ($purchaseOrder ? 'Edit': 'Add' )}} Purchase Order </h5>
+                    <h5 class="fw-bold fs-5">{{ $isView ? 'View' : ($purchaseOrder ? 'Edit': 'Add' )}} Purchase Order @if(!$isView)<span class="text-muted small fw-normal ms-1">· Arrow keys move between line qty / price / description fields</span>@endif</h5>
                 </div>
                 <div class="card-body">
                     <form wire:submit.prevent="addPO">
@@ -197,7 +197,7 @@
                                 </thead>
                                 <tbody>
                                     @foreach($stackedItems as $index => $item)
-                                        <tr>
+                                        <tr data-po-row-index="{{ $index }}" wire:key="po-line-{{ $index }}-{{ $item['item']['id'] ?? $index }}">
                                             <td>{{ $index + 1 }}</td>
                                             <td>{{ $item['item']['item_code'] }}</td>
                                             <td x-data="{ 
@@ -262,6 +262,7 @@
                                                             class="form-control form-control-sm"
                                                             rows="3"
                                                             placeholder="Enter additional description..."
+                                                            data-po-role="desc"
                                                         ></textarea>
                                                     </div>
                                                     @if(!$isView && (!$purchaseOrder || $purchaseOrder->status !== 'Completed'))
@@ -275,6 +276,7 @@
                                                                 class="form-control form-control-sm" 
                                                                 wire:model.live="stackedItems.{{ $index }}.custom_item_name"
                                                                 placeholder="Enter custom item name"
+                                                                data-po-role="custom_name"
                                                                 value="{{ $stackedItems[$index]['custom_item_name'] ?? '' }}">
                                                             <div class="mt-2 d-flex gap-2">
                                                                 <button type="button" class="btn btn-sm btn-primary" @click="$wire.$refresh(); open=false;">Done</button>
@@ -318,6 +320,7 @@
                                                     <input type="number" 
                                                         wire:model.lazy="stackedItems.{{ $index }}.item_qty" 
                                                         class="form-control rounded @error('stackedItems.'.$index.'.item_qty') is-invalid @enderror" 
+                                                        data-po-role="qty"
                                                         min="0.01" 
                                                         step="0.01" 
                                                         {{ (
@@ -335,6 +338,7 @@
                                                         step="0.01" 
                                                         wire:model.lazy="stackedItems.{{ $index }}.item_unit_price" 
                                                         class="form-control rounded @error('stackedItems.'.$index.'.item_unit_price') is-invalid @enderror" 
+                                                        data-po-role="price"
                                                         min="0" 
                                                         {{ (
                                                             $isView 
@@ -461,6 +465,7 @@
                                                 <input type="number" step="0.01"
                                                     wire:model="stackedItems.{{ $index }}.update_cost"
                                                     class="form-control form-control-sm rounded"
+                                                    data-po-role="upd_cost"
                                                     min="0">
                                                 <div class="text-muted small mt-1">
                                                     Current: {{ number_format((float)($item['item']['cost'] ?? 0), 2) }}
@@ -470,6 +475,7 @@
                                                 <input type="number" step="0.01"
                                                     wire:model="stackedItems.{{ $index }}.update_cash_price"
                                                     class="form-control form-control-sm rounded"
+                                                    data-po-role="upd_cash"
                                                     min="0">
                                                 <div class="text-muted small mt-1">
                                                     Current: {{ number_format((float)($item['item']['cash_price'] ?? 0), 2) }}
@@ -479,6 +485,7 @@
                                                 <input type="number" step="0.01"
                                                     wire:model="stackedItems.{{ $index }}.update_term_price"
                                                     class="form-control form-control-sm rounded"
+                                                    data-po-role="upd_term"
                                                     min="0">
                                                 <div class="text-muted small mt-1">
                                                     Current: {{ number_format((float)($item['item']['term_price'] ?? 0), 2) }}
@@ -488,6 +495,7 @@
                                                 <input type="number" step="0.01"
                                                     wire:model="stackedItems.{{ $index }}.update_cust_price"
                                                     class="form-control form-control-sm rounded"
+                                                    data-po-role="upd_cust"
                                                     min="0">
                                                 <div class="text-muted small mt-1">
                                                     Current: {{ number_format((float)($item['item']['cust_price'] ?? 0), 2) }}
@@ -718,6 +726,29 @@
             font-size: 0.8em;
         }
 
+        /* Like DO: hide number spinners; arrow keys are used to move between cells, not step values */
+        .compact-form-typography .po-line-items-table input[type="number"][data-po-role="qty"]::-webkit-outer-spin-button,
+        .compact-form-typography .po-line-items-table input[type="number"][data-po-role="qty"]::-webkit-inner-spin-button,
+        .compact-form-typography .po-line-items-table input[type="number"][data-po-role="price"]::-webkit-outer-spin-button,
+        .compact-form-typography .po-line-items-table input[type="number"][data-po-role="price"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .compact-form-typography .po-line-items-table input[type="number"][data-po-role="qty"],
+        .compact-form-typography .po-line-items-table input[type="number"][data-po-role="price"] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        .compact-form-typography .selected-items table:not(.po-line-items-table) input[type="number"][data-po-role]::-webkit-outer-spin-button,
+        .compact-form-typography .selected-items table:not(.po-line-items-table) input[type="number"][data-po-role]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .compact-form-typography .selected-items table:not(.po-line-items-table) input[type="number"][data-po-role] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
         /* Wider Item Code, narrower Amount; diff moved from Amount → Item Code (vs default 10% / 10%) */
         .compact-form-typography .po-line-items-table:not(.po-cols-completed) th:nth-child(2),
         .compact-form-typography .po-line-items-table:not(.po-cols-completed) td:nth-child(2) {
@@ -736,14 +767,30 @@
             width: 7%;
         }
 
-        /* Narrow # column; move freed width to Item Name (always cols 1 and 3) */
+        /* # column: wide enough for two-digit line numbers (10–26); nowrap avoids wrap under table-layout:fixed */
         .compact-form-typography .po-line-items-table th:nth-child(1),
         .compact-form-typography .po-line-items-table td:nth-child(1) {
             width: 2%;
+            min-width: 2.75em;
+            white-space: nowrap;
+            text-align: center;
+            word-wrap: normal;
+            overflow-wrap: normal;
         }
         .compact-form-typography .po-line-items-table th:nth-child(3),
         .compact-form-typography .po-line-items-table td:nth-child(3) {
             width: 31%;
+        }
+
+        /* Update Cost/Price table: same # column treatment (no po-line-items-table class) */
+        .compact-form-typography .selected-items .table:not(.po-line-items-table) th:nth-child(1),
+        .compact-form-typography .selected-items .table:not(.po-line-items-table) td:nth-child(1) {
+            width: 5%;
+            min-width: 2.75em;
+            white-space: nowrap;
+            text-align: center;
+            word-wrap: normal;
+            overflow-wrap: normal;
         }
 
         .do-header-fields label {
@@ -853,11 +900,17 @@
     </style>
     <script>
         (function () {
+            var formSelector = 'form[wire\\:submit\\.prevent="addPO"]';
+
+            function getPoForm() {
+                return document.querySelector(formSelector);
+            }
+
             document.addEventListener('keydown', function (e) {
                 if (e.key !== 'F2') return;
-                var form = e.target.closest('form[wire\\:submit\\.prevent="addPO"]');
+                var form = e.target.closest(formSelector);
                 if (!form) {
-                    form = document.querySelector('form[wire\\:submit\\.prevent="addPO"]');
+                    form = getPoForm();
                 }
                 if (!form) return;
                 var target = form.querySelector('#po-search-item-bottom');
@@ -868,6 +921,137 @@
                     target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
             });
+
+            (function () {
+                var registered = false;
+                function registerFocusQtyAfterAdd() {
+                    if (typeof Livewire === 'undefined' || registered) return;
+                    registered = true;
+                    Livewire.on('po-focus-qty-row', function (event) {
+                        var payload = event && event[0];
+                        var rowIndex = payload && payload.rowIndex;
+                        if (rowIndex === null || rowIndex === undefined) return;
+
+                        setTimeout(function () {
+                            var form = getPoForm();
+                            if (!form) return;
+                            var row = form.querySelector('.po-line-items-table tbody tr[data-po-row-index="' + rowIndex + '"]');
+                            if (!row) return;
+                            var qtyInput = row.querySelector('[data-po-role="qty"]:not([disabled])');
+                            if (!qtyInput) return;
+                            qtyInput.focus();
+                            if (typeof qtyInput.select === 'function') {
+                                qtyInput.select();
+                            }
+                            if (typeof qtyInput.scrollIntoView === 'function') {
+                                qtyInput.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            }
+                        }, 0);
+                    });
+                }
+                document.addEventListener('livewire:init', registerFocusQtyAfterAdd);
+                if (document.readyState !== 'loading' && typeof Livewire !== 'undefined') {
+                    registerFocusQtyAfterAdd();
+                }
+            })();
+
+            // Arrow keys inside PO line grid / update-cost grid (same idea as DO form data-do-role).
+            // Left/Right: prev/next field in row; Up/Down: same field in prev/next row.
+            // Number inputs: ArrowUp/Down never step the value (only move or no-op).
+            (function () {
+                function fieldVisible(el) {
+                    if (!el || el.disabled) return false;
+                    if (typeof el.checkVisibility === 'function') {
+                        return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+                    }
+                    return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+                }
+
+                function focusPoField(row, role) {
+                    if (!row) return false;
+                    var target = row.querySelector('[data-po-role="' + role + '"]:not([disabled])');
+                    if (!target || !fieldVisible(target)) return false;
+                    target.focus();
+                    if (typeof target.select === 'function' && target.tagName === 'INPUT' && target.type !== 'date') {
+                        try {
+                            target.select();
+                        } catch (err) { /* ignore */ }
+                    }
+                    return true;
+                }
+
+                document.addEventListener('keydown', function (e) {
+                    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+                    if (e.defaultPrevented) return;
+                    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+                    var source = e.target;
+                    if (!source || !source.matches('[data-po-role]')) return;
+
+                    var form = source.closest(formSelector);
+                    if (!form) return;
+
+                    var currentRow = source.closest('tbody tr');
+                    if (!currentRow) return;
+
+                    var tableEl = currentRow.closest('table');
+                    if (!tableEl) return;
+
+                    var roles;
+                    if (tableEl.classList.contains('po-line-items-table')) {
+                        roles = ['qty', 'price', 'desc', 'custom_name'];
+                    } else {
+                        roles = ['upd_cost', 'upd_cash', 'upd_term', 'upd_cust'];
+                    }
+
+                    var rows = Array.from(tableEl.querySelectorAll('tbody tr'));
+                    var rowIdx = rows.indexOf(currentRow);
+                    if (rowIdx === -1) return;
+
+                    var currentRole = source.getAttribute('data-po-role');
+                    var roleIdx = roles.indexOf(currentRole);
+                    if (roleIdx === -1) return;
+
+                    var moved = false;
+
+                    if (e.key === 'ArrowLeft') {
+                        for (var li = roleIdx - 1; li >= 0; li--) {
+                            if (focusPoField(currentRow, roles[li])) {
+                                moved = true;
+                                break;
+                            }
+                        }
+                    } else if (e.key === 'ArrowRight') {
+                        for (var ri = roleIdx + 1; ri < roles.length; ri++) {
+                            if (focusPoField(currentRow, roles[ri])) {
+                                moved = true;
+                                break;
+                            }
+                        }
+                    } else if (e.key === 'ArrowUp') {
+                        for (var ur = rowIdx - 1; ur >= 0; ur--) {
+                            if (focusPoField(rows[ur], currentRole)) {
+                                moved = true;
+                                break;
+                            }
+                        }
+                    } else if (e.key === 'ArrowDown') {
+                        for (var dr = rowIdx + 1; dr < rows.length; dr++) {
+                            if (focusPoField(rows[dr], currentRole)) {
+                                moved = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    var isNumberPoField = source.tagName === 'INPUT' && source.type === 'number' && source.hasAttribute('data-po-role');
+                    if (moved) {
+                        e.preventDefault();
+                    } else if (isNumberPoField && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                        e.preventDefault();
+                    }
+                });
+            })();
         })();
     </script>
 </div>

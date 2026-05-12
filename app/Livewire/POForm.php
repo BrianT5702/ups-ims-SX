@@ -380,19 +380,21 @@ class POForm extends Component
 
             if ($item) {
                 $itemExists = false;
+                $focusRowIndex = null;
 
                 foreach ($this->stackedItems as $key => $stackedItem) {
                     if ($stackedItem['item']['id'] === $item->id) {
                         $this->stackedItems[$key]['item_qty'] += 1;
                         $itemExists = true;
+                        $focusRowIndex = (int) $key;
                         break;
                     }
                 }
 
                 if (!$itemExists) {
-                    // Check if maximum items limit (25) is reached only for new items
-                    if (count($this->stackedItems) >= 25) {
-                        toastr()->error('Maximum of 25 items allowed per purchase order. Please remove some items before adding new ones.');
+                    // Check if maximum items limit (26) is reached only for new items
+                    if (count($this->stackedItems) >= 26) {
+                        toastr()->error('Maximum of 26 items allowed per purchase order. Please remove some items before adding new ones.');
                         return;
                     }
 
@@ -415,11 +417,16 @@ class POForm extends Component
                         'total_price_line_item' => 0.00,
                         'custom_item_name' => $item->item_name,
                     ];
+                    $focusRowIndex = count($this->stackedItems) - 1;
                 }
 
                 $this->itemSearchTerm = '';
                 $this->itemSearchResults = [];
                 $this->calculateTotalPrice();
+
+                if ($focusRowIndex !== null) {
+                    $this->dispatch('po-focus-qty-row', ['rowIndex' => $focusRowIndex]);
+                }
             }
         }
     }

@@ -720,7 +720,7 @@
                 margin-right: auto !important;
                 margin-top: 0 !important;
                 margin-bottom: 0 !important;
-                padding: 12px !important;
+                padding: 8px 10px !important;
                 box-sizing: border-box !important;
                 min-height: calc(11in - 1cm) !important;
                 height: auto !important;
@@ -811,28 +811,29 @@
                 margin-bottom: 0px !important;
             }
 
-            /* Print-only: roomier rows than on-screen preview */
-            .items-table th {
-                font-size: 0.8em !important;
-                padding: 7px 8px 5px 8px !important;
-                line-height: 1.4 !important;
+            /*
+             * Print: keep rows slightly tighter than on-screen paginated preview so the same
+             * row count (e.g. 26) fits one physical Letter sheet — otherwise the browser splits
+             * the table and row 26 drops to sheet 2 even though the on-screen .print-page looks fine.
+             */
+            .pages-container .items-table th {
+                font-size: 0.9em !important;
+                padding: 4px 6px 3px 6px !important;
+                line-height: 1.3 !important;
                 white-space: nowrap !important;
                 overflow: visible !important;
                 text-overflow: unset !important;
             }
 
-            .items-table td {
-                padding: 4px 4px !important;
-                font-size: 1.0em !important;
-                line-height: 1.2 !important;
+            .pages-container .items-table td {
+                padding: 2px 3px !important;
+                font-size: 1.1em !important;
+                line-height: 1.25 !important;
                 vertical-align: top !important;
             }
 
             .pages-container .totals-section {
                 padding-top: -2px !important;
-            }
-            .pages-container .total-row {
-                padding: 2px 0 !important;
             }
 
             .print-reminder {
@@ -861,7 +862,7 @@
                 margin-right: auto !important;
                 margin-top: 0 !important;
                 margin-bottom: 0 !important;
-                padding: 12px !important;
+                padding: 8px 10px !important;
                 position: relative !important;
             }
             
@@ -881,12 +882,12 @@
                 flex-direction: column !important;
                 flex: 1 1 auto !important;
                 min-height: 0 !important;
-                gap: 6px !important;
+                gap: 4px !important;
             }
             
             .pages-container .print-page-extras-above-signature {
                 margin-top: auto !important;
-                gap: 2px !important;
+                gap: 0 !important;
             }
 
             .pages-container .print-page-extras-above-signature [data-page-remark] {
@@ -912,8 +913,17 @@
             }
 
             .pages-container .print-page-footer .signature-line {
-                margin-top: 36px !important;
+                margin-top: 28px !important;
                 margin-bottom: 2px !important;
+            }
+
+            .pages-container .supplier-info {
+                margin-bottom: 6px !important;
+            }
+
+            .pages-container .total-row {
+                padding: 1px 0 !important;
+                font-size: 1em !important;
             }
         }
         
@@ -1160,8 +1170,8 @@
     </script>
     <script>
         (function () {
-            /** Max tbody <tr> rows per page (main line + each description line each count as one). */
-            var MAX_ROWS_PER_PAGE = 25;
+            /** Max tbody <tr> rows per page (main line + each description line each count as one). Keep in sync with PO line-item cap in POForm. */
+            var MAX_ROWS_PER_PAGE = 26;
 
             var scheduled = false;
             var building = false;
