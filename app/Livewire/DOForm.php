@@ -65,6 +65,7 @@ class DOForm extends Component
 
     /** Add-item picker modal (F2): full scrollable list + search */
     public bool $showItemPickerModal = false;
+    public bool $deferItemPickerVisibility = false;
 
     public ?int $itemPickerRowIndex = null;
 
@@ -373,8 +374,27 @@ class DOForm extends Component
         $this->itemPickerSearchTerm = '';
         $this->itemPickerResults = [];
         $this->itemPickerLoading = false;
+        $this->deferItemPickerVisibility = false;
         $this->showItemPickerModal = true;
         $this->js('setTimeout(() => document.getElementById("do-item-picker-choice-code")?.focus(), 10)');
+    }
+
+    /**
+     * Prepare server picker in background while client mode modal is visible.
+     */
+    public function preloadItemPickerModal(int $rowIndex): void
+    {
+        if ($this->isView || $this->isPosted) {
+            return;
+        }
+
+        $this->itemPickerRowIndex = $rowIndex;
+        $this->itemPickerSearchMode = '';
+        $this->itemPickerSearchTerm = '';
+        $this->itemPickerResults = [];
+        $this->itemPickerLoading = false;
+        $this->deferItemPickerVisibility = true;
+        $this->showItemPickerModal = true;
     }
 
     /**
@@ -393,12 +413,8 @@ class DOForm extends Component
         $this->itemPickerSearchMode = $mode;
         $this->itemPickerSearchTerm = '';
         $this->itemPickerResults = [];
-        $this->itemPickerLoading = true;
-        try {
-            $this->refreshItemPickerResults();
-        } finally {
-            $this->itemPickerLoading = false;
-        }
+        $this->itemPickerLoading = false;
+        $this->deferItemPickerVisibility = false;
         $this->showItemPickerModal = true;
         $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
     }
@@ -411,6 +427,7 @@ class DOForm extends Component
         $this->itemPickerSearchTerm = '';
         $this->itemPickerResults = [];
         $this->itemPickerLoading = false;
+        $this->deferItemPickerVisibility = false;
         $this->js('setTimeout(() => document.getElementById("do-item-picker-choice-code")?.focus(), 10)');
     }
 
@@ -427,7 +444,7 @@ class DOForm extends Component
             $this->itemPickerSearchMode = '';
         }
         // Intentionally no refresh here: mode is set from chooseItemPickerSearchMode / open/close only
-        // (not wire:model). Refreshing here duplicated chooseItemPickerSearchMode + wire:init.
+        // (not wire:model).
     }
 
     public function chooseItemPickerSearchMode(string $mode): void
@@ -439,12 +456,9 @@ class DOForm extends Component
         $this->itemPickerSearchMode = $mode;
         $this->itemPickerSearchTerm = '';
         $this->itemPickerResults = [];
-        $this->itemPickerLoading = true;
-        try {
-            $this->refreshItemPickerResults();
-        } finally {
-            $this->itemPickerLoading = false;
-        }
+        $this->itemPickerLoading = false;
+        $this->deferItemPickerVisibility = false;
+        $this->showItemPickerModal = true;
         $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
     }
 
@@ -458,6 +472,7 @@ class DOForm extends Component
         $this->itemPickerSearchTerm = '';
         $this->itemPickerResults = [];
         $this->itemPickerLoading = false;
+        $this->deferItemPickerVisibility = false;
     }
 
     public function selectItemFromPicker(int $itemId): void
@@ -482,15 +497,8 @@ class DOForm extends Component
         $query = Item::query()->select(['id', 'item_code', 'item_name', 'qty', 'um', 'cash_price']);
 
         if ($term === '') {
-            if ($this->itemPickerSearchMode === 'code') {
-                $this->itemPickerResults = $query->orderBy('item_code')->orderBy('id')
-                    ->limit(500)
-                    ->get();
-            } else {
-                $this->itemPickerResults = $this->applyItemPickerDescriptionOrder($query)
-                    ->limit(500)
-                    ->get();
-            }
+            // Do not preload huge lists on mode select; wait for user input for faster modal open.
+            $this->itemPickerResults = [];
         } else {
             $isFractionSearch = preg_match('/\d+\s*\/\s*\d+/', $term) === 1;
             $isNameSearch = $this->itemPickerSearchMode !== 'code';
@@ -507,7 +515,7 @@ class DOForm extends Component
                 );
             }
 
-            $fetchLimit = $isFractionSearch ? 600 : 200;
+            $fetchLimit = $isFractionSearch ? 300 : 120;
             if ($isNameSearch) {
                 $displayExpr = $this->itemPickerDisplayNameSqlExpression();
                 $lowerTerm = mb_strtolower($term);
@@ -532,7 +540,7 @@ class DOForm extends Component
                     ->filter(fn ($item) => $this->itemDescriptionFractionSearchKeepsRow($item->item_name ?? '', $term))
                     ->sortBy(fn ($item) => mb_strtolower($this->itemPickerDescriptionSortKey($item->item_name ?? '')))
                     ->values()
-                    ->take(200);
+                    ->take(120);
             }
 
             $this->itemPickerResults = $results;
