@@ -1,50 +1,44 @@
-<div>
-    <div class="container my-3" style="padding-left: 0.25rem; padding-right: 0.25rem;">
+<div class="list-page-unified-density">
+    <div class="container my-2" style="padding-left: 0.25rem; padding-right: 0.25rem;">
         <div class="row">
             <div class="col-md-11 m-auto">
                 <div class="card shadow-sm">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold fs-5 mb-0">
+                    <div class="card-header transaction-log-page-header d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <div class="min-w-0 flex-grow-1">
                             @if($filteredCustomer)
-                                Delivery Order for {{ $filteredCustomer->cust_name }} - Total Order(s): {{$delivery_order_count}}
+                                <div class="text-muted fw-semibold small text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.08em;">Delivery orders</div>
+                                <h5 class="fw-bold mb-0 list-page-unified-title mt-1">{{ $filteredCustomer->cust_name }}</h5>
+                                <p class="small text-muted mb-0 mt-1">Total order(s): {{ $delivery_order_count }}</p>
                             @else
-                                Manage Delivery Order
+                                <h5 class="fw-bold mb-0 list-page-unified-title">Delivery Order List</h5>
                             @endif
-                        </h5>
-                        @if($filteredCustomer)
-                        <div class="col-4 text-end">
-                        <a href="javascript:history.back()" class="btn btn-primary btn-sm">Back</a>
                         </div>
-                        @endif
+                        <div class="d-flex align-items-start gap-2 flex-shrink-0">
+                            @if($filteredCustomer)
+                                <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">Back</a>
+                            @else
+                                <a wire:navigate href="{{ route('delivery-orders.add') }}" class="btn btn-primary btn-sm">Add DO</a>
+                            @endif
+                        </div>
                     </div>
-                    <div class="card-body" style="padding-left: 0.5rem; padding-right: 0.5rem;">
-                        <div class="row d-flex justify-content-end align-items-end">
-                            @if(!$filteredCustomer)
-                            <div class="d-flex justify-content-end">
-                                <a wire:navigate href="{{route('delivery-orders.add')}}" class="btn btn-primary">Add DO</a>
-                            </div>
-                            @endif
-                        </div>
-                    <div class="row align-items-end mb-3">
+                    <div class="card-body px-2 pb-3 transaction-log-card-body">
+                        <div class="row mb-1 g-2 align-items-end list-page-unified-filters">
                             <div class="col-md-4">
-                                <input type="text" wire:model.live.debounce.100ms="doSearchTerm" class="form-control form-control-sm rounded" placeholder="Search DO...">
+                                <label class="form-label">Search</label>
+                                <input type="text" wire:model.live.debounce.100ms="doSearchTerm" class="form-control form-control-sm rounded" placeholder="Search DO number or customer...">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">From Date</label>
-                                <input type="date" wire:model.live="startDate" class="form-control rounded" placeholder="dd/mm/yyyy">
+                                <input type="date" wire:model.live="startDate" class="form-control form-control-sm rounded">
                             </div>
-
-          
                             <div class="col-md-3">
                                 <label class="form-label">To Date</label>
-                                <input type="date" wire:model.live="endDate" class="form-control rounded" placeholder="dd/mm/yyyy">
+                                <input type="date" wire:model.live="endDate" class="form-control form-control-sm rounded">
                             </div>
-
-
-                            <div class="col-md-1 d-flex align-items-end">
-                                <button wire:click="clearFilters" class="btn btn-outline-secondary">
-                                    Reset
-                                </button>
+                        </div>
+                        <div class="row transaction-log-reset-toolbar mb-1">
+                            <div class="col-12 d-flex justify-content-end py-0">
+                                <button wire:click="clearFilters" type="button" class="btn btn-outline-secondary btn-sm transaction-log-reset-btn">Reset</button>
                             </div>
                         </div>
 
@@ -67,34 +61,13 @@
                                 /* Constrain Bootstrap table-responsive within wrapper */
                                 .do-list-wrapper .table-responsive {
                                     max-width: 100%;
-                                    overflow-x: auto;
-                                    overflow-y: visible;
                                 }
-                                
-                                /* Scrollable table container - separate from pagination */
+
+                                /* Scroll region: overflow + sticky header come from .list-sticky-table-scroll (partial) */
                                 .do-list-scrollable {
-                                    overflow-x: auto;
-                                    overflow-y: visible;
                                     width: 100%;
                                     max-width: 100%;
                                     margin-bottom: 0;
-                                    -webkit-overflow-scrolling: touch;
-                                    scrollbar-width: thin;
-                                    scrollbar-color: #cbd5e0 #f7fafc;
-                                }
-                                .do-list-scrollable::-webkit-scrollbar {
-                                    height: 10px;
-                                }
-                                .do-list-scrollable::-webkit-scrollbar-track {
-                                    background: #f7fafc;
-                                    border-radius: 5px;
-                                }
-                                .do-list-scrollable::-webkit-scrollbar-thumb {
-                                    background: #cbd5e0;
-                                    border-radius: 5px;
-                                }
-                                .do-list-scrollable::-webkit-scrollbar-thumb:hover {
-                                    background: #a0aec0;
                                 }
                                 
                                 /* Table styling - auto layout to prevent overlapping */
@@ -107,6 +80,8 @@
                                     border-spacing: 0;
                                     margin-bottom: 0;
                                     border: 1px solid #212529; /* Outer border - darker for clarity */
+                                    --tx-log-cell-px: 0.38rem;
+                                    --tx-log-cell-py: 0.22rem;
                                 }
                                 
                                 /* All cells - prevent wrapping and overlapping */
@@ -115,10 +90,14 @@
                                     white-space: nowrap;
                                     overflow: visible;
                                     text-overflow: clip;
-                                    padding: 3px 6px; /* Slightly smaller padding for tighter rows */
+                                    padding: var(--tx-log-cell-py) var(--tx-log-cell-px);
                                     vertical-align: middle;
                                     border: 1px solid #dee2e6; /* Clearer border lines */
-                                    font-size: 0.9rem; /* Smaller font size for DO list */
+                                }
+
+                                .table.do-list tbody td {
+                                    font-size: 0.78rem;
+                                    line-height: 1.28;
                                 }
                                 
                                 /* Table borders - clearer lines */
@@ -129,6 +108,9 @@
                                     border-right: 1px solid #dee2e6;
                                     background-color: #f8f9fa;
                                     font-weight: 600;
+                                    font-size: 0.82rem;
+                                    line-height: 1.3;
+                                    letter-spacing: 0.01em;
                                 }
                                 
                                 .table.do-list thead th:first-child {
@@ -309,21 +291,10 @@
                                 .do-row-cancelled .do-status {
                                     color: #b02a37 !important;
                                 }
-                                
-                                /* Fixed pagination container - separate from scrollable table */
-                                .do-list-pagination {
-                                    position: relative;
-                                    width: 100%;
-                                    margin-top: 0;
-                                    padding-top: 15px;
-                                    border-top: 1px solid #dee2e6;
-                                    background-color: #fff;
-                                    z-index: 10;
-                                }
                             </style>
                             
                             <!-- Scrollable table area -->
-                            <div class="table-responsive do-list-scrollable" style="max-width: 100%; overflow-x: auto; margin-top: 0.5rem;">
+                            <div class="table-responsive do-list-scrollable list-sticky-table-scroll">
                                 <table class="table table-hover do-list">
                                     <thead>
                                         <tr>
@@ -405,4 +376,5 @@
             </div>
         </div>
     </div>
+    @include('partials.unified-list-page-styles')
 </div>

@@ -57,19 +57,29 @@ class POList extends Component
     }
 
     public function mount($supplierId = null)
-    { 
-        $this->filterSupplierId = $supplierId;   
+    {
+        $this->filterSupplierId = $supplierId;
+        $this->endDate = $this->defaultEndDateForGmtPlus8();
+    }
+
+    /**
+     * "To date" filter default: today in GMT+8 (business locale).
+     */
+    private function defaultEndDateForGmtPlus8(): string
+    {
+        return Carbon::now('Asia/Singapore')->format('Y-m-d');
     }
 
     public function clearFilters()
-    { 
+    {
         $this->reset([
-            'poSearchTerm', 
+            'poSearchTerm',
             'filterSupplierId',
             'statusFilter',
-            'startDate', 
-            'endDate'
+            'startDate',
+            'endDate',
         ]);
+        $this->endDate = $this->defaultEndDateForGmtPlus8();
     }
 
     public function toggleDateSort()

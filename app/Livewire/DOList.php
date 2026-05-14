@@ -50,18 +50,28 @@ class DOList extends Component
     }
 
     public function mount($customerId = null)
-    { 
-        $this->filterCustomerId = $customerId;   
+    {
+        $this->filterCustomerId = $customerId;
+        $this->endDate = $this->defaultEndDateForGmtPlus8();
+    }
+
+    /**
+     * "To date" filter default: today in GMT+8 (business locale).
+     */
+    private function defaultEndDateForGmtPlus8(): string
+    {
+        return Carbon::now('Asia/Singapore')->format('Y-m-d');
     }
 
     public function clearFilters()
-    { 
+    {
         $this->reset([
-            'doSearchTerm', 
+            'doSearchTerm',
             'filterCustomerId',
-            'startDate', 
-            'endDate'
+            'startDate',
+            'endDate',
         ]);
+        $this->endDate = $this->defaultEndDateForGmtPlus8();
     }
 
     public function render()

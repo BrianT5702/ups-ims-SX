@@ -114,15 +114,18 @@ class QuotationForm extends Component
 
     public function searchCustomers()
     {
-        if (!empty($this->customerSearchTerm)) {
-            $this->customerSearchResults = Customer::where('cust_name', 'like', '%' . $this->customerSearchTerm . '%')
-                ->orWhere('account', 'like', '%' . $this->customerSearchTerm . '%')
-                ->orderBy('cust_name','asc')
-                ->limit(10)
-                ->get();
-        } else {
+        $term = trim((string) $this->customerSearchTerm);
+        if ($term === '') {
             $this->customerSearchResults = [];
+
+            return;
         }
+
+        $this->customerSearchResults = Customer::query()
+            ->select(['id', 'account', 'cust_name'])
+            ->autocompleteSearch($term)
+            ->limit(25)
+            ->get();
     }
 
     public function selectCustomer($custId)

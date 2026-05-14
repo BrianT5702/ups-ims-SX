@@ -38,14 +38,28 @@ class QuotationList extends Component
         }
     }
 
+    public function mount(): void
+    {
+        $this->endDate = $this->defaultEndDateForGmtPlus8();
+    }
+
+    /**
+     * "To date" filter default: today in GMT+8 (business locale).
+     */
+    private function defaultEndDateForGmtPlus8(): string
+    {
+        return Carbon::now('Asia/Singapore')->format('Y-m-d');
+    }
+
     public function clearFilters()
-    { 
+    {
         $this->reset([
-            'quotationSearchTerm', 
+            'quotationSearchTerm',
             'filterCustomerId',
-            'startDate', 
-            'endDate'
+            'startDate',
+            'endDate',
         ]);
+        $this->endDate = $this->defaultEndDateForGmtPlus8();
     }
 
     public function render()

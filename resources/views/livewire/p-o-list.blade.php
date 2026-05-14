@@ -1,66 +1,57 @@
-<div>
-    <div class="container my-3" style="padding-left: 0.25rem; padding-right: 0.25rem;">
+<div class="list-page-unified-density">
+    <div class="container my-2" style="padding-left: 0.25rem; padding-right: 0.25rem;">
         <div class="row">
             <div class="col-md-11 m-auto">
                 <div class="card shadow-sm">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold fs-5 mb-0">
+                    <div class="card-header transaction-log-page-header d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <div class="min-w-0 flex-grow-1">
                             @if($filteredSupplier)
-                                Purchase Order for {{ $filteredSupplier->sup_name }} - Total Order(s): {{$purchase_order_count}}
+                                <div class="text-muted fw-semibold small text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.08em;">Purchase orders</div>
+                                <h5 class="fw-bold mb-0 list-page-unified-title mt-1">{{ $filteredSupplier->sup_name }}</h5>
+                                <p class="small text-muted mb-0 mt-1">Total order(s): {{ $purchase_order_count }}</p>
                             @else
-                                Manage Purchase Order
-                            @endif
-                        </h5>
-                        @if($filteredSupplier)
-                            <div class="col-4 text-end">
-                            <a href="javascript:history.back()" class="btn btn-primary btn-sm">Back</a>
-                            </div>
-                        @endif
-                    </div>
-
-                    <div class="card-body" style="padding-left: 0.5rem; padding-right: 0.5rem;">
-                        <div class="row d-flex justify-content-end align-items-end">
-                             @if(!$filteredSupplier)
-                                <div class="col-md-2 text-end">
-                                    <a wire:navigate href="{{route('purchase-orders.add')}}" class="btn btn-primary">Add PO</a>
-                                </div>
+                                <h5 class="fw-bold mb-0 list-page-unified-title">Purchase Order List</h5>
                             @endif
                         </div>
-                        <div class="row align-items-end mb-3">
+                        <div class="d-flex align-items-start gap-2 flex-shrink-0">
+                            @if($filteredSupplier)
+                                <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">Back</a>
+                            @else
+                                <a wire:navigate href="{{ route('purchase-orders.add') }}" class="btn btn-primary btn-sm">Add PO</a>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="card-body px-2 pb-3 transaction-log-card-body">
+                        <div class="row mb-1 g-2 align-items-end list-page-unified-filters">
                             <div class="col-md-3">
-                                <input type="text" wire:model.live.debounce.100ms="poSearchTerm" class="form-control form-control-sm rounded" placeholder="Search PO...">
+                                <label class="form-label">Search</label>
+                                <input type="text" wire:model.live.debounce.100ms="poSearchTerm" class="form-control form-control-sm rounded" placeholder="Search PO number or supplier...">
                             </div>
 
                             <div class="col-md-2">
                                 <label class="form-label">Status</label>
-                                    <select 
-                                        wire:model.live="statusFilter" 
-                                        class="form-control rounded"
-                                    >
-                                        <option value="">All Status</option>
-                                        @foreach($statusOptions as $type)
-                                            <option value="{{ $type }}">{{ $type }}</option>
-                                        @endforeach
+                                <select wire:model.live="statusFilter" class="form-select form-select-sm rounded">
+                                    <option value="">All Status</option>
+                                    @foreach($statusOptions as $type)
+                                        <option value="{{ $type }}">{{ $type }}</option>
+                                    @endforeach
                                 </select>
                             </div>
 
-                     
                             <div class="col-md-3">
                                 <label class="form-label">From Date</label>
-                                <input type="date" wire:model.live="startDate" class="form-control rounded" placeholder="dd/mm/yyyy">
+                                <input type="date" wire:model.live="startDate" class="form-control form-control-sm rounded">
                             </div>
 
-          
                             <div class="col-md-3">
                                 <label class="form-label">To Date</label>
-                                <input type="date" wire:model.live="endDate" class="form-control rounded" placeholder="dd/mm/yyyy">
+                                <input type="date" wire:model.live="endDate" class="form-control form-control-sm rounded">
                             </div>
-
-
-                            <div class="col-md-1 d-flex align-items-end">
-                                <button wire:click="clearFilters" class="btn btn-outline-secondary">
-                                    Reset
-                                </button>
+                        </div>
+                        <div class="row transaction-log-reset-toolbar mb-1">
+                            <div class="col-12 d-flex justify-content-end py-0">
+                                <button wire:click="clearFilters" type="button" class="btn btn-outline-secondary btn-sm transaction-log-reset-btn">Reset</button>
                             </div>
                         </div>
 
@@ -78,34 +69,12 @@
                                 /* Constrain Bootstrap table-responsive within wrapper */
                                 .po-list-wrapper .table-responsive {
                                     max-width: 100%;
-                                    overflow-x: auto;
-                                    overflow-y: visible;
                                 }
-                                
-                                /* Scrollable table container - separate from pagination */
+
                                 .po-list-scrollable {
-                                    overflow-x: auto;
-                                    overflow-y: visible;
                                     width: 100%;
                                     max-width: 100%;
                                     margin-bottom: 0;
-                                    -webkit-overflow-scrolling: touch;
-                                    scrollbar-width: thin;
-                                    scrollbar-color: #cbd5e0 #f7fafc;
-                                }
-                                .po-list-scrollable::-webkit-scrollbar {
-                                    height: 10px;
-                                }
-                                .po-list-scrollable::-webkit-scrollbar-track {
-                                    background: #f7fafc;
-                                    border-radius: 5px;
-                                }
-                                .po-list-scrollable::-webkit-scrollbar-thumb {
-                                    background: #cbd5e0;
-                                    border-radius: 5px;
-                                }
-                                .po-list-scrollable::-webkit-scrollbar-thumb:hover {
-                                    background: #a0aec0;
                                 }
                                 
                                 /* Table styling - auto layout to prevent overlapping */
@@ -118,6 +87,8 @@
                                     border-spacing: 0;
                                     margin-bottom: 0;
                                     border: 1px solid #212529; /* Outer border - darker for clarity */
+                                    --tx-log-cell-px: 0.38rem;
+                                    --tx-log-cell-py: 0.22rem;
                                 }
                                 
                                 /* All cells - prevent wrapping and overlapping */
@@ -126,10 +97,14 @@
                                     white-space: nowrap;
                                     overflow: visible;
                                     text-overflow: clip;
-                                    padding: 3px 6px; /* Slightly smaller padding for tighter rows */
+                                    padding: var(--tx-log-cell-py) var(--tx-log-cell-px);
                                     vertical-align: middle;
                                     border: 1px solid #dee2e6; /* Clearer border lines */
-                                    font-size: 0.9rem; /* Smaller font size for PO list */
+                                }
+
+                                .table.po-list tbody td {
+                                    font-size: 0.78rem;
+                                    line-height: 1.28;
                                 }
                                 
                                 /* Table borders - clearer lines */
@@ -140,6 +115,9 @@
                                     border-right: 1px solid #dee2e6;
                                     background-color: #f8f9fa;
                                     font-weight: 600;
+                                    font-size: 0.82rem;
+                                    line-height: 1.3;
+                                    letter-spacing: 0.01em;
                                 }
                                 
                                 .table.po-list thead th:first-child {
@@ -242,21 +220,10 @@
                                 .po-print-flag {
                                     font-weight: 500;
                                 }
-                                
-                                /* Fixed pagination container - separate from scrollable table */
-                                .po-list-pagination {
-                                    position: relative;
-                                    width: 100%;
-                                    margin-top: 0;
-                                    padding-top: 15px;
-                                    border-top: 1px solid #dee2e6;
-                                    background-color: #fff;
-                                    z-index: 10;
-                                }
                             </style>
                             
                             <!-- Scrollable table area -->
-                            <div class="table-responsive po-list-scrollable" style="margin-top: 0.5rem;">
+                            <div class="table-responsive po-list-scrollable list-sticky-table-scroll">
                                 <table class="table table-hover po-list">
                                     <thead>
                                         <tr>
@@ -327,4 +294,5 @@
             </div>
         </div>
     </div>
+    @include('partials.unified-list-page-styles')
 </div>

@@ -1,45 +1,60 @@
-<div>
-    <div class="container my-3">
+<div class="list-page-unified-density">
+    <div class="container my-2" style="padding-left: 0.25rem; padding-right: 0.25rem;">
         <div class="row">
-            <div class="col-md-12 m-auto">
+            <div class="col-md-11 m-auto">
                 <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold fs-5 mb-0">
-                        @if($filteredFamily)
-                            {{ $filteredFamily->family_name }} - Total Item(s): {{ $familyItemCount }}
-                        @elseif($filteredLocation)
-                        {{ $filteredLocation->warehouse->warehouse_name }} > {{ $filteredLocation->location_name }} - Total Item(s): {{ $locationItemCount }}
-                        @else
-                            Manage Inventory
-                        @endif
-                    </h5>
-                    @if($filteredFamily || $filteredLocation)
-                    <a href="{{ url()->previous() }}" class="btn btn-primary btn-sm">Back</a>
-                    @endif
-                </div>
+                    <div class="card-header transaction-log-page-header d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <div class="min-w-0 flex-grow-1">
+                            @if($filteredFamily)
+                                <div class="text-muted fw-semibold small text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.08em;">Family</div>
+                                <h5 class="fw-bold mb-0 list-page-unified-title mt-1">{{ $filteredFamily->family_name }}</h5>
+                                <p class="small text-muted mb-0 mt-1">Total item(s): {{ $familyItemCount }}</p>
+                            @elseif($filteredLocation)
+                                <div class="text-muted fw-semibold small text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.08em;">Location</div>
+                                <h5 class="fw-bold mb-0 list-page-unified-title mt-1">{{ $filteredLocation->warehouse->warehouse_name }} > {{ $filteredLocation->location_name }}</h5>
+                                <p class="small text-muted mb-0 mt-1">Total item(s): {{ $locationItemCount }}</p>
+                            @else
+                                <h5 class="fw-bold mb-0 list-page-unified-title">Inventory List</h5>
+                            @endif
+                        </div>
+                        <div class="d-flex align-items-start gap-2 flex-shrink-0">
+                            @if($filteredFamily || $filteredLocation)
+                                <a href="{{ url()->previous() }}" class="btn btn-outline-secondary btn-sm">Back</a>
+                            @endif
+                            <a wire:navigate href="{{ route('items.add') }}" class="btn btn-primary btn-sm">Add Item</a>
+                        </div>
+                    </div>
 
-                    <div class="card-body">
-                        <!-- Search and Add Item -->
-                        <div class="row align-items-end mb-3 my-3 px-3">
+                    <div class="card-body px-2 pb-3 transaction-log-card-body inventory-list-filters-tight">
+                        <div class="row mb-0 g-1 align-items-end list-page-unified-filters">
                             <div class="col-md-4">
-                                <div class="input-group">
-                                    <input type="text" wire:model.live.debounce.300ms="itemSearchTerm" class="form-control form-control-sm rounded" placeholder="Search item...">
-                                </div>
+                                <label class="form-label">Search</label>
+                                <input type="text" wire:model.live.debounce.300ms="itemSearchTerm" class="form-control form-control-sm rounded" placeholder="{{ $itemSearchMode === 'name' ? 'Search item name...' : 'Search item code...' }}">
                             </div>
-                            <div class="col-md-8">
-                                <div class="d-flex justify-content-end">
-                                    <a wire:navigate href="{{ route('items.add') }}" class="btn btn-primary">Add Item</a>
+                            <div class="col-md-4">
+                                <label class="form-label d-block">Search in</label>
+                                <div class="btn-group w-100" role="group" aria-label="Search in">
+                                    <button type="button"
+                                        wire:click="setItemSearchMode('code')"
+                                        class="btn btn-sm {{ $itemSearchMode === 'code' ? 'btn-primary' : 'btn-outline-secondary' }}">
+                                        By code
+                                    </button>
+                                    <button type="button"
+                                        wire:click="setItemSearchMode('name')"
+                                        class="btn btn-sm {{ $itemSearchMode === 'name' ? 'btn-primary' : 'btn-outline-secondary' }}">
+                                        By name
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Filter Section -->
-                        <div class="mb-3 px-3">
-                            <div class="row align-items-end">
-                                <div class="col-md-3 mb-3">
+                        <div class="mb-0 inventory-filter-block">
+                            <div class="row g-1 align-items-end list-page-unified-filters">
+                                <div class="col-md-3">
                                     <label for="categoryFilter" class="form-label">Categories</label>
                                     <div class="dropdown">
-                                        <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <button class="btn btn-secondary btn-sm dropdown-toggle w-100" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                             {{ count($selectedCategories) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedCategoryNames()) : 'Select Categories' }}
                                         </button>
                                         <ul class="dropdown-menu" aria-labelledby="categoryDropdown" style="max-height: 240px; overflow-y: auto;">
@@ -57,10 +72,10 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-2">
                                     <label for="familyFilter" class="form-label">Families</label>
                                     <div class="dropdown">
-                                        <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="familyDropdown" data-bs-toggle="dropdown" aria-expanded="false" @if($filteredFamily) disabled @endif>
+                                        <button class="btn btn-secondary btn-sm dropdown-toggle w-100" type="button" id="familyDropdown" data-bs-toggle="dropdown" aria-expanded="false" @if($filteredFamily) disabled @endif>
                                             {{ count($selectedFamilies) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedFamilyNames()) : 'Select Families' }}
                                         </button>
                                         <ul class="dropdown-menu" aria-labelledby="familyDropdown" style="max-height: 240px; overflow-y: auto;">
@@ -78,10 +93,10 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-2">
                                     <label for="groupFilter" class="form-label">Groups</label>
                                     <div class="dropdown">
-                                        <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="groupDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <button class="btn btn-secondary btn-sm dropdown-toggle w-100" type="button" id="groupDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                             {{ count($selectedGroups) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedGroupNames()) : 'Select Groups' }}
                                         </button>
                                         <ul class="dropdown-menu" aria-labelledby="groupDropdown" style="max-height: 240px; overflow-y: auto;">
@@ -99,10 +114,10 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-2">
                                     <label for="supplierFilter" class="form-label">Suppliers</label>
                                     <div class="dropdown">
-                                        <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="supplierDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <button class="btn btn-secondary btn-sm dropdown-toggle w-100" type="button" id="supplierDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                             {{ count($selectedSuppliers) > 0 ? 'Selected: ' . implode(', ', $this->getSelectedSupplierNames()) : 'Select Suppliers' }}
                                         </button>
                                         <ul class="dropdown-menu" aria-labelledby="supplierDropdown" style="max-height: 240px; overflow-y: auto;">
@@ -120,7 +135,7 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-2">
                                     <label for="quantityFilter" class="form-label">Quantity</label>
                                     <select id="quantityFilter" class="form-select form-select-sm" wire:model.live="quantityFilter">
                                         <option value="">All</option>
@@ -130,30 +145,31 @@
                                     </select>
                                 </div>
 
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-2">
                                     <label for="deadStockFilter" class="form-label">Filters</label>
-                                    <div>
-                                        <button type="button" class="btn btn-outline-danger w-100" wire:click="toggleDeadStockFilter">
+                                    <div class="d-flex gap-2 align-items-stretch justify-content-end flex-nowrap w-100">
+                                        <button type="button" class="btn btn-outline-danger btn-sm flex-fill text-truncate" wire:click="toggleDeadStockFilter" title="{{ $filterDeadStock ? 'Show All Items' : 'Show Dead Stock' }}">
                                             {{ $filterDeadStock ? 'Show All Items' : 'Show Dead Stock' }}
                                         </button>
+                                        <button wire:click="resetFilters" type="button" class="btn btn-outline-secondary btn-sm transaction-log-reset-btn flex-shrink-0">Reset</button>
                                     </div>
-                                </div>
-
-
-                                <div class="col-md-1 d-flex justify-content-end mb-3">
-                                    <button wire:click="resetFilters" class="btn btn-sm btn-outline-secondary">Reset</button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Item Table -->
-                        <div class="table-responsive mt-3 inventory-table-wrap">
-                            <table class="table table-hover table-bordered inventory-list">
+                        <div class="inventory-table-wrap mt-1">
+                            <div class="table-responsive list-sticky-table-scroll">
+                                <table class="table table-hover inventory-list">
                                 <thead>
                                     <tr>
-                                        <th>Item Code</th>
                                         <th>
-                                            <button type="button" wire:click="sortBy('item_name')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
+                                            <button type="button" wire:click="sortBy('item_code')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
+                                                Item Code{{ $sortField === 'item_code' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
+                                            </button>
+                                        </th>
+                                        <th>
+                                            <button type="button" wire:click="sortBy('item_name')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
                                                 Item Name{{ $sortField === 'item_name' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
                                             </button>
                                         </th>
@@ -163,7 +179,7 @@
                                         <th>Term</th>
                                         <th>Cust.</th>
                                         <th>
-                                            <button type="button" wire:click="sortBy('created_at')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
+                                            <button type="button" wire:click="sortBy('created_at')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
                                                 Created at{{ $sortField === 'created_at' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
                                             </button>
                                         </th>
@@ -223,7 +239,10 @@
                                     @endforelse
                                 </tbody>
                             </table>
-                            {{ $items->links() }}
+                            </div>
+                            <div class="inventory-list-pagination d-flex justify-content-end flex-wrap">
+                                {{ $items->links() }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -253,6 +272,23 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
+        /* Tighter vertical spacing: search row vs dropdowns vs filters row */
+        .list-page-unified-density .transaction-log-card-body.inventory-list-filters-tight {
+            padding-top: 0.2rem !important;
+        }
+        .inventory-list-filters-tight > .row.list-page-unified-filters:first-of-type {
+            margin-bottom: 0.2rem;
+        }
+        .inventory-list-filters-tight .inventory-filter-block {
+            margin-top: 0;
+        }
+        .list-page-unified-density .transaction-log-card-body.inventory-list-filters-tight .list-page-unified-filters .form-label {
+            margin-bottom: 0.08rem;
+        }
+        .inventory-list-filters-tight .row.list-page-unified-filters {
+            --bs-gutter-y: 0.35rem;
+        }
         
         /* Fixed table layout for consistent column widths */
         .inventory-table-wrap {
@@ -263,40 +299,73 @@
         .table.inventory-list {
             table-layout: fixed;
             width: 100%;
-            --bs-table-border-color: #d0d7e2;
-            border-color: var(--bs-table-border-color);
+            min-width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+            margin-bottom: 0;
+            border: 1px solid #212529;
+            --tx-log-cell-px: 0.38rem;
+            --tx-log-cell-py: 0.22rem;
         }
 
-        .table.inventory-list > :not(caption) > * > * {
-            border-color: var(--bs-table-border-color);
+        .table.inventory-list th,
+        .table.inventory-list td {
+            padding: var(--tx-log-cell-py) var(--tx-log-cell-px);
+            vertical-align: middle;
+            word-wrap: break-word;
+            min-width: 0;
+            border: 1px solid #dee2e6;
+        }
+
+        .table.inventory-list tbody td {
+            font-size: 0.78rem;
+            line-height: 1.28;
         }
 
         .table.inventory-list thead th {
-            background-color: #f4f6fa;
-            border-bottom-width: 1px;
-        }
-        
-        /* Common styles for all cells */
-        .table.inventory-list th, 
-        .table.inventory-list td {
-            padding: 0.5rem;
-            vertical-align: middle;
-            word-wrap: break-word;
-            min-width: 0; /* Allows columns to shrink below content width */
-            font-size: 0.8rem;
-            line-height: 1.25;
-        }
-        
-        /* Header specific styles */
-        .table.inventory-list th {
-            font-size: 0.78rem;
-            line-height: 1.4;
-            vertical-align: middle;
-            white-space: nowrap; /* Prevent wrapping - keep headers on one line */
+            background-color: #f8f9fa;
+            font-weight: 600;
+            font-size: 0.82rem;
+            line-height: 1.3;
+            letter-spacing: 0.01em;
+            border-bottom: 2px solid #212529;
+            border-top: 1px solid #212529;
+            border-left: 1px solid #dee2e6;
+            border-right: 1px solid #dee2e6;
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        
+
+        .table.inventory-list thead th:first-child {
+            border-left: 1px solid #212529;
+        }
+
+        .table.inventory-list thead th:last-child {
+            border-right: 1px solid #212529;
+        }
+
+        .table.inventory-list tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .table.inventory-list tbody td:first-child {
+            border-left: 1px solid #212529;
+        }
+
+        .table.inventory-list tbody td:last-child {
+            border-right: 1px solid #212529;
+        }
+
+        .table.inventory-list tbody tr:last-child td {
+            border-bottom: 1px solid #212529;
+        }
+
+        .table.inventory-list .inventory-list-sort-btn {
+            font-size: 0.82rem;
+            line-height: 1.3;
+        }
+
         /* Column widths (after removing No column) */
         .table.inventory-list th:nth-child(1),
         .table.inventory-list td:nth-child(1) { width: 15%; } /* Item Code */
@@ -328,7 +397,7 @@
             text-align: center;
         }
 
-        /* Item Code + Item Name: one line with ellipsis (Item Code had no rules before, so long codes wrapped) */
+        /* Item Code + Item Name: one line with ellipsis */
         .table.inventory-list th:nth-child(1),
         .table.inventory-list td:nth-child(1),
         .table.inventory-list th:nth-child(2),
@@ -357,4 +426,6 @@
             text-align: center;
         }
     </style>
+
+    @include('partials.unified-list-page-styles')
 </div>

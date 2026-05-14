@@ -13,6 +13,7 @@ use Livewire\WithPagination;
 use Livewire\Attributes\Title;
 use App\Models\RestockList;
 use Illuminate\Support\Facades\DB;
+use App\Support\ItemPickerSearch;
 
 #[Title('UR | Stock List')]
 class ItemList extends Component
@@ -20,6 +21,10 @@ class ItemList extends Component
     use WithPagination;
 
     public $itemSearchTerm = null;
+
+    /** `code` = search item_code only; `name` = item_name only. */
+    public $itemSearchMode = 'code';
+
     public $filterFamilyId = null;
     public $filterLocationId = null;
 
@@ -33,7 +38,8 @@ class ItemList extends Component
     public $selectedGroups = [];
     public $selectedSuppliers = [];
 
-    public $sortField = 'item_name';
+    public $sortField = 'item_code';
+
     public $sortDirection = 'asc';
 
     public function mount($familyId = null, $locationId = null)
@@ -48,18 +54,44 @@ class ItemList extends Component
             $this->filterFamilyId = null;
             $this->selectedFamilies = [];
         }
+
+        $this->syncSortWithSearchMode();
+    }
+
+    private function syncSortWithSearchMode(): void
+    {
+        if (! in_array($this->itemSearchMode, ['code', 'name'], true)) {
+            $this->itemSearchMode = 'code';
+        }
+        if ($this->itemSearchMode === 'name') {
+            $this->sortField = 'item_name';
+        } else {
+            $this->sortField = 'item_code';
+        }
+        $this->sortDirection = 'asc';
     }
 
     protected $queryString = [
         'itemSearchTerm' => ['except' => ''],
+        'itemSearchMode' => ['except' => 'code'],
     ];
 
-    public function updatingItemSearchTerm($value)
+    public function updatingItemSearchTerm(): void
     {
         $this->resetPage();
-        if (!empty($value)) {
-            $this->resetFilters();
+    }
+
+    public function setItemSearchMode(string $mode): void
+    {
+        if (! in_array($mode, ['code', 'name'], true)) {
+            return;
         }
+        if ($this->itemSearchMode === $mode) {
+            return;
+        }
+        $this->itemSearchMode = $mode;
+        $this->resetPage();
+        $this->syncSortWithSearchMode();
     }
 
     public function updatingQuantityFilter()
@@ -69,7 +101,7 @@ class ItemList extends Component
 
     public function sortBy($field)
     {
-        if (!in_array($field, ['item_name', 'created_at'], true)) {
+        if (!in_array($field, ['item_code', 'item_name', 'created_at'], true)) {
             return;
         }
 
@@ -87,11 +119,37 @@ class ItemList extends Component
     {
         $query = Item::query()
             ->when($this->itemSearchTerm, function ($query) {
-                $term = $this->itemSearchTerm;
-                $query->where(function ($q) use ($term) {
-                    $q->where('item_name', 'like', '%' . $term . '%')
-                      ->orWhere('item_code', 'like', '%' . $term . '%');
-                });
+                $raw = trim((string) $this->itemSearchTerm);
+                if ($raw === '') {
+                    return;
+                }
+                $norm = preg_replace('#\s*/\s*#', '/', $raw);
+                $isFraction = (bool) preg_match('/^\d+\/\d+$/', $norm);
+                $escapedRaw = addcslashes($raw, '\%_');
+                $escapedNorm = addcslashes($norm, '\%_');
+                $byName = $this->itemSearchMode === 'name';
+
+                if ($byName) {
+                    if ($isFraction) {
+                        $compoundRe = ItemPickerSearch::compoundMixedNumberRegexp($norm);
+                        $query->where(function ($q) use ($escapedNorm, $compoundRe) {
+                            $q->where('item_name', 'like', '%' . $escapedNorm . '%')
+                                ->whereRaw('NOT (item_name REGEXP ?)', [$compoundRe]);
+                        });
+                    } else {
+                        $query->where('item_name', 'like', '%' . $escapedRaw . '%');
+                    }
+                } else {
+                    if ($isFraction) {
+                        $compoundRe = ItemPickerSearch::compoundMixedNumberRegexp($norm);
+                        $query->where(function ($q) use ($escapedNorm, $compoundRe) {
+                            $q->where('item_code', 'like', '%' . $escapedNorm . '%')
+                                ->whereRaw('NOT (item_code REGEXP ?)', [$compoundRe]);
+                        });
+                    } else {
+                        $query->where('item_code', 'like', '%' . $escapedRaw . '%');
+                    }
+                }
             })
             ->when($this->selectedCategories, function ($query) {
                 $query->whereIn('cat_id', $this->selectedCategories);
@@ -126,6 +184,13 @@ class ItemList extends Component
         if ($this->sortField === 'created_at') {
             return $query
                 ->orderBy('created_at', $this->sortDirection)
+                ->orderBy('id', $this->sortDirection)
+                ->paginate(50);
+        }
+
+        if ($this->sortField === 'item_code') {
+            return $query
+                ->orderBy('item_code', $this->sortDirection)
                 ->orderBy('id', $this->sortDirection)
                 ->paginate(50);
         }
@@ -202,14 +267,16 @@ class ItemList extends Component
 
     public function resetFilters()
     {
+        $this->itemSearchTerm = null;
+        $this->itemSearchMode = 'code';
+        $this->resetPage();
+        $this->syncSortWithSearchMode();
+
         if ($this->filterLocationId) {
-         
             $this->reset(['selectedCategories', 'selectedFamilies', 'selectedGroups', 'selectedSuppliers', 'filterFamilyId', 'filterDeadStock', 'quantityFilter']);
         } elseif ($this->filterFamilyId) {
-          
             $this->reset(['selectedCategories', 'selectedGroups', 'selectedSuppliers', 'filterLocationId', 'filterDeadStock', 'quantityFilter']);
         } else {
-           
             $this->reset(['selectedCategories', 'selectedFamilies', 'selectedGroups', 'selectedSuppliers', 'filterLocationId', 'filterFamilyId', 'filterDeadStock', 'quantityFilter']);
         }
     }
