@@ -86,6 +86,18 @@ class Transaction extends BaseModel
     }
 
     /**
+     * SQL fragment: 0 = DO family, 1 = PO family, 2 = other (for stable DO-before-PO on same doc date).
+     */
+    public static function logDocDateFamilySortCaseSql(): string
+    {
+        $q = static fn (string $s): string => "'" . str_replace("'", "''", $s) . "'";
+        $doIn = implode(',', array_map($q, self::logDocDateDoSourceTypes()));
+        $poIn = implode(',', array_map($q, self::logDocDatePoSourceTypes()));
+
+        return "CASE WHEN transactions.source_type IN ({$doIn}) THEN 0 WHEN transactions.source_type IN ({$poIn}) THEN 1 ELSE 2 END";
+    }
+
+    /**
      * Left joins used to sort/filter the transaction log by DO/PO document date.
      */
     public function scopeWithLogDocDateJoins(Builder $query): Builder
@@ -131,6 +143,7 @@ class Transaction extends BaseModel
     {
         $dir = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
         $query->orderByRaw("COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) {$dir}")
+            ->orderByRaw(self::logDocDateFamilySortCaseSql() . ' ASC')
             ->orderBy('transactions.id', $dir);
 
         return $query;
