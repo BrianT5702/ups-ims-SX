@@ -638,6 +638,7 @@ class TransactionLog extends Component
             ->whereIn('transactions.item_id', $itemIds)
             ->orderBy('transactions.item_id', 'asc')
             ->orderByRaw('COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) ASC')
+            ->orderByRaw(Transaction::logTransactionTypeSortCaseSql() . ' ASC')
             ->orderByRaw(Transaction::logDocDateFamilySortCaseSql() . ' ASC')
             ->orderBy('transactions.id', 'asc')
             ->get();

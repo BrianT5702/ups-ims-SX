@@ -86,15 +86,20 @@ class Transaction extends BaseModel
     }
 
     /**
-     * SQL fragment: 0 = DO family, 1 = PO family, 2 = other (for stable DO-before-PO on same doc date).
+     * SQL fragment: 0 = row linked to a delivery order, 1 = linked to a PO, 2 = other.
+     * Uses join aliases from withLogDocDateJoins() (not source_type strings).
      */
     public static function logDocDateFamilySortCaseSql(): string
     {
-        $q = static fn (string $s): string => "'" . str_replace("'", "''", $s) . "'";
-        $doIn = implode(',', array_map($q, self::logDocDateDoSourceTypes()));
-        $poIn = implode(',', array_map($q, self::logDocDatePoSourceTypes()));
+        return 'CASE WHEN tx_log_do.id IS NOT NULL THEN 0 WHEN tx_log_po.id IS NOT NULL THEN 1 ELSE 2 END';
+    }
 
-        return "CASE WHEN transactions.source_type IN ({$doIn}) THEN 0 WHEN transactions.source_type IN ({$poIn}) THEN 1 ELSE 2 END";
+    /**
+     * SQL fragment: Stock Out before Stock In so same-day DO shipments (Out) list before PO receipts (In).
+     */
+    public static function logTransactionTypeSortCaseSql(): string
+    {
+        return "CASE WHEN transactions.transaction_type = 'Stock Out' THEN 0 WHEN transactions.transaction_type = 'Stock In' THEN 1 ELSE 2 END";
     }
 
     /**
@@ -143,6 +148,7 @@ class Transaction extends BaseModel
     {
         $dir = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
         $query->orderByRaw("COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) {$dir}")
+            ->orderByRaw(self::logTransactionTypeSortCaseSql() . ' ASC')
             ->orderByRaw(self::logDocDateFamilySortCaseSql() . ' ASC')
             ->orderBy('transactions.id', $dir);
 
