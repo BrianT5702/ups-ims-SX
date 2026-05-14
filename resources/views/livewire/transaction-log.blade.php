@@ -1,9 +1,9 @@
 <div class="list-page-unified-density">
-    <div class="container my-3" style="padding-left: 0.25rem; padding-right: 0.25rem;">
+    <div class="container my-2" style="padding-left: 0.25rem; padding-right: 0.25rem;">
     <div class="row">
             <div class="col-md-11 m-auto">
             <div class="card shadow-sm">
-                <div class="card-header transaction-log-page-header d-flex align-items-start justify-content-between gap-3 flex-wrap py-3">
+                <div class="card-header transaction-log-page-header d-flex align-items-start justify-content-between gap-3 flex-wrap">
                     <div class="min-w-0 flex-grow-1">
                         @if($filteredItem)
                             <div class="transaction-log-header-eyebrow text-muted fw-semibold">Transaction log</div>
@@ -18,7 +18,7 @@
                                 Table is <strong>newest first</strong>. Balance is stock <strong>right after</strong> that line only — later moves (including hidden DO adjustments) can change on-hand without an extra visible row.
                             </p>
                         @else
-                            <h5 class="fw-bold mb-0 list-page-unified-title">Manage transactions</h5>
+                            <h5 class="fw-bold mb-0 list-page-unified-title">Transaction Log</h5>
                         @endif
                     </div>
                     @if($filteredItem)
@@ -26,8 +26,8 @@
                     @endif
                 </div>
                 
-                <div class="card-body" style="padding-left: 0.5rem; padding-right: 0.5rem;">
-                    <div class="row mb-3 g-2 align-items-end list-page-unified-filters">
+                <div class="card-body px-2 pb-3 transaction-log-card-body">
+                    <div class="row mb-1 g-2 align-items-end list-page-unified-filters">
                         <div class="col-md-2">
                             <label class="form-label">Group</label>
                             <select 
@@ -157,12 +157,12 @@
                         </div>
                     </div>
                     
-                    <div class="row mb-3">
-                        <div class="col-md-12 d-flex justify-content-end">
+                    <div class="row transaction-log-reset-toolbar mb-1">
+                        <div class="col-12 d-flex justify-content-end py-0">
                             <button 
                                 wire:click="clearFilters" 
                                 type="button"
-                                class="btn btn-outline-secondary btn-sm"
+                                class="btn btn-outline-secondary btn-sm transaction-log-reset-btn"
                             >
                                 Reset
                             </button>
@@ -207,7 +207,7 @@
                                 scrollbar-color: #cbd5e0 #f7fafc;
                             }
                             .transaction-log-scrollable::-webkit-scrollbar {
-                                height: 10px;
+                                height: 8px;
                             }
                             .transaction-log-scrollable::-webkit-scrollbar-track {
                                 background: #f7fafc;
@@ -221,35 +221,35 @@
                                 background: #a0aec0;
                             }
                             
-                            /* Table styling - auto layout, single row, no wrapping */
+                            /* Compact table: tight padding, slightly smaller type */
                             .table.transaction-log-table { 
                                 table-layout: auto; 
                                 width: max-content;
                                 min-width: 100%;
-                                max-width: 100%; /* Constrain to container width */
+                                max-width: 100%;
                                 border-collapse: collapse;
                                 border-spacing: 0;
                                 margin-bottom: 0;
                                 border: 1px solid #212529;
+                                --tx-log-cell-px: 0.38rem;
+                                --tx-log-cell-py: 0.22rem;
                             }
                             
-                            /* All cells - prevent wrapping and overlapping */
                             .table.transaction-log-table th,
                             .table.transaction-log-table td {
                                 white-space: nowrap;
                                 overflow: visible;
                                 text-overflow: clip;
-                                padding: 0.5rem;
+                                padding: var(--tx-log-cell-py) var(--tx-log-cell-px);
                                 vertical-align: middle;
                                 border: 1px solid #dee2e6;
                             }
 
                             .table.transaction-log-table tbody td {
-                                font-size: 0.8rem;
-                                line-height: 1.25;
+                                font-size: 0.74rem;
+                                line-height: 1.2;
                             }
                             
-                            /* Table borders - clearer lines */
                             .table.transaction-log-table thead th {
                                 border-bottom: 2px solid #212529;
                                 border-top: 1px solid #212529;
@@ -257,8 +257,9 @@
                                 border-right: 1px solid #dee2e6;
                                 background-color: #f8f9fa;
                                 font-weight: 600;
-                                font-size: 0.78rem;
-                                line-height: 1.4;
+                                font-size: 0.7rem;
+                                line-height: 1.25;
+                                letter-spacing: 0.01em;
                             }
                             
                             .table.transaction-log-table thead th:first-child {
@@ -276,21 +277,6 @@
                             .table.transaction-log-table tbody tr:hover {
                                 background-color: #f8f9fa;
                             }
-
-                            /* Superseded DO posting (replaced by a later edit / repost on the same DO).
-                               Kept visible so the audit trail stays intact, but muted so the user knows
-                               this row is no longer the current state of that DO. */
-                            .table.transaction-log-table tbody tr.tx-row-superseded td,
-                            .table.transaction-log-table tbody tr.tx-row-superseded td a {
-                                color: #b58105;
-                                font-style: italic;
-                            }
-                            .table.transaction-log-table tbody tr.tx-row-superseded {
-                                background-color: #fffaf0;
-                            }
-                            .table.transaction-log-table tbody tr.tx-row-superseded:hover {
-                                background-color: #fff4d6;
-                            }
                             
                             .table.transaction-log-table tbody td:first-child {
                                 border-left: 1px solid #212529;
@@ -304,73 +290,43 @@
                                 border-bottom: 1px solid #212529;
                             }
                             
-                            /* Column widths - fixed minimum widths */
+                            /* Column widths — compact minima */
                             .table.transaction-log-table th:nth-child(1), 
                             .table.transaction-log-table td:nth-child(1) { 
-                                min-width: 100px;
-                                width: 100px;
+                                min-width: 78px;
+                                width: 78px;
                             } /* Date */
                             
                             .table.transaction-log-table th:nth-child(2), 
                             .table.transaction-log-table td:nth-child(2) { 
-                                min-width: 130px;
-                                width: 130px;
+                                min-width: 108px;
+                                width: 108px;
                             } /* Source Doc No */
                             
                             .table.transaction-log-table th:nth-child(3), 
                             .table.transaction-log-table td:nth-child(3) { 
-                                min-width: 120px;
-                                width: 120px;
+                                min-width: 92px;
+                                width: 92px;
                             } /* Item Code */
                             
                             .table.transaction-log-table th:nth-child(4), 
                             .table.transaction-log-table td:nth-child(4) { 
-                                min-width: 200px;
+                                min-width: 140px;
+                                max-width: 280px;
                                 width: auto;
-                            } /* Item Name */
+                            } /* Company Name */
                             
                             .table.transaction-log-table th:nth-child(5), 
-                            .table.transaction-log-table td:nth-child(5) { 
-                                min-width: 200px;
-                                width: auto;
-                            } /* Customer Name */
-                            
+                            .table.transaction-log-table td:nth-child(5),
                             .table.transaction-log-table th:nth-child(6), 
-                            .table.transaction-log-table td:nth-child(6) { 
-                                min-width: 100px;
-                                width: 100px;
-                                text-align: right;
-                            } /* Price */
-                            
+                            .table.transaction-log-table td:nth-child(6),
                             .table.transaction-log-table th:nth-child(7), 
                             .table.transaction-log-table td:nth-child(7) { 
-                                min-width: 80px;
-                                width: 80px;
-                            } /* In */
-                            
-                            .table.transaction-log-table th:nth-child(8), 
-                            .table.transaction-log-table td:nth-child(8) { 
-                                min-width: 80px;
-                                width: 80px;
-                            } /* Out */
-                            
-                            .table.transaction-log-table th:nth-child(9), 
-                            .table.transaction-log-table td:nth-child(9) { 
-                                min-width: 100px;
-                                width: 100px;
-                            } /* Balance */
-                            
-                            .table.transaction-log-table th:nth-child(10), 
-                            .table.transaction-log-table td:nth-child(10) { 
-                                min-width: 130px;
-                                width: 130px;
-                            } /* Batch Number */
-                            
-                            .table.transaction-log-table th:nth-child(11), 
-                            .table.transaction-log-table td:nth-child(11) { 
-                                min-width: 120px;
-                                width: 120px;
-                            } /* User */
+                                min-width: 52px;
+                                width: 52px;
+                                text-align: right;
+                                font-variant-numeric: tabular-nums;
+                            } /* In, Out, Balance */
                             
                             /* Ensure links don't cause wrapping */
                             .table.transaction-log-table td a {
@@ -386,30 +342,26 @@
                                 position: relative;
                                 width: 100%;
                                 margin-top: 0;
-                                padding-top: 15px;
+                                padding-top: 0.5rem;
                                 border-top: 1px solid #dee2e6;
                                 background-color: #fff;
                                 z-index: 10;
-                                font-size: 0.8rem;
+                                font-size: 0.74rem;
                             }
                         </style>
                         
                         <!-- Scrollable table area -->
-                        <div class="table-responsive transaction-log-scrollable" style="max-width: 100%; overflow-x: auto; margin-top: 0.5rem;">
+                        <div class="table-responsive transaction-log-scrollable" style="max-width: 100%; overflow-x: auto; margin-top: 0.25rem;">
                             <table class="table table-hover transaction-log-table">
                             <thead>
                                 <tr align="left">
                                     <th>Date</th>
                                     <th>Source Doc No</th>
                                     <th>Item Code</th>
-                                    <th>Item Name</th>
                                     <th>Company Name</th>
-                                    <th style="text-align: center;">Price</th>
                                     <th>In</th>
                                     <th>Out</th>
                                     <th>Balance</th>
-                                    <th>Batch Number</th>
-                                    <th>User</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -423,26 +375,24 @@
                                                 // Get balance at end of date range
                                                 // This is the balance after the last transaction up to and including the end date
                                                 $endDateCarbon = \Carbon\Carbon::parse($endDate ?? now())->endOfDay();
-                                                $lastTransaction = \App\Models\Transaction::where('item_id', $item->id)
-                                                    ->where('created_at', '<=', $endDateCarbon)
-                                                    ->orderBy('created_at', 'desc')
+                                                $lastTransaction = \App\Models\Transaction::query()
+                                                    ->select('transactions.*')
+                                                    ->withLogDocDateJoins()
+                                                    ->where('transactions.item_id', $item->id)
+                                                    ->whereLogDisplayDateOnOrBefore($endDateCarbon)
+                                                    ->orderByLogDisplayDate('desc')
                                                     ->first();
                                                 // If no transactions exist up to end date, use item's current qty
-                                                $balance = $lastTransaction ? $lastTransaction->qty_after : $item->qty;
                                                 $balance = $lastTransaction ? $lastTransaction->qty_after : $item->qty;
                                             @endphp
                                             <tr align="center" style="background-color: #f8f9fa;">
                                                 <td>-</td>
                                                 <td>-</td>
                                                 <td><a href="{{ route('items.view', ['item' => $item->id]) }}">{{ $item->item_code }}</a></td>
-                                                <td><a href="{{ route('items.view', ['item' => $item->id]) }}">{{ $item->item_name }}</a></td>
                                                 <td>-</td>
-                                                <td class="text-right">-</td>
                                                 <td>-</td>
                                                 <td>-</td>
                                                 <td>{{ $balance }}</td>
-                                                <td>-</td>
-                                                <td>-</td>
                                             </tr>
                                         @else
                                             {{-- Regular transaction --}}
@@ -476,30 +426,6 @@
                                                     $customerName = '-';
                                                 }
                                                 
-                                                // Get price from DO or PO item
-                                                $unitPrice = '-';
-                                                if (($transaction->source_type === 'DO' || $transaction->source_type === 'Delivery Order') && $transaction->source_doc_num && $transaction->item_id) {
-                                                    $deliveryOrder = \App\Models\DeliveryOrder::where('do_num', $transaction->source_doc_num)->first();
-                                                    if ($deliveryOrder) {
-                                                        $doItem = \App\Models\DeliveryOrderItem::where('do_id', $deliveryOrder->id)
-                                                            ->where('item_id', $transaction->item_id)
-                                                            ->first();
-                                                        if ($doItem && $doItem->unit_price) {
-                                                            $unitPrice = number_format($doItem->unit_price, 2);
-                                                        }
-                                                    }
-                                                } elseif (($transaction->source_type === 'PO' || $transaction->source_type === 'Purchase Order') && $transaction->source_doc_num && $transaction->item_id) {
-                                                    $purchaseOrder = \App\Models\PurchaseOrder::where('po_num', $transaction->source_doc_num)->first();
-                                                    if ($purchaseOrder) {
-                                                        $poItem = \App\Models\PurchaseOrderItem::where('po_id', $purchaseOrder->id)
-                                                            ->where('item_id', $transaction->item_id)
-                                                            ->first();
-                                                        if ($poItem && $poItem->unit_price) {
-                                                            $unitPrice = number_format($poItem->unit_price, 2);
-                                                        }
-                                                    }
-                                                }
-                                                
                                                 // Determine In/Out based on transaction_type
                                                 $inQty = '';
                                                 $outQty = '';
@@ -511,36 +437,20 @@
                                                 } elseif ($transaction->transaction_type === 'Stock Out' && !$isDoReversal) {
                                                     $outQty = abs($transaction->transaction_qty);
                                                 }
-
-                                                // Batch number display:
-                                                // - Real batches show their actual batch_num
-                                                // - Placeholder names (the import seed BATCH-00000000-000 and the
-                                                //   AUTO-YYYYMMDDHHMMSS placeholder created when an item has no
-                                                //   batches yet) are not real batches the user manages, so we hide
-                                                //   them as '-' to avoid confusion.
-                                                $batchNumber = $transaction->batch->batch_num ?? '-';
-                                                if ($batchNumber === 'BATCH-00000000-000' || str_starts_with($batchNumber, 'AUTO-')) {
-                                                    $batchNumber = '-';
-                                                }
                                             @endphp
-                                            @php $isSuperseded = isset(($supersededDoMap ?? [])[$transaction->id]); @endphp
-                                            <tr align="left" class="{{ $isSuperseded ? 'tx-row-superseded' : '' }}" @if($isSuperseded) title="Superseded by a later edit/repost on the same DO" @endif style="cursor: pointer;">
-                                                <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
+                                            <tr align="left" style="cursor: pointer;">
+                                                <td>{{ $transaction->logDisplayDate()->format('d/m/Y') }}</td>
                                                 <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
                                                 <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
-                                                <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
                                                 <td>{{ $customerName }}</td>
-                                                <td class="text-right">{{ $unitPrice }}</td>
                                                 <td>{{ $inQty }}</td>
                                                 <td>{{ $outQty }}</td>
                                                 <td>{{ ($displayBalances ?? [])[$transaction->id] ?? $transaction->qty_after }}</td>
-                                                <td>{{ $batchNumber }}</td>
-                                                <td>{{ $transaction->user->name }}</td>
                                             </tr>
                                         @endif
                                     @empty
                                         <tr>
-                                            <td colspan="11" class="text-center">No items found.</td>
+                                            <td colspan="7" class="text-center">No items found.</td>
                                         </tr>
                                     @endforelse
                                 @else
@@ -577,30 +487,6 @@
                                                 $customerName = '-';
                                             }
                                             
-                                            // Get price from DO or PO item
-                                            $unitPrice = '-';
-                                            if (($transaction->source_type === 'DO' || $transaction->source_type === 'Delivery Order') && $transaction->source_doc_num && $transaction->item_id) {
-                                                $deliveryOrder = \App\Models\DeliveryOrder::where('do_num', $transaction->source_doc_num)->first();
-                                                if ($deliveryOrder) {
-                                                    $doItem = \App\Models\DeliveryOrderItem::where('do_id', $deliveryOrder->id)
-                                                        ->where('item_id', $transaction->item_id)
-                                                        ->first();
-                                                    if ($doItem && $doItem->unit_price) {
-                                                        $unitPrice = number_format($doItem->unit_price, 2);
-                                                    }
-                                                }
-                                            } elseif (($transaction->source_type === 'PO' || $transaction->source_type === 'Purchase Order') && $transaction->source_doc_num && $transaction->item_id) {
-                                                $purchaseOrder = \App\Models\PurchaseOrder::where('po_num', $transaction->source_doc_num)->first();
-                                                if ($purchaseOrder) {
-                                                    $poItem = \App\Models\PurchaseOrderItem::where('po_id', $purchaseOrder->id)
-                                                        ->where('item_id', $transaction->item_id)
-                                                        ->first();
-                                                    if ($poItem && $poItem->unit_price) {
-                                                        $unitPrice = number_format($poItem->unit_price, 2);
-                                                    }
-                                                }
-                                            }
-                                            
                                             // Determine In/Out based on transaction_type
                                             $inQty = '';
                                             $outQty = '';
@@ -612,35 +498,19 @@
                                             } elseif ($transaction->transaction_type === 'Stock Out' && !$isDoReversal) {
                                                 $outQty = abs($transaction->transaction_qty);
                                             }
-
-                                            // Batch number display:
-                                            // - Real batches show their actual batch_num
-                                            // - Placeholder names (the import seed BATCH-00000000-000 and the
-                                            //   AUTO-YYYYMMDDHHMMSS placeholder created when an item has no
-                                            //   batches yet) are not real batches the user manages, so we hide
-                                            //   them as '-' to avoid confusion.
-                                            $batchNumber = $transaction->batch->batch_num ?? '-';
-                                            if ($batchNumber === 'BATCH-00000000-000' || str_starts_with($batchNumber, 'AUTO-')) {
-                                                $batchNumber = '-';
-                                            }
                                         @endphp
-                                        @php $isSuperseded = isset(($supersededDoMap ?? [])[$transaction->id]); @endphp
-                                        <tr align="left" class="{{ $isSuperseded ? 'tx-row-superseded' : '' }}" @if($isSuperseded) title="Superseded by a later edit/repost on the same DO" @endif style="cursor: pointer;">
-                                            <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
+                                        <tr align="left" style="cursor: pointer;">
+                                            <td>{{ $transaction->logDisplayDate()->format('d/m/Y') }}</td>
                                             <td wire:click="redirectToPage('{{ $transaction->source_type }}', {{ $transaction->id }})">{{ $transaction->source_doc_num }}</td>
                                             <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_code }}</a></td>
-                                            <td><a href="{{ route('items.view', ['item' => $transaction->item->id]) }}">{{ $transaction->item->item_name }}</a></td>
                                             <td>{{ $customerName }}</td>
-                                            <td class="text-right">{{ $unitPrice }}</td>
                                             <td>{{ $inQty }}</td>
                                             <td>{{ $outQty }}</td>
                                             <td>{{ ($displayBalances ?? [])[$transaction->id] ?? $transaction->qty_after }}</td>
-                                            <td>{{ $batchNumber }}</td>
-                                            <td>{{ $transaction->user->name }}</td>
-                                    </tr>
+                                        </tr>
                                 @empty
                                     <tr>
-                                            <td colspan="11" class="text-center">No transactions found.</td>
+                                            <td colspan="7" class="text-center">No transactions found.</td>
                                     </tr>
                                 @endforelse
                                 @endif
@@ -681,9 +551,22 @@
         .list-page-unified-density .alert {
             font-size: 0.8rem;
         }
+        .transaction-log-reset-toolbar {
+            margin-top: 0.1rem;
+            margin-bottom: 0.25rem;
+        }
+        .transaction-log-reset-toolbar .transaction-log-reset-btn {
+            padding-top: 0.15rem;
+            padding-bottom: 0.15rem;
+            line-height: 1.2;
+        }
         .transaction-log-page-header {
             background: #f7f9fc;
             border-bottom: 1px solid #e2e8f0;
+            padding: 0.45rem 1rem;
+        }
+        .transaction-log-card-body {
+            padding-top: 0.35rem !important;
         }
         .transaction-log-header-eyebrow {
             font-size: 0.7rem;
