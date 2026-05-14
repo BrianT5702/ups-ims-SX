@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Scopes\StealthModeScope;
 
@@ -69,5 +71,99 @@ class Transaction extends BaseModel
     public function deliveryOrder()
     {
         return $this->belongsTo(DeliveryOrder::class, 'source_doc_num', 'do_num');
+    }
+
+    /** @return list<string> */
+    public static function logDocDateDoSourceTypes(): array
+    {
+        return ['DO', 'Delivery Order', 'DO Reversal', 'DO Status Reversal', 'DO Delta Reversal', 'DO Draft Delta'];
+    }
+
+    /** @return list<string> */
+    public static function logDocDatePoSourceTypes(): array
+    {
+        return ['PO', 'Purchase Order', 'PO Reversal'];
+    }
+
+    /**
+     * Left joins used to sort/filter the transaction log by DO/PO document date.
+     */
+    public function scopeWithLogDocDateJoins(Builder $query): Builder
+    {
+        $query->select('transactions.*');
+
+        $query->leftJoin('delivery_orders as tx_log_do', function ($join) {
+            $join->on('transactions.source_doc_num', '=', 'tx_log_do.do_num')
+                ->whereIn('transactions.source_type', self::logDocDateDoSourceTypes())
+                ->whereNull('tx_log_do.deleted_at');
+        });
+
+        $query->leftJoin('purchase_orders as tx_log_po', function ($join) {
+            $join->on('transactions.source_doc_num', '=', 'tx_log_po.po_num')
+                ->whereIn('transactions.source_type', self::logDocDatePoSourceTypes())
+                ->whereNull('tx_log_po.deleted_at');
+        });
+
+        return $query;
+    }
+
+    public function scopeWhereLogDisplayDateBetween(Builder $query, Carbon $start, Carbon $end): Builder
+    {
+        $query->whereRaw(
+            'COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) BETWEEN ? AND ?',
+            [$start, $end]
+        );
+
+        return $query;
+    }
+
+    public function scopeWhereLogDisplayDateOnOrBefore(Builder $query, Carbon $moment): Builder
+    {
+        $query->whereRaw(
+            'COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) <= ?',
+            [$moment]
+        );
+
+        return $query;
+    }
+
+    public function scopeOrderByLogDisplayDate(Builder $query, string $direction = 'desc'): Builder
+    {
+        $dir = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
+        $query->orderByRaw("COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) {$dir}")
+            ->orderBy('transactions.id', $dir);
+
+        return $query;
+    }
+
+    /**
+     * Date for transaction log display: document date when tied to a DO/PO, otherwise posting time.
+     */
+    public function logDisplayDate(): Carbon
+    {
+        $docNum = $this->source_doc_num;
+        if (!$docNum || $docNum === '-') {
+            return $this->created_at;
+        }
+
+        if (in_array($this->source_type, self::logDocDateDoSourceTypes(), true)) {
+            $do = $this->relationLoaded('deliveryOrder')
+                ? $this->deliveryOrder
+                : $this->deliveryOrder()->first();
+            if ($do && $do->date) {
+                return Carbon::parse($do->date)->startOfDay();
+            }
+        }
+
+        if (in_array($this->source_type, self::logDocDatePoSourceTypes(), true)) {
+            $po = $this->relationLoaded('purchaseOrder')
+                ? $this->purchaseOrder
+                : $this->purchaseOrder()->first();
+            if ($po && $po->date) {
+                return Carbon::parse($po->date)->startOfDay();
+            }
+        }
+
+        return $this->created_at;
     }
 }
