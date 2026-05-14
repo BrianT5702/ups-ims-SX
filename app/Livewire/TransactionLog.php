@@ -86,6 +86,15 @@ class TransactionLog extends Component
     public function mount($itemId = null)
     {
         $this->filterItemId = $itemId;
+        $this->endDate = $this->defaultEndDateForGmtPlus8();
+    }
+
+    /**
+     * "To date" filter default: today in GMT+8 (business locale).
+     */
+    private function defaultEndDateForGmtPlus8(): string
+    {
+        return Carbon::now('Asia/Singapore')->format('Y-m-d');
     }
 
     public function clearFilters()
@@ -102,6 +111,7 @@ class TransactionLog extends Component
             'companySearchCustomers',
             'companySearchSuppliers'
         ]);
+        $this->endDate = $this->defaultEndDateForGmtPlus8();
     }
 
     public function searchCompanies()
@@ -638,8 +648,8 @@ class TransactionLog extends Component
             ->whereIn('transactions.item_id', $itemIds)
             ->orderBy('transactions.item_id', 'asc')
             ->orderByRaw('COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) ASC')
-            ->orderByRaw(Transaction::logTransactionTypeSortCaseSql() . ' ASC')
-            ->orderByRaw(Transaction::logDocDateFamilySortCaseSql() . ' ASC')
+            ->orderByRaw(Transaction::logLedgerTieBreakTransactionTypeAscSql() . ' ASC')
+            ->orderByRaw(Transaction::logLedgerTieBreakDocFamilyAscSql() . ' ASC')
             ->orderBy('transactions.id', 'asc')
             ->get();
 
