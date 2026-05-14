@@ -613,17 +613,19 @@ class TransactionLog extends Component
     }
 
     /**
-     * Recompute the Balance column as a running total in **document date** order
-     * (same ordering key as the log: COALESCE(DO/PO date, created_at), then id),
-     * using the **complete** ledger per item (no Transaction Log visibility filter)
-     * so hidden DO reversal rows still count.
+     * Recompute the Balance column using the **full** ledger per item (including
+     * hidden DO reversal rows) in **true posting order** (`created_at`, then `id`).
      *
-     * Because document order can differ from posting order, we cannot chain each
-     * row's stored `qty_before`. Instead, for each item we anchor the walk so the
-     * running total after the last row equals current `items.qty`, and assign the
-     * intermediate balances implied by applying raw `transaction_qty` in that order.
+     * The on-screen table is sorted by document date for readability, but balance
+     * must follow the same sequence as inventory was actually posted; otherwise
+     * reversals that share a DO’s document date appear “out of order” and the
+     * running total no longer matches each row’s meaning (e.g. Out 2 with Balance 0).
      *
-     * The Out column for DO lines is still adjusted separately by
+     * Opening balance per item = `qty_before` on that item’s earliest row (`MIN(id)`).
+     * Each row’s displayed balance is on-hand **after** applying that row’s stored
+     * `transaction_qty` (Stock In + / Stock Out −). This matches the DB ledger.
+     *
+     * The Out column for DO lines is still aggregated separately by
      * aggregateDoStockOutQuantities() on the paginated collection only.
      *
      * @param  iterable<\App\Models\Transaction>  $pageTransactions
@@ -644,12 +646,9 @@ class TransactionLog extends Component
 
         $allRows = Transaction::query()
             ->select('transactions.*')
-            ->withLogDocDateJoins()
             ->whereIn('transactions.item_id', $itemIds)
             ->orderBy('transactions.item_id', 'asc')
-            ->orderByRaw('COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) ASC')
-            ->orderByRaw(Transaction::logLedgerTieBreakTransactionTypeAscSql() . ' ASC')
-            ->orderByRaw(Transaction::logLedgerTieBreakDocFamilyAscSql() . ' ASC')
+            ->orderBy('transactions.created_at', 'asc')
             ->orderBy('transactions.id', 'asc')
             ->get();
 
@@ -657,28 +656,31 @@ class TransactionLog extends Component
             return [];
         }
 
-        $qtyByItemId = Item::query()
-            ->whereIn('id', $itemIds)
-            ->pluck('qty', 'id');
+        $bfRows = Transaction::query()
+            ->whereIn('transactions.item_id', $itemIds)
+            ->whereIn('transactions.id', function ($q) use ($itemIds) {
+                $q->from('transactions')
+                    ->selectRaw('MIN(transactions.id)')
+                    ->whereIn('transactions.item_id', $itemIds)
+                    ->groupBy('transactions.item_id');
+            })
+            ->get(['id', 'item_id', 'qty_before'])
+            ->keyBy('item_id');
 
+        $balances = [];
         $balanceByTxId = [];
 
-        foreach ($allRows->groupBy('item_id') as $iid => $rows) {
-            $iid = (int) $iid;
-            $rows = $rows->values();
+        foreach ($allRows as $tx) {
+            $iid = (int) $tx->item_id;
 
-            $totalDelta = 0.0;
-            foreach ($rows as $tx) {
-                $totalDelta += $this->signedTransactionQtyForBalanceWalk($tx);
+            if (!array_key_exists($iid, $balances)) {
+                $balances[$iid] = isset($bfRows[$iid])
+                    ? (float) $bfRows[$iid]->qty_before
+                    : 0.0;
             }
 
-            $currentQty = (float) ($qtyByItemId[$iid] ?? 0);
-            $running = $currentQty - $totalDelta;
-
-            foreach ($rows as $tx) {
-                $running += $this->signedTransactionQtyForBalanceWalk($tx);
-                $balanceByTxId[(int) $tx->id] = $running;
-            }
+            $balances[$iid] += $this->signedTransactionQtyForBalanceWalk($tx);
+            $balanceByTxId[(int) $tx->id] = $balances[$iid];
         }
 
         return $balanceByTxId;
