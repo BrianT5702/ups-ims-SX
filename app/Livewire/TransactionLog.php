@@ -466,9 +466,11 @@ class TransactionLog extends Component
      *
      * For each event we choose ONE representative row to display: MAX(id), so
      * the Out column can aggregate all FIFO lines in that event. The Balance
-     * column uses a posting-aware rule on those lines (see
-     * doStockOutEventDisplayBalanceForRep). Only the latest event per
-     * (DO, item) is shown in the log; older posting events are omitted.
+     * column prefers the on-hand total after the **oldest** DO Stock Out line for
+     * that (DO, item) when **every** such line shares the same per-line quantity
+     * (repeated postings after reversals); otherwise it uses the latest-event
+     * tail rule in doStockOutEventDisplayBalanceForRep(). Only the latest event
+     * per (DO, item) is shown in the log; older posting events are omitted.
      *
      * Cached per request (per filter scope) to avoid repeated scans.
      *
@@ -476,7 +478,8 @@ class TransactionLog extends Component
      *     visible_ids: array<int,int>,
      *     event_qty: array<int,float>,
      *     is_latest: array<int,bool>,
-     *     event_lines_by_rep_id: array<int, list<array{id:int, qty:float}>>
+     *     event_lines_by_rep_id: array<int, list<array{id:int, qty:float}>>,
+     *     all_do_out_lines_by_latest_rep_id: array<int, list<array{id:int, qty:float}>>
      * }
      */
     private function buildDoStockOutEvents(): array
@@ -513,10 +516,23 @@ class TransactionLog extends Component
         $eventQty = [];
         $isLatest = [];
         $eventLinesByRepId = [];
+        $allDoOutLinesByLatestRepId = [];
 
         $byPair = $rows->groupBy(fn ($r) => ($r->source_doc_num ?? '') . '|' . ($r->item_id ?? ''));
 
         foreach ($byPair as $pairRows) {
+            $allOutLinesForPair = [];
+            foreach ($pairRows as $row) {
+                $isOut = in_array($row->source_type, $doSourceTypes, true)
+                    && $row->transaction_type === 'Stock Out';
+                if ($isOut) {
+                    $allOutLinesForPair[] = [
+                        'id' => (int) $row->id,
+                        'qty' => abs((float) $row->transaction_qty),
+                    ];
+                }
+            }
+
             $events = [];
             $current = null;
 
@@ -554,6 +570,12 @@ class TransactionLog extends Component
                 $isLatest[$repId] = ($idx === $eventCount - 1);
                 $eventLinesByRepId[$repId] = $ev['lines'] ?? [];
             }
+
+            if ($eventCount > 0 && $allOutLinesForPair !== []) {
+                $lastEv = $events[$eventCount - 1];
+                $latestRepId = max($lastEv['ids']);
+                $allDoOutLinesByLatestRepId[$latestRepId] = $allOutLinesForPair;
+            }
         }
 
         return $this->doEventsCache[$cacheKey] = [
@@ -561,6 +583,7 @@ class TransactionLog extends Component
             'event_qty' => $eventQty,
             'is_latest' => $isLatest,
             'event_lines_by_rep_id' => $eventLinesByRepId,
+            'all_do_out_lines_by_latest_rep_id' => $allDoOutLinesByLatestRepId,
         ];
     }
 
@@ -639,11 +662,12 @@ class TransactionLog extends Component
      * The Out column for DO lines is still aggregated separately by
      * aggregateDoStockOutQuantities() on the paginated collection only.
      *
-     * For the visible DO representative row, Balance is adjusted from the raw
-     * ledger tail: when the latest posting event ends with several Stock Out
-     * lines of the **same** per-line quantity, show the on-hand total after the
-     * **first** of those lines; when the last line’s quantity **differs** from
-     * the previous line, show the total after that last line (the change).
+     * For the visible DO representative row: if **all** DO Stock Out lines for
+     * that (DO, item) share the same per-line quantity (multiple appearances),
+     * Balance is the on-hand total after the **oldest** such line. Otherwise
+     * Balance follows the latest-event tail rule (same-qty run at end of the
+     * latest event uses the first line of that run; a single final line uses
+     * the total after that line).
      *
      * @param  iterable<\App\Models\Transaction>  $pageTransactions
      * @return array<int, float|int>
@@ -706,15 +730,52 @@ class TransactionLog extends Component
         }
 
         $events = $this->buildDoStockOutEvents();
-        foreach ($events['event_lines_by_rep_id'] ?? [] as $repId => $lines) {
+        $allLinesByLatestRep = $events['all_do_out_lines_by_latest_rep_id'] ?? [];
+
+        foreach ($events['event_lines_by_rep_id'] ?? [] as $repId => $latestEventLines) {
             $repId = (int) $repId;
-            if (!isset($pageRepIds[$repId]) || $lines === []) {
+            if (!isset($pageRepIds[$repId])) {
                 continue;
             }
-            $balanceByTxId[$repId] = $this->doStockOutEventDisplayBalanceForRep($balanceByTxId, $lines);
+
+            $allOutLines = $allLinesByLatestRep[$repId] ?? [];
+            if ($this->allDoStockOutLinesHaveIdenticalQty($allOutLines)) {
+                $oldestId = (int) $allOutLines[0]['id'];
+                $balanceByTxId[$repId] = (float) ($balanceByTxId[$oldestId] ?? 0.0);
+                continue;
+            }
+
+            if ($latestEventLines === []) {
+                continue;
+            }
+
+            $balanceByTxId[$repId] = $this->doStockOutEventDisplayBalanceForRep($balanceByTxId, $latestEventLines);
         }
 
         return $balanceByTxId;
+    }
+
+    /**
+     * True when this (DO, item) has at least two Stock Out lines and every line
+     * uses the same absolute quantity (e.g. repeated 2 after status reversals).
+     *
+     * @param  list<array{id:int, qty:float}>  $lines  ordered by id ascending
+     */
+    private function allDoStockOutLinesHaveIdenticalQty(array $lines): bool
+    {
+        $n = count($lines);
+        if ($n < 2) {
+            return false;
+        }
+
+        $q0 = (float) $lines[0]['qty'];
+        for ($i = 1; $i < $n; $i++) {
+            if (abs((float) $lines[$i]['qty'] - $q0) >= 1e-9) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

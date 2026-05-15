@@ -322,7 +322,7 @@
                             <table class="table table-hover transaction-log-table">
                             <thead>
                                 <tr align="left">
-                                    <th>Date</th>
+                                    <th>Doc Date</th>
                                     <th>Source Doc No</th>
                                     <th>Item Code</th>
                                     <th>Company Name</th>
