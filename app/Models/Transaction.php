@@ -128,15 +128,19 @@ class Transaction extends BaseModel
     }
 
     /**
-     * Transaction log ordering: DO/PO document date (from joins), then posting time when the
-     * effective doc date is the same — earlier `created_at` first. Final tie-break: id ASC.
+     * Transaction log ordering: DO/PO document date (from joins) **DESC** (newer
+     * doc dates nearer the top). When the effective doc date is the same, sort by
+     * **created_at** in the same direction: for **DESC** doc dates (log default), later
+     * posting first within the same doc day so earlier `created_at` sits **lower** on
+     * the list; for **ASC** doc dates, the tie-break follows **ASC** as well.
      */
     public function scopeOrderByLogDisplayDate(Builder $query, string $direction = 'desc'): Builder
     {
         $dir = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
+        $tieDir = $dir === 'DESC' ? 'desc' : 'asc';
         $query->orderByRaw("COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) {$dir}")
-            ->orderBy('transactions.created_at', 'asc')
-            ->orderBy('transactions.id', 'asc');
+            ->orderBy('transactions.created_at', $tieDir)
+            ->orderBy('transactions.id', $tieDir);
 
         return $query;
     }

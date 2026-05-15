@@ -461,6 +461,26 @@ class TransactionLog extends Component
     }
 
     /**
+     * Match `source_doc_num` across legacy formatting (leading zeros, spaces, or
+     * numeric storage) so DO line lists align with the ledger walk.
+     */
+    private function scopeTransactionsMatchingSourceDoc(Builder $query, string $doc): Builder
+    {
+        $doc = trim($doc);
+        if ($doc === '') {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $inner) use ($doc) {
+            $inner->where('transactions.source_doc_num', $doc)
+                ->orWhereRaw('TRIM(transactions.source_doc_num) = ?', [$doc]);
+            if (ctype_digit($doc)) {
+                $inner->orWhereRaw('CAST(TRIM(transactions.source_doc_num) AS UNSIGNED) = ?', [(int) $doc]);
+            }
+        });
+    }
+
+    /**
      * Build a "posting-event" index for DO Stock Out rows.
      *
      * A posting event for a (source_doc_num, item_id) pair is a contiguous run
@@ -761,12 +781,16 @@ class TransactionLog extends Component
             // Load every DO Stock Out line for this doc + item (same scopes as the
             // ledger walk). Do not rely only on the event-builder cache: grouping
             // used to split pairs when source_doc_num varied by whitespace/type.
-            $allOutLines = Transaction::query()
-                ->where('item_id', $itemId)
-                ->whereIn('source_type', $doSourceTypes)
-                ->where('transaction_type', 'Stock Out')
-                ->whereRaw('TRIM(CAST(transactions.source_doc_num AS CHAR)) = ?', [$doc])
-                ->orderBy('id')
+            $lineQuery = $this->scopeTransactionsMatchingSourceDoc(
+                Transaction::query()
+                    ->where('transactions.item_id', $itemId)
+                    ->whereIn('transactions.source_type', $doSourceTypes)
+                    ->where('transactions.transaction_type', 'Stock Out'),
+                $doc
+            );
+
+            $allOutLines = $lineQuery
+                ->orderBy('transactions.id')
                 ->get(['id', 'transaction_qty'])
                 ->map(fn ($r) => [
                     'id' => (int) $r->id,
