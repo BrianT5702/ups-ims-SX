@@ -452,6 +452,15 @@ class TransactionLog extends Component
     }
 
     /**
+     * Stable (DO, item) key so rows are not split across groups when doc numbers
+     * differ only by trimming or loose typing from the database driver.
+     */
+    private function normalizedDoItemPairKey(?string $sourceDocNum, $itemId): string
+    {
+        return trim((string) ($sourceDocNum ?? '')) . '|' . (int) ($itemId ?? 0);
+    }
+
+    /**
      * Build a "posting-event" index for DO Stock Out rows.
      *
      * A posting event for a (source_doc_num, item_id) pair is a contiguous run
@@ -520,7 +529,7 @@ class TransactionLog extends Component
         $eventLinesByRepId = [];
         $allDoOutLinesByLatestRepId = [];
 
-        $byPair = $rows->groupBy(fn ($r) => ($r->source_doc_num ?? '') . '|' . ($r->item_id ?? ''));
+        $byPair = $rows->groupBy(fn ($r) => $this->normalizedDoItemPairKey($r->source_doc_num, $r->item_id));
 
         foreach ($byPair as $pairRows) {
             $allOutLinesForPair = [];
@@ -664,13 +673,13 @@ class TransactionLog extends Component
      * The Out column for DO lines is still aggregated separately by
      * aggregateDoStockOutQuantities() on the paginated collection only.
      *
-     * For the visible DO representative row, Balance is derived from **all** DO
-     * Stock Out lines for that (DO, item) in id order: take the **last** stretch
-     * of consecutive equal per-line quantities. If that stretch has multiple lines,
-     * use the on-hand total after the **first** line in the stretch; if it is a
-     * single line, use the total after that line. Other quantities earlier in the
-     * history only bound where that stretch starts; they do not change how the
-     * final stretch is read. Each (DO, item) is independent.
+     * For each visible DO Stock Out row, Balance is then adjusted from **all** DO
+     * Stock Out lines for that source doc + item (loaded directly from the DB so
+     * rows are not missed when `source_doc_num` / `item_id` differ only by trimming
+     * or typing). Lines are ordered by `id`; take the **last** stretch of consecutive
+     * equal per-line quantities. If that stretch has multiple lines, use the on-hand
+     * total after the **first** line in the stretch; if it is a single line, use the
+     * total after that line.
      *
      * @param  iterable<\App\Models\Transaction>  $pageTransactions
      * @return array<int, float|int>
@@ -727,17 +736,46 @@ class TransactionLog extends Component
             $balanceByTxId[(int) $tx->id] = $balances[$iid];
         }
 
-        $pageRepIds = [];
+        $doSourceTypes = $this->getDoSourceTypes();
+        $processedRepIds = [];
+
         foreach ($pageTransactions as $tx) {
-            $pageRepIds[(int) $tx->id] = true;
-        }
+            if (!in_array($tx->source_type, $doSourceTypes, true)
+                || $tx->transaction_type !== 'Stock Out'
+            ) {
+                continue;
+            }
 
-        $events = $this->buildDoStockOutEvents();
-        $allLinesByLatestRep = $events['all_do_out_lines_by_latest_rep_id'] ?? [];
+            $repId = (int) $tx->id;
+            if (isset($processedRepIds[$repId])) {
+                continue;
+            }
+            $processedRepIds[$repId] = true;
 
-        foreach ($allLinesByLatestRep as $repId => $allOutLines) {
-            $repId = (int) $repId;
-            if (!isset($pageRepIds[$repId]) || $allOutLines === []) {
+            $doc = trim((string) ($tx->source_doc_num ?? ''));
+            $itemId = (int) ($tx->item_id ?? 0);
+            if ($doc === '' || $itemId === 0) {
+                continue;
+            }
+
+            // Load every DO Stock Out line for this doc + item (same scopes as the
+            // ledger walk). Do not rely only on the event-builder cache: grouping
+            // used to split pairs when source_doc_num varied by whitespace/type.
+            $allOutLines = Transaction::query()
+                ->where('item_id', $itemId)
+                ->whereIn('source_type', $doSourceTypes)
+                ->where('transaction_type', 'Stock Out')
+                ->whereRaw('TRIM(CAST(transactions.source_doc_num AS CHAR)) = ?', [$doc])
+                ->orderBy('id')
+                ->get(['id', 'transaction_qty'])
+                ->map(fn ($r) => [
+                    'id' => (int) $r->id,
+                    'qty' => abs((float) $r->transaction_qty),
+                ])
+                ->values()
+                ->all();
+
+            if ($allOutLines === []) {
                 continue;
             }
 
