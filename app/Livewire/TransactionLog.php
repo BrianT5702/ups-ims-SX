@@ -466,11 +466,13 @@ class TransactionLog extends Component
      *
      * For each event we choose ONE representative row to display: MAX(id), so
      * the Out column can aggregate all FIFO lines in that event. The Balance
-     * column prefers the on-hand total after the **oldest** DO Stock Out line for
-     * that (DO, item) when **every** such line shares the same per-line quantity
-     * (repeated postings after reversals); otherwise it uses the latest-event
-     * tail rule in doStockOutEventDisplayBalanceForRep(). Only the latest event
-     * per (DO, item) is shown in the log; older posting events are omitted.
+     * column uses the **last contiguous run** of equal per-line quantities across
+     * **all** DO Stock Out lines for that (DO, item): if that run has more than one
+     * line, Balance is after the **first** line of that run; if it is a single line,
+     * Balance is after that line. Earlier differing quantities only define where
+     * that final run starts — they do not override it. Each (DO, item) pair is
+     * evaluated independently. Only the latest event per (DO, item) is shown in the
+     * log; older posting events are omitted.
      *
      * Cached per request (per filter scope) to avoid repeated scans.
      *
@@ -662,12 +664,13 @@ class TransactionLog extends Component
      * The Out column for DO lines is still aggregated separately by
      * aggregateDoStockOutQuantities() on the paginated collection only.
      *
-     * For the visible DO representative row: if **all** DO Stock Out lines for
-     * that (DO, item) share the same per-line quantity (multiple appearances),
-     * Balance is the on-hand total after the **oldest** such line. Otherwise
-     * Balance follows the latest-event tail rule (same-qty run at end of the
-     * latest event uses the first line of that run; a single final line uses
-     * the total after that line).
+     * For the visible DO representative row, Balance is derived from **all** DO
+     * Stock Out lines for that (DO, item) in id order: take the **last** stretch
+     * of consecutive equal per-line quantities. If that stretch has multiple lines,
+     * use the on-hand total after the **first** line in the stretch; if it is a
+     * single line, use the total after that line. Other quantities earlier in the
+     * history only bound where that stretch starts; they do not change how the
+     * final stretch is read. Each (DO, item) is independent.
      *
      * @param  iterable<\App\Models\Transaction>  $pageTransactions
      * @return array<int, float|int>
@@ -732,59 +735,27 @@ class TransactionLog extends Component
         $events = $this->buildDoStockOutEvents();
         $allLinesByLatestRep = $events['all_do_out_lines_by_latest_rep_id'] ?? [];
 
-        foreach ($events['event_lines_by_rep_id'] ?? [] as $repId => $latestEventLines) {
+        foreach ($allLinesByLatestRep as $repId => $allOutLines) {
             $repId = (int) $repId;
-            if (!isset($pageRepIds[$repId])) {
+            if (!isset($pageRepIds[$repId]) || $allOutLines === []) {
                 continue;
             }
 
-            $allOutLines = $allLinesByLatestRep[$repId] ?? [];
-            if ($this->allDoStockOutLinesHaveIdenticalQty($allOutLines)) {
-                $oldestId = (int) $allOutLines[0]['id'];
-                $balanceByTxId[$repId] = (float) ($balanceByTxId[$oldestId] ?? 0.0);
-                continue;
-            }
-
-            if ($latestEventLines === []) {
-                continue;
-            }
-
-            $balanceByTxId[$repId] = $this->doStockOutEventDisplayBalanceForRep($balanceByTxId, $latestEventLines);
+            $balanceByTxId[$repId] = $this->doStockOutPairDisplayBalanceFromOutLines($balanceByTxId, $allOutLines);
         }
 
         return $balanceByTxId;
     }
 
     /**
-     * True when this (DO, item) has at least two Stock Out lines and every line
-     * uses the same absolute quantity (e.g. repeated 2 after status reversals).
-     *
-     * @param  list<array{id:int, qty:float}>  $lines  ordered by id ascending
-     */
-    private function allDoStockOutLinesHaveIdenticalQty(array $lines): bool
-    {
-        $n = count($lines);
-        if ($n < 2) {
-            return false;
-        }
-
-        $q0 = (float) $lines[0]['qty'];
-        for ($i = 1; $i < $n; $i++) {
-            if (abs((float) $lines[$i]['qty'] - $q0) >= 1e-9) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Pick the Balance cell for one visible DO Stock Out representative row.
+     * Balance for the visible DO row from every Stock Out line on that (DO, item),
+     * ordered by id: split into runs of consecutive equal qty; use the last run
+     * (see recomputeDisplayBalances docblock).
      *
      * @param  array<int, float|int>  $balanceByTxId
      * @param  list<array{id:int, qty:float}>  $lines  ordered by id ascending
      */
-    private function doStockOutEventDisplayBalanceForRep(array $balanceByTxId, array $lines): float
+    private function doStockOutPairDisplayBalanceFromOutLines(array $balanceByTxId, array $lines): float
     {
         if ($lines === []) {
             return 0.0;
