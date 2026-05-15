@@ -56,6 +56,9 @@
                         </div>
 
                         <div class="po-list-wrapper" style="position: relative;">
+                            @php
+                                $poListInitialColWidths = [130, 90, 280, 120, 90, 90, 120, 120];
+                            @endphp
                             <style>
                                 /* Wrapper to separate scrollable table from fixed pagination */
                                 .po-list-wrapper {
@@ -77,29 +80,24 @@
                                     margin-bottom: 0;
                                 }
                                 
-                                /* Table styling - auto layout to prevent overlapping */
-                                .table.po-list { 
-                                    table-layout: auto; 
+                                /* Table borders (layout / clip / resize: partial .list-col-resize-table) */
+                                .table.po-list.list-col-resize-table { 
                                     width: 100%;
                                     min-width: 100%;
-                                    max-width: 100%; /* Constrain to container width */
-                                    border-collapse: collapse; /* Changed to collapse for clearer borders */
+                                    max-width: 100%;
+                                    border-collapse: collapse;
                                     border-spacing: 0;
                                     margin-bottom: 0;
-                                    border: 1px solid #212529; /* Outer border - darker for clarity */
+                                    border: 1px solid #212529;
                                     --tx-log-cell-px: 0.38rem;
                                     --tx-log-cell-py: 0.22rem;
                                 }
                                 
-                                /* All cells - prevent wrapping and overlapping */
-                                .table.po-list th,
-                                .table.po-list td {
-                                    white-space: nowrap;
-                                    overflow: visible;
-                                    text-overflow: clip;
+                                .table.po-list.list-col-resize-table th,
+                                .table.po-list.list-col-resize-table td {
                                     padding: var(--tx-log-cell-py) var(--tx-log-cell-px);
                                     vertical-align: middle;
-                                    border: 1px solid #dee2e6; /* Clearer border lines */
+                                    border: 1px solid #dee2e6;
                                 }
 
                                 .table.po-list tbody td {
@@ -107,9 +105,8 @@
                                     line-height: 1.28;
                                 }
                                 
-                                /* Table borders - clearer lines */
                                 .table.po-list thead th {
-                                    border-bottom: 2px solid #212529; /* Thicker header border */
+                                    border-bottom: 2px solid #212529;
                                     border-top: 1px solid #212529;
                                     border-left: 1px solid #dee2e6;
                                     border-right: 1px solid #dee2e6;
@@ -118,6 +115,16 @@
                                     font-size: 0.82rem;
                                     line-height: 1.3;
                                     letter-spacing: 0.01em;
+                                }
+
+                                .table.po-list .list-col-resize-handle::after {
+                                    content: '';
+                                    position: absolute;
+                                    top: 0;
+                                    bottom: 0;
+                                    right: 3px;
+                                    width: 1px;
+                                    background: transparent;
                                 }
                                 
                                 .table.po-list thead th:first-child {
@@ -148,66 +155,6 @@
                                     border-bottom: 1px solid #212529;
                                 }
                                 
-                                /* Column widths - fixed minimum widths to prevent overlap */
-                                .table.po-list th:nth-child(1), 
-                                .table.po-list td:nth-child(1) { 
-                                    min-width: 130px;
-                                    width: 130px;
-                                } /* PO Number */
-                                
-                                .table.po-list th:nth-child(2), 
-                                .table.po-list td:nth-child(2) { 
-                                    min-width: 90px;
-                                    width: 90px;
-                                } /* Date */
-                                
-                                .table.po-list th:nth-child(3), 
-                                .table.po-list td:nth-child(3) { 
-                                    min-width: 250px;
-                                    width: auto; /* Allow expansion for long supplier names */
-                                } /* Supplier Name - full text, no truncation */
-                                
-                                .table.po-list th:nth-child(4), 
-                                .table.po-list td:nth-child(4) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Status */
-                                
-                                .table.po-list th:nth-child(5), 
-                                .table.po-list td:nth-child(5) { 
-                                    min-width: 90px;
-                                    width: 90px;
-                                    text-align: center;
-                                } /* Update */
-
-                                .table.po-list th:nth-child(6), 
-                                .table.po-list td:nth-child(6) { 
-                                    min-width: 90px;
-                                    width: 90px;
-                                    text-align: center;
-                                } /* Print */
-
-                                .table.po-list th:nth-child(7), 
-                                .table.po-list td:nth-child(7) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Created by */
-                                
-                                .table.po-list th:nth-child(8), 
-                                .table.po-list td:nth-child(8) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Last edited by */
-                                
-                                /* Ensure links don't cause wrapping */
-                                .table.po-list td a {
-                                    white-space: nowrap;
-                                    display: inline-block;
-                                    max-width: 100%;
-                                    overflow: visible;
-                                    text-overflow: clip;
-                                }
-                                
                                 /* Action buttons layout */
                                 .action-buttons {
                                     display: flex;
@@ -224,21 +171,29 @@
                             
                             <!-- Scrollable table area -->
                             <div class="table-responsive po-list-scrollable list-sticky-table-scroll">
-                                <table class="table table-hover po-list">
+                                <table class="table table-hover po-list list-col-resize-table" data-list-col-storage-key="poList" data-list-col-variant="default">
+                                    <colgroup>
+                                        @foreach($poListInitialColWidths as $idx => $wPx)
+                                            <col data-list-col-index="{{ $idx }}" style="width: {{ $wPx }}px;">
+                                        @endforeach
+                                    </colgroup>
                                     <thead>
                                         <tr>
-                                            <th>PO Number</th>
+                                            <th><span class="list-th-label">PO Number</span><span class="list-col-resize-handle" data-list-col-index="0" title="Drag to resize"></span></th>
                                             <th>
-                                                <button type="button" wire:click="toggleDateSort" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
-                                                    Date {{ $dateSortDirection === 'asc' ? '↓' : '↑' }}
-                                                </button>
+                                                <span class="list-th-label">
+                                                    <button type="button" wire:click="toggleDateSort" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold">
+                                                        Date {{ $dateSortDirection === 'asc' ? '↓' : '↑' }}
+                                                    </button>
+                                                </span>
+                                                <span class="list-col-resize-handle" data-list-col-index="1" title="Drag to resize"></span>
                                             </th>
-                                            <th>Supplier Name</th>
-                                            <th>Status</th>
-                                            <th>Update</th>
-                                            <th>Print</th>
-                                            <th>Created by</th>
-                                            <th>Last edited by</th>
+                                            <th><span class="list-th-label">Supplier Name</span><span class="list-col-resize-handle" data-list-col-index="2" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Status</span><span class="list-col-resize-handle" data-list-col-index="3" title="Drag to resize"></span></th>
+                                            <th class="text-center"><span class="list-th-label">Update</span><span class="list-col-resize-handle" data-list-col-index="4" title="Drag to resize"></span></th>
+                                            <th class="text-center"><span class="list-th-label">Print</span><span class="list-col-resize-handle" data-list-col-index="5" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Created by</span><span class="list-col-resize-handle" data-list-col-index="6" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Last edited by</span><span class="list-col-resize-handle" data-list-col-index="7" title="Drag to resize"></span></th>
                                         </tr>
                                     </thead>
 
@@ -295,4 +250,5 @@
         </div>
     </div>
     @include('partials.unified-list-page-styles')
+    @include('partials.list-table-column-resize')
 </div>

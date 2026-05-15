@@ -90,4 +90,66 @@
         top: 0;
         z-index: 5;
     }
+
+    /*
+     * Simple admin lists (User, Category, Family, Group): typography only — no bordered/resizable table.
+     */
+    .list-page-unified-density .list-simple-table {
+        margin-bottom: 0;
+    }
+    .list-page-unified-density .list-simple-table thead th {
+        font-size: 0.82rem;
+        font-weight: 600;
+        line-height: 1.3;
+        letter-spacing: 0.01em;
+        vertical-align: middle;
+    }
+    .list-page-unified-density .list-simple-table tbody td {
+        font-size: 0.78rem;
+        line-height: 1.28;
+        vertical-align: middle;
+    }
+    .list-page-unified-density .list-simple-table .btn-sm {
+        font-size: 0.78rem;
+    }
+    .list-page-unified-density .list-simple-pagination {
+        font-size: 0.82rem;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid #dee2e6;
+    }
+    .list-page-unified-density .list-simple-pagination .small,
+    .list-page-unified-density .list-simple-pagination .text-muted {
+        font-size: 0.82rem;
+    }
+
+    /* Category / Family / Group: denser rows */
+    .list-page-unified-density .list-simple-table-compact thead th {
+        padding: 0.28rem 0.5rem;
+        line-height: 1.2;
+        font-size: 0.78rem;
+    }
+    .list-page-unified-density .list-simple-table-compact tbody td {
+        padding: 0.2rem 0.5rem;
+        line-height: 1.2;
+        font-size: 0.75rem;
+    }
+    .list-page-unified-density .list-simple-table-compact .btn-sm {
+        padding: 0.12rem 0.35rem;
+        font-size: 0.72rem;
+        line-height: 1.2;
+    }
+    .list-page-unified-density .master-data-sort-btn {
+        font-size: 0.78rem;
+        line-height: 1.2;
+        letter-spacing: 0.01em;
+    }
+    .list-page-unified-density .master-data-list-table .master-data-col-no {
+        width: 3.5rem;
+        white-space: nowrap;
+    }
+    .list-page-unified-density .master-data-list-table .master-data-col-action {
+        width: 4.5rem;
+        white-space: nowrap;
+    }
 </style>

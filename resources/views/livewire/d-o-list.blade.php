@@ -47,6 +47,9 @@
                             @php
                                 $activeDb = strtolower(session('active_db') ?: config('database.default'));
                                 $showInvoiceNoColumn = in_array($activeDb, ['ups', 'ucs'], true);
+                                $doListInitialColWidths = $showInvoiceNoColumn
+                                    ? [100, 70, 175, 85, 90, 70, 58, 42, 65, 65]
+                                    : [100, 70, 200, 85, 70, 58, 42, 65, 65];
                             @endphp
                             <style>
                                 /* Wrapper to separate scrollable table from fixed pagination */
@@ -70,12 +73,10 @@
                                     margin-bottom: 0;
                                 }
                                 
-                                /* Table styling - auto layout to prevent overlapping */
-                                .table.do-list { 
-                                    table-layout: auto; 
+                                /* Table styling — borders (layout / resize / clip from partial .list-col-resize-table) */
+                                .table.do-list.list-col-resize-table { 
                                     width: 100%;
-                                    min-width: 100%;
-                                    max-width: 100%; /* Constrain to container width */
+                                    max-width: 100%;
                                     border-collapse: collapse; /* Changed to collapse for clearer borders */
                                     border-spacing: 0;
                                     margin-bottom: 0;
@@ -83,16 +84,12 @@
                                     --tx-log-cell-px: 0.38rem;
                                     --tx-log-cell-py: 0.22rem;
                                 }
-                                
-                                /* All cells - prevent wrapping and overlapping */
-                                .table.do-list th,
-                                .table.do-list td {
-                                    white-space: nowrap;
-                                    overflow: visible;
-                                    text-overflow: clip;
+
+                                .table.do-list.list-col-resize-table th,
+                                .table.do-list.list-col-resize-table td {
                                     padding: var(--tx-log-cell-py) var(--tx-log-cell-px);
-                                    vertical-align: middle;
                                     border: 1px solid #dee2e6; /* Clearer border lines */
+                                    vertical-align: middle;
                                 }
 
                                 .table.do-list tbody td {
@@ -111,6 +108,16 @@
                                     font-size: 0.82rem;
                                     line-height: 1.3;
                                     letter-spacing: 0.01em;
+                                }
+
+                                .table.do-list .list-col-resize-handle::after {
+                                    content: '';
+                                    position: absolute;
+                                    top: 0;
+                                    bottom: 0;
+                                    right: 3px;
+                                    width: 1px;
+                                    background: transparent;
                                 }
                                 
                                 .table.do-list thead th:first-child {
@@ -140,136 +147,6 @@
                                 .table.do-list tbody tr:last-child td {
                                     border-bottom: 1px solid #212529;
                                 }
-                                
-                                /* Column widths - fixed minimum widths to prevent overlap */
-                                .table.do-list th:nth-child(1), 
-                                .table.do-list td:nth-child(1) { 
-                                    min-width: 130px;
-                                    width: 130px;
-                                } /* DO Number */
-                                
-                                @if($showInvoiceNoColumn)
-                                    .table.do-list th:nth-child(2), 
-                                    .table.do-list td:nth-child(2) { 
-                                        min-width: 90px;
-                                        width: 90px;
-                                    } /* Date */
-                                    
-                                    .table.do-list th:nth-child(3), 
-                                    .table.do-list td:nth-child(3) { 
-                                        min-width: 250px;
-                                        width: auto; /* Allow expansion for long customer names */
-                                    } /* Customer Name - full text, no truncation */
-                                    
-                                    .table.do-list th:nth-child(4), 
-                                    .table.do-list td:nth-child(4) { 
-                                        min-width: 120px;
-                                        width: 120px;
-                                    } /* Amount */
-                                    
-                                    .table.do-list th:nth-child(5), 
-                                    .table.do-list td:nth-child(5) { 
-                                        min-width: 130px;
-                                        width: 130px;
-                                    } /* Invoice No */
-                                    
-                                    .table.do-list th:nth-child(6), 
-                                    .table.do-list td:nth-child(6) { 
-                                        min-width: 100px;
-                                        width: 100px;
-                                    } /* Salesman */
-                                    
-                                    .table.do-list th:nth-child(7), 
-                                    .table.do-list td:nth-child(7) { 
-                                        min-width: 120px;
-                                        width: 120px;
-                                    } /* Status */
-                                    
-                                    .table.do-list th:nth-child(8), 
-                                    .table.do-list td:nth-child(8) { 
-                                        min-width: 90px;
-                                        width: 90px;
-                                        text-align: center;
-                                    } /* Print */
-                                    
-                                    .table.do-list th:nth-child(9), 
-                                    .table.do-list td:nth-child(9) { 
-                                        min-width: 120px;
-                                        width: 120px;
-                                    } /* Created by */
-                                    
-                                    .table.do-list th:nth-child(10), 
-                                    .table.do-list td:nth-child(10) { 
-                                        min-width: 120px;
-                                        width: 120px;
-                                    } /* Last edited by */
-                                @else
-                                    .table.do-list th:nth-child(2), 
-                                    .table.do-list td:nth-child(2) { 
-                                        min-width: 90px;
-                                        width: 90px;
-                                    } /* Date */
-                                    
-                                    .table.do-list th:nth-child(3), 
-                                    .table.do-list td:nth-child(3) { 
-                                        min-width: 250px;
-                                        width: auto; /* Allow expansion for long customer names */
-                                    } /* Customer Name - full text, no truncation */
-                                    
-                                    .table.do-list th:nth-child(4), 
-                                    .table.do-list td:nth-child(4) { 
-                                        min-width: 120px;
-                                        width: 120px;
-                                    } /* Amount */
-                                    
-                                    .table.do-list th:nth-child(5), 
-                                    .table.do-list td:nth-child(5) { 
-                                        min-width: 100px;
-                                        width: 100px;
-                                    } /* Salesman */
-                                    
-                                    .table.do-list th:nth-child(6), 
-                                    .table.do-list td:nth-child(6) { 
-                                        min-width: 120px;
-                                        width: 120px;
-                                    } /* Status */
-                                    
-                                    .table.do-list th:nth-child(7), 
-                                    .table.do-list td:nth-child(7) { 
-                                        min-width: 90px;
-                                        width: 90px;
-                                        text-align: center;
-                                    } /* Print */
-                                    
-                                    .table.do-list th:nth-child(8), 
-                                    .table.do-list td:nth-child(8) { 
-                                        min-width: 120px;
-                                        width: 120px;
-                                    } /* Created by */
-                                    
-                                    .table.do-list th:nth-child(9), 
-                                    .table.do-list td:nth-child(9) { 
-                                        min-width: 120px;
-                                        width: 120px;
-                                    } /* Last edited by */
-                                @endif
-                                
-                                /* Ensure links don't cause wrapping */
-                                .table.do-list td a {
-                                    white-space: nowrap;
-                                    display: inline-block;
-                                    max-width: 100%;
-                                    overflow: visible;
-                                    text-overflow: clip;
-                                }
-                                
-                                /* Action buttons layout */
-                                .action-buttons {
-                                    display: flex;
-                                    flex-direction: column;
-                                    gap: 0.25rem;
-                                    align-items: center;
-                                }
 
                                 /* Status and print styles */
                                 .do-status {
@@ -291,25 +168,42 @@
                                 .do-row-cancelled .do-status {
                                     color: #b02a37 !important;
                                 }
+
+                                .table.do-list th.do-list-col-user,
+                                .table.do-list td.do-list-col-user {
+                                    font-size: 0.72rem;
+                                    line-height: 1.2;
+                                }
                             </style>
                             
                             <!-- Scrollable table area -->
                             <div class="table-responsive do-list-scrollable list-sticky-table-scroll">
-                                <table class="table table-hover do-list">
+                                <table class="table table-hover do-list list-col-resize-table" data-list-col-storage-key="doList" data-list-col-variant="{{ $showInvoiceNoColumn ? 'inv' : 'noinv' }}">
+                                    <colgroup>
+                                        @foreach($doListInitialColWidths as $idx => $wPx)
+                                            <col data-list-col-index="{{ $idx }}" style="width: {{ $wPx }}px;">
+                                        @endforeach
+                                    </colgroup>
                                     <thead>
                                         <tr>
-                                            <th>DO Number</th>
-                                            <th>Date</th>
-                                            <th>Customer Name</th>
-                                            <th>Amount</th>
+                                            <th><span class="list-th-label">DO Number</span><span class="list-col-resize-handle" data-list-col-index="0" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Date</span><span class="list-col-resize-handle" data-list-col-index="1" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Customer Name</span><span class="list-col-resize-handle" data-list-col-index="2" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Amount</span><span class="list-col-resize-handle" data-list-col-index="3" title="Drag to resize"></span></th>
                                             @if($showInvoiceNoColumn)
-                                                <th>Invoice No</th>
+                                                <th><span class="list-th-label">Invoice No</span><span class="list-col-resize-handle" data-list-col-index="4" title="Drag to resize"></span></th>
+                                                <th><span class="list-th-label">Salesman</span><span class="list-col-resize-handle" data-list-col-index="5" title="Drag to resize"></span></th>
+                                                <th><span class="list-th-label">Status</span><span class="list-col-resize-handle" data-list-col-index="6" title="Drag to resize"></span></th>
+                                                <th class="text-center"><span class="list-th-label">Print</span><span class="list-col-resize-handle" data-list-col-index="7" title="Drag to resize"></span></th>
+                                                <th class="do-list-col-user"><span class="list-th-label">Created by</span><span class="list-col-resize-handle" data-list-col-index="8" title="Drag to resize"></span></th>
+                                                <th class="do-list-col-user"><span class="list-th-label">Last edited by</span><span class="list-col-resize-handle" data-list-col-index="9" title="Drag to resize"></span></th>
+                                            @else
+                                                <th><span class="list-th-label">Salesman</span><span class="list-col-resize-handle" data-list-col-index="4" title="Drag to resize"></span></th>
+                                                <th><span class="list-th-label">Status</span><span class="list-col-resize-handle" data-list-col-index="5" title="Drag to resize"></span></th>
+                                                <th class="text-center"><span class="list-th-label">Print</span><span class="list-col-resize-handle" data-list-col-index="6" title="Drag to resize"></span></th>
+                                                <th class="do-list-col-user"><span class="list-th-label">Created by</span><span class="list-col-resize-handle" data-list-col-index="7" title="Drag to resize"></span></th>
+                                                <th class="do-list-col-user"><span class="list-th-label">Last edited by</span><span class="list-col-resize-handle" data-list-col-index="8" title="Drag to resize"></span></th>
                                             @endif
-                                            <th>Salesman</th>
-                                            <th>Status</th>
-                                            <th>Print</th>
-                                            <th>Created by</th>
-                                            <th>Last edited by</th>
                                         </tr>
                                     </thead>
 
@@ -341,8 +235,8 @@
                                                         {{ $delivery_order->printed === 'Y' ? 'Y' : 'N' }}
                                                     </span>
                                                 </td>
-                                                <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->user->name ?? '-' }}</a></td>
-                                                <td><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->updatedBy->name ?? ($delivery_order->user->name ?? '-') }}</a></td>
+                                                <td class="do-list-col-user"><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->user->name ?? '-' }}</a></td>
+                                                <td class="do-list-col-user"><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->updatedBy->name ?? ($delivery_order->user->name ?? '-') }}</a></td>
                                                 
                                             </tr>
                                         @empty
@@ -377,4 +271,87 @@
         </div>
     </div>
     @include('partials.unified-list-page-styles')
+    @include('partials.list-table-column-resize')
+    <script>
+        (function () {
+            var MIN_COL_PX = 48;
+
+            function getDoListCols(table) {
+                var cols = Array.from(table.querySelectorAll('colgroup col[data-list-col-index]'));
+                cols.sort(function (a, b) {
+                    return parseInt(a.getAttribute('data-list-col-index'), 10) - parseInt(b.getAttribute('data-list-col-index'), 10);
+                });
+                return cols;
+            }
+
+            function readColWidthPx(col) {
+                var w = col.style.width;
+                if (w && w.indexOf('px') !== -1) {
+                    return parseFloat(w);
+                }
+                return col.getBoundingClientRect().width;
+            }
+
+            function fitDoListTableToContainer() {
+                var table = document.querySelector('table.do-list.list-col-resize-table[data-list-col-storage-key="doList"]');
+                if (!table) {
+                    return;
+                }
+                var scroll = table.closest('.do-list-scrollable');
+                if (!scroll || scroll.clientWidth < 100) {
+                    return;
+                }
+                var cols = getDoListCols(table);
+                if (!cols.length) {
+                    return;
+                }
+                var widths = cols.map(readColWidthPx);
+                var total = widths.reduce(function (sum, w) { return sum + w; }, 0);
+                var available = scroll.clientWidth - 2;
+                if (total <= available) {
+                    return;
+                }
+                var scale = available / total;
+                var newWidths = widths.map(function (w) {
+                    return Math.max(MIN_COL_PX, Math.floor(w * scale));
+                });
+                var remainder = available - newWidths.reduce(function (sum, w) { return sum + w; }, 0);
+                if (remainder !== 0) {
+                    var customerIdx = 2;
+                    newWidths[customerIdx] = Math.max(MIN_COL_PX, newWidths[customerIdx] + remainder);
+                }
+                cols.forEach(function (col, i) {
+                    col.style.width = Math.round(newWidths[i]) + 'px';
+                });
+            }
+
+            function scheduleFit() {
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(fitDoListTableToContainer);
+                });
+            }
+
+            function afterColumnWidthsApplied() {
+                setTimeout(scheduleFit, 0);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', afterColumnWidthsApplied);
+            } else {
+                afterColumnWidthsApplied();
+            }
+            document.addEventListener('livewire:navigated', afterColumnWidthsApplied);
+            document.addEventListener('livewire:init', function () {
+                if (typeof Livewire === 'undefined' || !Livewire.hook) {
+                    return;
+                }
+                Livewire.hook('morph.updated', function (payload) {
+                    var el = payload && payload.el;
+                    if (el && (el.matches && el.matches('table.do-list') || (el.querySelector && el.querySelector('table.do-list')))) {
+                        afterColumnWidthsApplied();
+                    }
+                });
+            });
+        })();
+    </script>
 </div>

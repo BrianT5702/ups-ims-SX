@@ -113,9 +113,11 @@
                 @can('View Transaction Log')
                     <a href="{{route('transaction-log.')}}" class="block px-2 py-1 hover:bg-gray-300">Transaction Log</a>
                 @endcan
+                {{-- Batch List hidden from sidebar (uncomment to restore nav link)
                 @can('View Batch List')
                     <a href="{{route('batch-list')}}" class="block px-2 py-1 hover:bg-gray-300">Batch List</a>
                 @endcan
+                --}}
                 @can('Manage Warehouse')
                     <a href="{{route('warehouses')}}" class="block px-2 py-1 hover:bg-gray-300">Warehouse</a>
                 @endcan

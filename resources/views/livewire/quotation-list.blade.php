@@ -45,6 +45,9 @@
 
 
                         <div class="quotation-list-wrapper" style="position: relative;">
+                            @php
+                                $quotationListInitialColWidths = [90, 160, 280, 120, 120, 120, 120, 120, 90];
+                            @endphp
                             <style>
                                 /* Wrapper to separate scrollable table from fixed pagination */
                                 .quotation-list-wrapper {
@@ -66,29 +69,23 @@
                                     margin-bottom: 0;
                                 }
                                 
-                                /* Table styling - auto layout to prevent overlapping */
-                                .table.quotation-list { 
-                                    table-layout: auto; 
+                                .table.quotation-list.list-col-resize-table { 
                                     width: 100%;
                                     min-width: 100%;
-                                    max-width: 100%; /* Constrain to container width */
-                                    border-collapse: collapse; /* Changed to collapse for clearer borders */
+                                    max-width: 100%;
+                                    border-collapse: collapse;
                                     border-spacing: 0;
                                     margin-bottom: 0;
-                                    border: 1px solid #212529; /* Outer border - darker for clarity */
+                                    border: 1px solid #212529;
                                     --tx-log-cell-px: 0.38rem;
                                     --tx-log-cell-py: 0.22rem;
                                 }
                                 
-                                /* All cells - prevent wrapping and overlapping */
-                                .table.quotation-list th,
-                                .table.quotation-list td {
-                                    white-space: nowrap;
-                                    overflow: visible;
-                                    text-overflow: clip;
+                                .table.quotation-list.list-col-resize-table th,
+                                .table.quotation-list.list-col-resize-table td {
                                     padding: var(--tx-log-cell-py) var(--tx-log-cell-px);
                                     vertical-align: middle;
-                                    border: 1px solid #dee2e6; /* Clearer border lines */
+                                    border: 1px solid #dee2e6;
                                 }
 
                                 .table.quotation-list tbody td {
@@ -96,9 +93,8 @@
                                     line-height: 1.28;
                                 }
                                 
-                                /* Table borders - clearer lines */
                                 .table.quotation-list thead th {
-                                    border-bottom: 2px solid #212529; /* Thicker header border */
+                                    border-bottom: 2px solid #212529;
                                     border-top: 1px solid #212529;
                                     border-left: 1px solid #dee2e6;
                                     border-right: 1px solid #dee2e6;
@@ -107,6 +103,16 @@
                                     font-size: 0.82rem;
                                     line-height: 1.3;
                                     letter-spacing: 0.01em;
+                                }
+
+                                .table.quotation-list .list-col-resize-handle::after {
+                                    content: '';
+                                    position: absolute;
+                                    top: 0;
+                                    bottom: 0;
+                                    right: 3px;
+                                    width: 1px;
+                                    background: transparent;
                                 }
                                 
                                 .table.quotation-list thead th:first-child {
@@ -137,71 +143,6 @@
                                     border-bottom: 1px solid #212529;
                                 }
                                 
-                                /* Column widths - fixed minimum widths to prevent overlap */
-                                .table.quotation-list th:nth-child(1), 
-                                .table.quotation-list td:nth-child(1) { 
-                                    min-width: 90px;
-                                    width: 90px;
-                                } /* Date */
-                                
-                                .table.quotation-list th:nth-child(2), 
-                                .table.quotation-list td:nth-child(2) { 
-                                    min-width: 160px;
-                                    width: 160px;
-                                } /* Quotation Number */
-                                
-                                .table.quotation-list th:nth-child(3), 
-                                .table.quotation-list td:nth-child(3) { 
-                                    min-width: 250px;
-                                    width: auto; /* Allow expansion for long customer names */
-                                } /* Customer Name - full text, no truncation */
-                                
-                                .table.quotation-list th:nth-child(4), 
-                                .table.quotation-list td:nth-child(4) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Amount */
-                                
-                                .table.quotation-list th:nth-child(5), 
-                                .table.quotation-list td:nth-child(5) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Salesman */
-                                
-                                .table.quotation-list th:nth-child(6), 
-                                .table.quotation-list td:nth-child(6) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Status */
-                                
-                                .table.quotation-list th:nth-child(7), 
-                                .table.quotation-list td:nth-child(7) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Created by */
-                                
-                                .table.quotation-list th:nth-child(8), 
-                                .table.quotation-list td:nth-child(8) { 
-                                    min-width: 120px;
-                                    width: 120px;
-                                } /* Last edited by */
-                                
-                                .table.quotation-list th:nth-child(9), 
-                                .table.quotation-list td:nth-child(9) { 
-                                    min-width: 90px;
-                                    width: 90px;
-                                    text-align: center;
-                                } /* Printed */
-                                
-                                /* Ensure links don't cause wrapping */
-                                .table.quotation-list td a {
-                                    white-space: nowrap;
-                                    display: inline-block;
-                                    max-width: 100%;
-                                    overflow: visible;
-                                    text-overflow: clip;
-                                }
-                                
                                 /* Action buttons layout */
                                 .action-buttons {
                                     display: flex;
@@ -224,18 +165,23 @@
                             
                             <!-- Scrollable table area -->
                             <div class="table-responsive quotation-list-scrollable list-sticky-table-scroll">
-                                <table class="table table-hover quotation-list">
+                                <table class="table table-hover quotation-list list-col-resize-table" data-list-col-storage-key="quotationList" data-list-col-variant="default">
+                                    <colgroup>
+                                        @foreach($quotationListInitialColWidths as $idx => $wPx)
+                                            <col data-list-col-index="{{ $idx }}" style="width: {{ $wPx }}px;">
+                                        @endforeach
+                                    </colgroup>
                                     <thead>
                                         <tr>
-                                            <th>Date</th>
-                                            <th>Quotation Number</th>
-                                            <th>Customer Name</th>
-                                            <th>Amount</th>
-                                            <th>Salesman</th>
-                                            <th>Status</th>
-                                            <th>Created by</th>
-                                            <th>Last edited by</th>
-                                            <th>Print</th>
+                                            <th><span class="list-th-label">Date</span><span class="list-col-resize-handle" data-list-col-index="0" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Quotation Number</span><span class="list-col-resize-handle" data-list-col-index="1" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Customer Name</span><span class="list-col-resize-handle" data-list-col-index="2" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Amount</span><span class="list-col-resize-handle" data-list-col-index="3" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Salesman</span><span class="list-col-resize-handle" data-list-col-index="4" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Status</span><span class="list-col-resize-handle" data-list-col-index="5" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Created by</span><span class="list-col-resize-handle" data-list-col-index="6" title="Drag to resize"></span></th>
+                                            <th><span class="list-th-label">Last edited by</span><span class="list-col-resize-handle" data-list-col-index="7" title="Drag to resize"></span></th>
+                                            <th class="text-center"><span class="list-th-label">Print</span><span class="list-col-resize-handle" data-list-col-index="8" title="Drag to resize"></span></th>
                                         </tr>
                                     </thead>
 
@@ -289,6 +235,7 @@
         </div>
     </div>
     @include('partials.unified-list-page-styles')
+    @include('partials.list-table-column-resize')
 </div>
 
 

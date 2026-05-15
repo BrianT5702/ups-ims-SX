@@ -29,6 +29,12 @@ class SupplierList extends Component
         }
     }
 
+    public function clearFilters(): void
+    {
+        $this->supplierSearchTerm = null;
+        $this->resetPage();
+    }
+
     public function fetchSuppliers(){
         return Supplier::where('sup_name', 'like', '%'. $this->supplierSearchTerm. '%')->
         orderBy($this->sortColumn, $this->sortOrder)->

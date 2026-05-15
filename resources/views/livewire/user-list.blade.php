@@ -1,28 +1,22 @@
-<div>
-    <div class="container my-3">
+<div class="list-page-unified-density">
+    <div class="container my-2" style="padding-left: 0.25rem; padding-right: 0.25rem;">
         <div class="row">
-            <div class="col-md-10 m-auto">
+            <div class="col-md-11 m-auto">
                 <div class="card shadow-sm">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold fs-5 mb-0">Manage User</h5>
+                    <div class="card-header transaction-log-page-header d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <h5 class="fw-bold mb-0 list-page-unified-title">Manage User</h5>
+                        <a wire:navigate href="{{ route('users.add') }}" class="btn btn-primary btn-sm flex-shrink-0">Add User</a>
                     </div>
-                    <div class="card-body">
-                        <!-- Search and Add User -->
-                        <div class="row align-items-end mb-3 my-3">
+                    <div class="card-body px-2 pb-3 transaction-log-card-body">
+                        <div class="row mb-2 g-2 align-items-end list-page-unified-filters">
                             <div class="col-md-4">
+                                <label class="form-label">Search</label>
                                 <input type="text" wire:model.live.debounce.100ms="userSearchTerm" class="form-control form-control-sm rounded" placeholder="Search user...">
-                            </div>
-                            <div class="col-md-8">
-                                <div class="d-flex justify-content-end">
-                                    <a wire:navigate href="{{ route('users.add') }}" class="btn btn-primary">Add User</a>
-                                </div>
                             </div>
                         </div>
 
-
-                        <!-- User Table -->
-                        <div class="table-responsive mt-3">
-                            <table class="table table-hover">
+                        <div class="table-responsive mt-2">
+                            <table class="table table-hover list-simple-table">
                                 <thead>
                                     <tr>
                                         <th>No</th>
@@ -71,11 +65,14 @@
                                     @endforelse
                                 </tbody>
                             </table>
-                            {{ $users->links() }}
+                            <div class="list-simple-pagination">
+                                {{ $users->links() }}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    @include('partials.unified-list-page-styles')
 </div>

@@ -178,6 +178,10 @@
                     @endif
 
                     <div class="transaction-log-wrapper" style="position: relative;">
+                        @php
+                            $txLogListInitialColWidths = [78, 108, 92, 200, 68, 68, 68];
+                            $txLogColResizeVariant = ($isGroupReportMode ?? false) ? 'group' : 'std';
+                        @endphp
                         <style>
                             /* Wrapper to separate scrollable table from fixed pagination */
                             .transaction-log-wrapper {
@@ -199,10 +203,9 @@
                                 margin-bottom: 0;
                             }
                             
-                            /* Table: slightly larger type; company column narrower; more room for In/Out/Balance */
-                            .table.transaction-log-table { 
-                                table-layout: auto; 
-                                width: max-content;
+                            /* Table (layout / clip / resize: partial .list-col-resize-table) */
+                            .table.transaction-log-table.list-col-resize-table { 
+                                width: 100%;
                                 min-width: 100%;
                                 max-width: 100%;
                                 border-collapse: collapse;
@@ -213,11 +216,8 @@
                                 --tx-log-cell-py: 0.22rem;
                             }
                             
-                            .table.transaction-log-table th,
-                            .table.transaction-log-table td {
-                                white-space: nowrap;
-                                overflow: visible;
-                                text-overflow: clip;
+                            .table.transaction-log-table.list-col-resize-table th,
+                            .table.transaction-log-table.list-col-resize-table td {
                                 padding: var(--tx-log-cell-py) var(--tx-log-cell-px);
                                 vertical-align: middle;
                                 border: 1px solid #dee2e6;
@@ -238,6 +238,16 @@
                                 font-size: 0.82rem;
                                 line-height: 1.3;
                                 letter-spacing: 0.01em;
+                            }
+
+                            .table.transaction-log-table .list-col-resize-handle::after {
+                                content: '';
+                                position: absolute;
+                                top: 0;
+                                bottom: 0;
+                                right: 3px;
+                                width: 1px;
+                                background: transparent;
                             }
                             
                             .table.transaction-log-table thead th:first-child {
@@ -267,68 +277,32 @@
                             .table.transaction-log-table tbody tr:last-child td {
                                 border-bottom: 1px solid #212529;
                             }
-                            
-                            /* Column widths — compact minima */
-                            .table.transaction-log-table th:nth-child(1), 
-                            .table.transaction-log-table td:nth-child(1) { 
-                                min-width: 78px;
-                                width: 78px;
-                            } /* Date */
-                            
-                            .table.transaction-log-table th:nth-child(2), 
-                            .table.transaction-log-table td:nth-child(2) { 
-                                min-width: 108px;
-                                width: 108px;
-                            } /* Source Doc No */
-                            
-                            .table.transaction-log-table th:nth-child(3), 
-                            .table.transaction-log-table td:nth-child(3) { 
-                                min-width: 92px;
-                                width: 92px;
-                            } /* Item Code */
-                            
-                            .table.transaction-log-table th:nth-child(4), 
-                            .table.transaction-log-table td:nth-child(4) { 
-                                min-width: 108px;
-                                max-width: 200px;
-                                width: auto;
-                            } /* Company name (replaces former wide “name” column) */
-                            
-                            .table.transaction-log-table th:nth-child(5), 
-                            .table.transaction-log-table td:nth-child(5),
-                            .table.transaction-log-table th:nth-child(6), 
-                            .table.transaction-log-table td:nth-child(6),
-                            .table.transaction-log-table th:nth-child(7), 
-                            .table.transaction-log-table td:nth-child(7) { 
-                                min-width: 68px;
-                                width: 68px;
+
+                            .table.transaction-log-table.list-col-resize-table th:nth-child(n+5),
+                            .table.transaction-log-table.list-col-resize-table td:nth-child(n+5) {
                                 text-align: right;
                                 font-variant-numeric: tabular-nums;
-                            } /* In, Out, Balance */
-                            
-                            /* Ensure links don't cause wrapping */
-                            .table.transaction-log-table td a {
-                                white-space: nowrap;
-                                display: inline-block;
-                                max-width: 100%;
-                                overflow: visible;
-                                text-overflow: clip;
                             }
                             
                         </style>
                         
                         <!-- Scrollable table area -->
                         <div class="table-responsive transaction-log-scrollable list-sticky-table-scroll">
-                            <table class="table table-hover transaction-log-table">
+                            <table class="table table-hover transaction-log-table list-col-resize-table" data-list-col-storage-key="transactionLog" data-list-col-variant="{{ $txLogColResizeVariant }}">
+                            <colgroup>
+                                @foreach($txLogListInitialColWidths as $idx => $wPx)
+                                    <col data-list-col-index="{{ $idx }}" style="width: {{ $wPx }}px;">
+                                @endforeach
+                            </colgroup>
                             <thead>
-                                <tr align="left">
-                                    <th>Doc Date</th>
-                                    <th>Source Doc No</th>
-                                    <th>Item Code</th>
-                                    <th>Company Name</th>
-                                    <th>In</th>
-                                    <th>Out</th>
-                                    <th>Balance</th>
+                                <tr>
+                                    <th><span class="list-th-label">Doc Date</span><span class="list-col-resize-handle" data-list-col-index="0" title="Drag to resize"></span></th>
+                                    <th><span class="list-th-label">Source Doc No</span><span class="list-col-resize-handle" data-list-col-index="1" title="Drag to resize"></span></th>
+                                    <th><span class="list-th-label">Item Code</span><span class="list-col-resize-handle" data-list-col-index="2" title="Drag to resize"></span></th>
+                                    <th><span class="list-th-label">Company Name</span><span class="list-col-resize-handle" data-list-col-index="3" title="Drag to resize"></span></th>
+                                    <th><span class="list-th-label">In</span><span class="list-col-resize-handle" data-list-col-index="4" title="Drag to resize"></span></th>
+                                    <th><span class="list-th-label">Out</span><span class="list-col-resize-handle" data-list-col-index="5" title="Drag to resize"></span></th>
+                                    <th><span class="list-th-label">Balance</span><span class="list-col-resize-handle" data-list-col-index="6" title="Drag to resize"></span></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -496,6 +470,7 @@
     </div>
     </div>
     @include('partials.unified-list-page-styles')
+    @include('partials.list-table-column-resize')
     <style>
         .transaction-log-header-eyebrow {
             font-size: 0.7rem;

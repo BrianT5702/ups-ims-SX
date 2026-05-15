@@ -158,32 +158,49 @@
                         </div>
 
                         <!-- Item Table -->
+                        @php
+                            $inventoryListInitialColWidths = [120, 260, 72, 72, 72, 72, 72, 130, 64];
+                        @endphp
                         <div class="inventory-table-wrap mt-1">
                             <div class="table-responsive list-sticky-table-scroll">
-                                <table class="table table-hover inventory-list">
+                                <table class="table table-hover inventory-list list-col-resize-table" data-list-col-storage-key="inventoryList" data-list-col-variant="default">
+                                <colgroup>
+                                    @foreach($inventoryListInitialColWidths as $idx => $wPx)
+                                        <col data-list-col-index="{{ $idx }}" style="width: {{ $wPx }}px;">
+                                    @endforeach
+                                </colgroup>
                                 <thead>
                                     <tr>
                                         <th>
-                                            <button type="button" wire:click="sortBy('item_code')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
-                                                Item Code{{ $sortField === 'item_code' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
-                                            </button>
+                                            <span class="list-th-label">
+                                                <button type="button" wire:click="sortBy('item_code')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
+                                                    Item Code{{ $sortField === 'item_code' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
+                                                </button>
+                                            </span>
+                                            <span class="list-col-resize-handle" data-list-col-index="0" title="Drag to resize"></span>
                                         </th>
                                         <th>
-                                            <button type="button" wire:click="sortBy('item_name')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
-                                                Item Name{{ $sortField === 'item_name' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
-                                            </button>
+                                            <span class="list-th-label">
+                                                <button type="button" wire:click="sortBy('item_name')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
+                                                    Item Name{{ $sortField === 'item_name' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
+                                                </button>
+                                            </span>
+                                            <span class="list-col-resize-handle" data-list-col-index="1" title="Drag to resize"></span>
                                         </th>
-                                        <th>Quantity</th>
-                                        <th>Cost</th>
-                                        <th>Cash</th>
-                                        <th>Term</th>
-                                        <th>Cust.</th>
+                                        <th><span class="list-th-label">Quantity</span><span class="list-col-resize-handle" data-list-col-index="2" title="Drag to resize"></span></th>
+                                        <th><span class="list-th-label">Cost</span><span class="list-col-resize-handle" data-list-col-index="3" title="Drag to resize"></span></th>
+                                        <th><span class="list-th-label">Cash</span><span class="list-col-resize-handle" data-list-col-index="4" title="Drag to resize"></span></th>
+                                        <th><span class="list-th-label">Term</span><span class="list-col-resize-handle" data-list-col-index="5" title="Drag to resize"></span></th>
+                                        <th><span class="list-th-label">Cust.</span><span class="list-col-resize-handle" data-list-col-index="6" title="Drag to resize"></span></th>
                                         <th>
-                                            <button type="button" wire:click="sortBy('created_at')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
-                                                Created at{{ $sortField === 'created_at' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
-                                            </button>
+                                            <span class="list-th-label">
+                                                <button type="button" wire:click="sortBy('created_at')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
+                                                    Created at{{ $sortField === 'created_at' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
+                                                </button>
+                                            </span>
+                                            <span class="list-col-resize-handle" data-list-col-index="7" title="Drag to resize"></span>
                                         </th>
-                                        <th>Action</th>
+                                        <th class="text-center"><span class="list-th-label">Action</span><span class="list-col-resize-handle" data-list-col-index="8" title="Drag to resize"></span></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -296,8 +313,7 @@
             margin: 0 auto;
         }
 
-        .table.inventory-list {
-            table-layout: fixed;
+        .table.inventory-list.list-col-resize-table {
             width: 100%;
             min-width: 100%;
             border-collapse: collapse;
@@ -308,13 +324,28 @@
             --tx-log-cell-py: 0.22rem;
         }
 
-        .table.inventory-list th,
-        .table.inventory-list td {
+        .table.inventory-list.list-col-resize-table th,
+        .table.inventory-list.list-col-resize-table td {
             padding: var(--tx-log-cell-py) var(--tx-log-cell-px);
             vertical-align: middle;
-            word-wrap: break-word;
             min-width: 0;
             border: 1px solid #dee2e6;
+        }
+
+        .table.inventory-list .list-col-resize-handle::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 3px;
+            width: 1px;
+            background: transparent;
+        }
+
+        /* Memo tooltip extends below row; action cell has icon only */
+        .table.inventory-list.list-col-resize-table tbody td:nth-child(2),
+        .table.inventory-list.list-col-resize-table tbody td:nth-child(9) {
+            overflow: visible;
         }
 
         .table.inventory-list tbody td {
@@ -332,9 +363,6 @@
             border-top: 1px solid #212529;
             border-left: 1px solid #dee2e6;
             border-right: 1px solid #dee2e6;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         .table.inventory-list thead th:first-child {
@@ -366,56 +394,6 @@
             line-height: 1.3;
         }
 
-        /* Column widths (after removing No column) */
-        .table.inventory-list th:nth-child(1),
-        .table.inventory-list td:nth-child(1) { width: 15%; } /* Item Code */
-
-        .table.inventory-list th:nth-child(2),
-        .table.inventory-list td:nth-child(2) { width: 35%; } /* Item Name */
-
-        .table.inventory-list th:nth-child(3),
-        .table.inventory-list td:nth-child(3) { width: 8%; } /* Quantity */
-
-        .table.inventory-list th:nth-child(4),
-        .table.inventory-list td:nth-child(4) { width: 7%; } /* Cost */
-
-        .table.inventory-list th:nth-child(5),
-        .table.inventory-list td:nth-child(5) { width: 7%; } /* Cash */
-
-        .table.inventory-list th:nth-child(6),
-        .table.inventory-list td:nth-child(6) { width: 7%; } /* Term */
-
-        .table.inventory-list th:nth-child(7),
-        .table.inventory-list td:nth-child(7) { width: 7%; } /* Cust. */
-
-        .table.inventory-list th:nth-child(8),
-        .table.inventory-list td:nth-child(8) { width: 11%; } /* Created/Updated At */
-
-        .table.inventory-list th:nth-child(9),
-        .table.inventory-list td:nth-child(9) {
-            width: 5%; /* Action — single control */
-            text-align: center;
-        }
-
-        /* Item Code + Item Name: one line with ellipsis */
-        .table.inventory-list th:nth-child(1),
-        .table.inventory-list td:nth-child(1),
-        .table.inventory-list th:nth-child(2),
-        .table.inventory-list td:nth-child(2) {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .table.inventory-list td:nth-child(1) > a,
-        .table.inventory-list td:nth-child(2) > a.inventory-item-name-link {
-            display: block;
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
         .table.inventory-list .btn {
             font-size: 0.78rem;
         }
@@ -425,7 +403,17 @@
         .table.inventory-list td:nth-child(n+3):nth-child(-n+7) {
             text-align: center;
         }
+
+        .table.inventory-list.list-col-resize-table td:nth-child(n+3):nth-child(-n+7) a {
+            text-align: center;
+        }
+
+        .table.inventory-list.list-col-resize-table th:nth-child(9),
+        .table.inventory-list.list-col-resize-table td:nth-child(9) {
+            text-align: center;
+        }
     </style>
 
     @include('partials.unified-list-page-styles')
+    @include('partials.list-table-column-resize')
 </div>

@@ -29,6 +29,12 @@ class CustomerList extends Component
         }
     }
 
+    public function clearFilters(): void
+    {
+        $this->customerSearchTerm = null;
+        $this->resetPage();
+    }
+
     public function fetchCustomers(){
         $query = Customer::with('salesman')
             ->where(function ($query) {
