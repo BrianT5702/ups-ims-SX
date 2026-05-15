@@ -28,7 +28,7 @@
 
                         <div class="supplier-list-wrapper" style="position: relative;">
                             @php
-                                $supplierListInitialColWidths = [52, 260, 120, 180, 110];
+                                $supplierListInitialColWidths = [52, 260, 120, 180, 130];
                             @endphp
                             <style>
                                 /* Wrapper to separate scrollable table from fixed pagination */
@@ -134,14 +134,10 @@
                                     overflow: visible;
                                     text-overflow: clip;
                                 }
-                                .table.supplier-list .action-buttons {
-                                    display: flex;
-                                    flex-wrap: nowrap;
-                                    gap: 0.25rem;
-                                    align-items: center;
-                                }
-                                .table.supplier-list .action-buttons .btn {
+                                .table.supplier-list .supplier-list-po-link {
                                     font-size: 0.78rem;
+                                    padding: 0;
+                                    white-space: nowrap;
                                 }
                             </style>
                             
@@ -178,15 +174,9 @@
                                                 <td><a wire:navigate href="{{ route('suppliers.view', $supplier->id) }}">{{ $supplier->phone_num }}</a></td>
                                                 <td><a wire:navigate href="{{ route('suppliers.view', $supplier->id) }}">{{ $supplier->email }}</a></td>
                                                 <td>
-                                                    <div class="action-buttons">
-                                                        @can('Manage PO')
-                                                            <button wire:click.prevent="showSupplierPO({{ $supplier->id }})" class="btn btn-info btn-sm" title="Purchase orders">
-                                                                <i class="fa-solid fa-clock-rotate-left"></i>
-                                                            </button>
-                                                        @endcan
-                                                        <a href="{{ route('suppliers.edit', $supplier->id) }}" wire:navigate class="btn btn-success btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
-                                                        <button wire:confirm="Are you sure you want to delete?" wire:click="deleteSupplier({{ $supplier->id }})" type="button" class="btn btn-danger btn-sm" title="Delete"><i class="fas fa-trash-alt"></i></button>
-                                                    </div>
+                                                    @can('Manage PO')
+                                                        <button type="button" wire:click.prevent="showSupplierPO({{ $supplier->id }})" class="btn btn-link supplier-list-po-link text-decoration-none">View POs</button>
+                                                    @endcan
                                                 </td>
                                             </tr>
                                         @empty

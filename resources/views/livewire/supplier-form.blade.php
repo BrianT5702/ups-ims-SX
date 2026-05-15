@@ -66,7 +66,13 @@
                             <h5 class="fw-bold fs-5">{{ $isView ? 'View' : ($supplier ? 'Edit': 'Add' )}} Supplier </h5>
                         </div>
 
-                        <div class="col-4 text-end">
+                        <div class="col-4 text-end d-flex justify-content-end align-items-center gap-2 flex-wrap">
+                            @if($supplier && $isView)
+                                <a wire:navigate href="{{ route('suppliers.edit', $supplier->id) }}" class="btn btn-success btn-sm rounded">Edit</a>
+                                <button type="button" wire:confirm="Are you sure you want to delete this supplier?" wire:click="deleteSupplier" class="btn btn-danger btn-sm rounded">Delete</button>
+                            @elseif($supplier && !$isView)
+                                <button type="button" wire:confirm="Are you sure you want to delete this supplier?" wire:click="deleteSupplier" class="btn btn-danger btn-sm rounded">Delete</button>
+                            @endif
                             <a wire:navigate href="{{ route('suppliers') }}" class="btn btn-primary btn-sm rounded">Back</a>
                         </div>
                     </div>

@@ -28,7 +28,7 @@
 
                         <div class="customer-list-wrapper" style="position: relative;">
                             @php
-                                $customerListInitialColWidths = [52, 110, 240, 120, 180, 120, 110];
+                                $customerListInitialColWidths = [52, 110, 240, 120, 180, 120, 130];
                             @endphp
                             <style>
                                 /* Wrapper to separate scrollable table from fixed pagination */
@@ -134,14 +134,10 @@
                                     overflow: visible;
                                     text-overflow: clip;
                                 }
-                                .table.customer-list .action-buttons {
-                                    display: flex;
-                                    flex-wrap: nowrap;
-                                    gap: 0.25rem;
-                                    align-items: center;
-                                }
-                                .table.customer-list .action-buttons .btn {
+                                .table.customer-list .customer-list-do-link {
                                     font-size: 0.78rem;
+                                    padding: 0;
+                                    white-space: nowrap;
                                 }
                             </style>
                             
@@ -189,15 +185,9 @@
                                                 <td><a wire:navigate href="{{ route('customers.view', $customer->id) }}">{{ $customer->email }}</a></td>
                                                 <td>{{ $customer->salesman ? $customer->salesman->name : 'N/A' }}</td>
                                                 <td>
-                                                    <div class="action-buttons">
-                                                        @can('Manage DO')
-                                                            <button wire:click.prevent="showCustomerDO({{ $customer->id }})" class="btn btn-info btn-sm" title="Delivery orders">
-                                                                <i class="fa-solid fa-clock-rotate-left"></i>
-                                                            </button>
-                                                        @endcan
-                                                        <a href="{{ route('customers.edit', $customer->id) }}" wire:navigate class="btn btn-success btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
-                                                        <button wire:confirm="Are you sure you want to delete?" wire:click="deleteCustomer({{ $customer->id }})" type="button" class="btn btn-danger btn-sm" title="Delete"><i class="fas fa-trash-alt"></i></button>
-                                                    </div>
+                                                    @can('Manage DO')
+                                                        <button type="button" wire:click.prevent="showCustomerDO({{ $customer->id }})" class="btn btn-link customer-list-do-link text-decoration-none">View DOs</button>
+                                                    @endcan
                                                 </td>
                                             </tr>
                                         @empty

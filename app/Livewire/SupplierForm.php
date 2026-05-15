@@ -170,6 +170,33 @@ class SupplierForm extends Component
         return $this->redirect('/suppliers', navigate: true);
     }
 
+    public function deleteSupplier()
+    {
+        if (!$this->supplier) {
+            return;
+        }
+
+        if ($this->supplier->items()->exists()) {
+            toastr()->error('This supplier cannot be deleted because it is associated with item(s).');
+            return;
+        }
+
+        if ($this->supplier->purchaseOrders()->exists()) {
+            toastr()->error('This supplier cannot be deleted because it has associated Purchase Orders.');
+            return;
+        }
+
+        try {
+            $this->supplier->delete();
+            toastr()->success('Supplier deleted successfully');
+        } catch (\Exception $e) {
+            toastr()->error('An error occurred while deleting the supplier: ' . $e->getMessage());
+            return;
+        }
+
+        return $this->redirect(route('suppliers'), navigate: true);
+    }
+
     public function render() {
         return view('livewire.supplier-form')->layout('layouts.app');
     }

@@ -160,6 +160,28 @@ class CustomerForm extends Component
         return $this->redirect('/customers', navigate: true);
     }
 
+    public function deleteCustomer()
+    {
+        if (!$this->customer) {
+            return;
+        }
+
+        if ($this->customer->deliveryOrders()->exists()) {
+            toastr()->error('This customer cannot be deleted because it is associated with delivery order(s).');
+            return;
+        }
+
+        try {
+            $this->customer->delete();
+            toastr()->success('Customer deleted successfully');
+        } catch (\Exception $e) {
+            toastr()->error('An error occurred while deleting the customer: ' . $e->getMessage());
+            return;
+        }
+
+        return $this->redirect(route('customers'), navigate: true);
+    }
+
     public function render() {
         return view('livewire.customer-form')->layout('layouts.app');
     }
