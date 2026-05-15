@@ -86,41 +86,6 @@ class Transaction extends BaseModel
     }
 
     /**
-     * Tie-break for transaction log when sorted by document date **DESC** (newest at top).
-     * Same calendar day is shown reverse-chronologically: **later** events nearer the top.
-     * Business rule “DO before PO” in time ⇒ **PO (receipt) above DO (shipment)** in this list,
-     * so **Stock In before Stock Out** on equal doc date.
-     */
-    public static function logListTieBreakTransactionTypeAscSql(): string
-    {
-        return "CASE WHEN transactions.transaction_type = 'Stock In' THEN 0 WHEN transactions.transaction_type = 'Stock Out' THEN 1 ELSE 2 END";
-    }
-
-    /**
-     * Second tie-break for DESC list: **PO-linked row before DO-linked** on same doc date.
-     */
-    public static function logListTieBreakDocFamilyAscSql(): string
-    {
-        return 'CASE WHEN tx_log_po.id IS NOT NULL THEN 0 WHEN tx_log_do.id IS NOT NULL THEN 1 ELSE 2 END';
-    }
-
-    /**
-     * Tie-break for ledger walk ordered by doc date **ASC** (chronological): DO (Out) before PO (In) same day.
-     */
-    public static function logLedgerTieBreakTransactionTypeAscSql(): string
-    {
-        return "CASE WHEN transactions.transaction_type = 'Stock Out' THEN 0 WHEN transactions.transaction_type = 'Stock In' THEN 1 ELSE 2 END";
-    }
-
-    /**
-     * Second tie-break for ledger ASC: **DO-linked before PO-linked** on same doc date.
-     */
-    public static function logLedgerTieBreakDocFamilyAscSql(): string
-    {
-        return 'CASE WHEN tx_log_do.id IS NOT NULL THEN 0 WHEN tx_log_po.id IS NOT NULL THEN 1 ELSE 2 END';
-    }
-
-    /**
      * Left joins used to sort/filter the transaction log by DO/PO document date.
      */
     public function scopeWithLogDocDateJoins(Builder $query): Builder
@@ -162,20 +127,16 @@ class Transaction extends BaseModel
         return $query;
     }
 
+    /**
+     * Transaction log ordering: DO/PO document date (from joins), then posting time when the
+     * effective doc date is the same — earlier `created_at` first. Final tie-break: id ASC.
+     */
     public function scopeOrderByLogDisplayDate(Builder $query, string $direction = 'desc'): Builder
     {
         $dir = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
-        $query->orderByRaw("COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) {$dir}");
-
-        if ($dir === 'DESC') {
-            $query->orderByRaw(self::logListTieBreakTransactionTypeAscSql() . ' ASC')
-                ->orderByRaw(self::logListTieBreakDocFamilyAscSql() . ' ASC');
-        } else {
-            $query->orderByRaw(self::logLedgerTieBreakTransactionTypeAscSql() . ' ASC')
-                ->orderByRaw(self::logLedgerTieBreakDocFamilyAscSql() . ' ASC');
-        }
-
-        $query->orderBy('transactions.id', $dir);
+        $query->orderByRaw("COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) {$dir}")
+            ->orderBy('transactions.created_at', 'asc')
+            ->orderBy('transactions.id', 'asc');
 
         return $query;
     }

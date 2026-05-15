@@ -465,13 +465,19 @@ class TransactionLog extends Component
      *   - Re-deduct after editing qty             -> event 2
      *
      * For each event we choose ONE representative row to display: MAX(id), so
-     * the row's `qty_after` reflects the running balance right after the whole
-     * batch of Stock Outs for that posting event. Only the latest event per
+     * the Out column can aggregate all FIFO lines in that event. The Balance
+     * column uses a posting-aware rule on those lines (see
+     * doStockOutEventDisplayBalanceForRep). Only the latest event per
      * (DO, item) is shown in the log; older posting events are omitted.
      *
      * Cached per request (per filter scope) to avoid repeated scans.
      *
-     * @return array{visible_ids: array<int,int>, event_qty: array<int,float>, is_latest: array<int,bool>}
+     * @return array{
+     *     visible_ids: array<int,int>,
+     *     event_qty: array<int,float>,
+     *     is_latest: array<int,bool>,
+     *     event_lines_by_rep_id: array<int, list<array{id:int, qty:float}>>
+     * }
      */
     private function buildDoStockOutEvents(): array
     {
@@ -506,6 +512,7 @@ class TransactionLog extends Component
         $visibleIds = [];
         $eventQty = [];
         $isLatest = [];
+        $eventLinesByRepId = [];
 
         $byPair = $rows->groupBy(fn ($r) => ($r->source_doc_num ?? '') . '|' . ($r->item_id ?? ''));
 
@@ -521,10 +528,12 @@ class TransactionLog extends Component
 
                 if ($isOut) {
                     if ($current === null) {
-                        $current = ['ids' => [], 'qty' => 0.0];
+                        $current = ['ids' => [], 'qty' => 0.0, 'lines' => []];
                     }
+                    $lineQty = abs((float) $row->transaction_qty);
                     $current['ids'][] = (int) $row->id;
-                    $current['qty'] += abs((float) $row->transaction_qty);
+                    $current['qty'] += $lineQty;
+                    $current['lines'][] = ['id' => (int) $row->id, 'qty' => $lineQty];
                 } elseif ($isReversalIn) {
                     if ($current !== null) {
                         $events[] = $current;
@@ -543,6 +552,7 @@ class TransactionLog extends Component
                 $visibleIds[] = $repId;
                 $eventQty[$repId] = $ev['qty'];
                 $isLatest[$repId] = ($idx === $eventCount - 1);
+                $eventLinesByRepId[$repId] = $ev['lines'] ?? [];
             }
         }
 
@@ -550,6 +560,7 @@ class TransactionLog extends Component
             'visible_ids' => $visibleIds,
             'event_qty' => $eventQty,
             'is_latest' => $isLatest,
+            'event_lines_by_rep_id' => $eventLinesByRepId,
         ];
     }
 
@@ -628,6 +639,12 @@ class TransactionLog extends Component
      * The Out column for DO lines is still aggregated separately by
      * aggregateDoStockOutQuantities() on the paginated collection only.
      *
+     * For the visible DO representative row, Balance is adjusted from the raw
+     * ledger tail: when the latest posting event ends with several Stock Out
+     * lines of the **same** per-line quantity, show the on-hand total after the
+     * **first** of those lines; when the last line’s quantity **differs** from
+     * the previous line, show the total after that last line (the change).
+     *
      * @param  iterable<\App\Models\Transaction>  $pageTransactions
      * @return array<int, float|int>
      */
@@ -683,7 +700,59 @@ class TransactionLog extends Component
             $balanceByTxId[(int) $tx->id] = $balances[$iid];
         }
 
+        $pageRepIds = [];
+        foreach ($pageTransactions as $tx) {
+            $pageRepIds[(int) $tx->id] = true;
+        }
+
+        $events = $this->buildDoStockOutEvents();
+        foreach ($events['event_lines_by_rep_id'] ?? [] as $repId => $lines) {
+            $repId = (int) $repId;
+            if (!isset($pageRepIds[$repId]) || $lines === []) {
+                continue;
+            }
+            $balanceByTxId[$repId] = $this->doStockOutEventDisplayBalanceForRep($balanceByTxId, $lines);
+        }
+
         return $balanceByTxId;
+    }
+
+    /**
+     * Pick the Balance cell for one visible DO Stock Out representative row.
+     *
+     * @param  array<int, float|int>  $balanceByTxId
+     * @param  list<array{id:int, qty:float}>  $lines  ordered by id ascending
+     */
+    private function doStockOutEventDisplayBalanceForRep(array $balanceByTxId, array $lines): float
+    {
+        if ($lines === []) {
+            return 0.0;
+        }
+
+        $runs = [];
+        $run = [$lines[0]];
+        $n = count($lines);
+        for ($i = 1; $i < $n; $i++) {
+            $prevQty = (float) $run[count($run) - 1]['qty'];
+            $curQty = (float) $lines[$i]['qty'];
+            if (abs($prevQty - $curQty) < 1e-9) {
+                $run[] = $lines[$i];
+            } else {
+                $runs[] = $run;
+                $run = [$lines[$i]];
+            }
+        }
+        $runs[] = $run;
+
+        $lastRun = $runs[count($runs) - 1];
+        $firstId = (int) $lastRun[0]['id'];
+        $lastId = (int) $lastRun[count($lastRun) - 1]['id'];
+
+        if (count($lastRun) === 1) {
+            return (float) ($balanceByTxId[$lastId] ?? 0.0);
+        }
+
+        return (float) ($balanceByTxId[$firstId] ?? 0.0);
     }
 
     private function signedTransactionQtyForBalanceWalk(Transaction $tx): float
