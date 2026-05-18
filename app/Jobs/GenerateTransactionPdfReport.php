@@ -36,13 +36,13 @@ class GenerateTransactionPdfReport implements ShouldQueue
                 'status' => 'processing',
                 'message' => 'Preparing PDF data...',
                 'progress' => 30,
-            ]), now()->addDays(7));
+            ]), now()->addHours(2));
 
             Cache::put($cacheKey, array_merge(Cache::get($cacheKey, []), [
                 'status' => 'processing',
                 'message' => 'Rendering PDF...',
                 'progress' => 70,
-            ]), now()->addDays(7));
+            ]), now()->addHours(2));
 
             $dbConn = $this->resolveDatabaseConnection();
 
@@ -68,7 +68,7 @@ class GenerateTransactionPdfReport implements ShouldQueue
                 'progress' => 100,
                 'path' => $path,
                 'filename' => $filename,
-            ]), now()->addDays(7));
+            ]), now()->addHours(2));
         } catch (\Throwable $e) {
             Log::error('Queued transaction PDF generation failed', [
                 'message' => $e->getMessage(),
@@ -79,7 +79,7 @@ class GenerateTransactionPdfReport implements ShouldQueue
                 'status' => 'failed',
                 'message' => 'Failed to generate PDF: ' . $e->getMessage(),
                 'progress' => 0,
-            ]), now()->addDays(7));
+            ]), now()->addHours(2));
         }
     }
 
@@ -89,7 +89,7 @@ class GenerateTransactionPdfReport implements ShouldQueue
             'status' => 'failed',
             'message' => 'Failed to generate PDF: ' . $e->getMessage(),
             'progress' => 0,
-        ]), now()->addDays(7));
+        ]), now()->addHours(2));
     }
 
     private function cacheKey(string $token): string

@@ -101,7 +101,7 @@ class ItemList extends Component
 
     public function sortBy($field)
     {
-        if (!in_array($field, ['item_code', 'item_name', 'created_at'], true)) {
+        if (!in_array($field, ['item_code', 'item_name'], true)) {
             return;
         }
 
@@ -180,13 +180,6 @@ class ItemList extends Component
             });
 
         $expr = "COALESCE(NULLIF(TRIM(REGEXP_REPLACE(item_name, '^[[:space:]@#*~^$]+', '')), ''), item_name)";
-
-        if ($this->sortField === 'created_at') {
-            return $query
-                ->orderBy('created_at', $this->sortDirection)
-                ->orderBy('id', $this->sortDirection)
-                ->paginate(50);
-        }
 
         if ($this->sortField === 'item_code') {
             return $query

@@ -48,16 +48,16 @@ class TransactionReport extends Component
     public $reportDownloadUrl = null;
     
     public $availableColumns = [
-        'item_code' => 'Item Code',
-        'item_name' => 'Item Name',
+        'item_code' => 'Stock Code',
+        'item_name' => 'Stock Description',
         'um' => 'UOM',
-        'bf' => 'Balance Forward',
+        'bf' => 'B/F',
         'in' => 'Stock In',
         'out' => 'Stock Out',
-        'balance' => 'Final Balance',
+        'balance' => 'Balance',
         'group_name' => 'Group',
-        'family_name' => 'Family',
-        'cat_name' => 'Category',
+        'family_name' => 'Brand',
+        'cat_name' => 'Type',
     ];
 
     public $transactionTypes = [
@@ -142,15 +142,25 @@ class TransactionReport extends Component
     public function selectCompany($companyId)
     {
         $this->selectedCompanyId = $companyId;
+        $this->selectedCompanyName = null;
         $this->companySearchTerm = '';
         $this->companySearchResults = [];
         $this->companySearchCustomers = [];
         $this->companySearchSuppliers = [];
+
+        if (str_starts_with($companyId, 'customer_')) {
+            $customer = Customer::find(str_replace('customer_', '', $companyId));
+            $this->selectedCompanyName = $customer?->cust_name;
+        } elseif (str_starts_with($companyId, 'supplier_')) {
+            $supplier = Supplier::find(str_replace('supplier_', '', $companyId));
+            $this->selectedCompanyName = $supplier?->sup_name;
+        }
     }
 
     public function clearCompany()
     {
         $this->selectedCompanyId = null;
+        $this->selectedCompanyName = null;
         $this->companySearchTerm = '';
         $this->companySearchResults = [];
         $this->companySearchCustomers = [];
@@ -159,15 +169,21 @@ class TransactionReport extends Component
 
     public function generateReport()
     {
+        $this->errorMessage = '';
+        $this->isGenerating = true;
+        $this->reportDownloadUrl = null;
+        $this->reportStatusMessage = '';
+        $this->reportJobToken = null;
+        $this->reportProgress = 0;
+
         try {
             $this->validate();
-            $this->isGenerating = true;
-            $this->errorMessage = '';
-            $this->reportDownloadUrl = null;
-            $this->reportStatusMessage = '';
-            $this->reportProgress = 0;
-            $this->reportJobToken = null;
-    
+
+            $finalColumns = array_unique(array_merge(
+                ['item_code', 'item_name', 'um', 'bf', 'in', 'out', 'balance'],
+                $this->selectedColumns
+            ));
+
             // Always get all items that match the item-level filters (group / family / category),
             // so that items with no IN/OUT in the selected period can still appear in the report.
             $itemsQuery = Item::query()
@@ -202,7 +218,10 @@ class TransactionReport extends Component
             ])->get();
             
             if ($allItems->isEmpty()) {
-                throw new \Exception('No items found for the selected filters.');
+                $this->errorMessage = $this->buildEmptyItemsMessage();
+                $this->isGenerating = false;
+
+                return null;
             }
     
             // Get all transactions in the date range (same doc-date window as transaction log).
@@ -416,76 +435,132 @@ class TransactionReport extends Component
             ])->values();
     
             if ($stockBalances->isEmpty()) {
-                throw new \Exception('No data available for the selected filters.');
+                $this->errorMessage = $this->buildEmptyItemsMessage(true);
+                $this->isGenerating = false;
+
+                return null;
             }
-    
+
             if ($this->fileType === 'pdf') {
                 $this->reportJobToken = (string) Str::uuid();
                 $queuedAt = now()->toDateTimeString();
-                $filters = $this->buildFilterSummary();
-                $context = $this->buildPdfContext();
+                $filterSummary = $this->buildFilterSummary();
 
                 Cache::put($this->cacheKey($this->reportJobToken), [
                     'status' => 'queued',
                     'message' => 'Report queued. Please wait...',
                     'progress' => 5,
                     'queued_at' => $queuedAt,
-                    'filters' => $filters,
-                ], now()->addDays(7));
+                    'filters' => $filterSummary,
+                ], now()->addHours(2));
 
                 session(['transaction_report_last_token' => $this->reportJobToken]);
                 $this->upsertReportHistory($this->reportJobToken, [
-                    'id' => $this->reportJobToken,
+                    'token' => $this->reportJobToken,
                     'status' => 'queued',
                     'message' => 'Report queued. Please wait...',
                     'progress' => 5,
                     'queued_at' => $queuedAt,
                     'updated_at' => $queuedAt,
-                    'filters' => $filters,
+                    'filters' => $filterSummary,
+                    'columns' => $finalColumns,
                     'file_type' => 'pdf',
                 ]);
 
                 GenerateTransactionPdfReport::dispatch(
                     token: $this->reportJobToken,
                     stockBalances: $stockBalances->values()->all(),
-                    context: $context
+                    context: $this->buildPdfContext()
                 );
 
                 $this->reportStatusMessage = 'PDF report is generating in background...';
                 $this->reportProgress = 10;
                 $this->isGenerating = false;
+
                 return null;
             }
 
-            $response = $this->downloadExcel($stockBalances);
+            $response = $this->downloadExcel($stockBalances, $finalColumns);
             $this->isGenerating = false;
+
             return $response;
-    
         } catch (\Exception $e) {
-            Log::error('Report generation failed: ' . $e->getMessage());
-            $this->errorMessage = 'Failed to generate report: ' . $e->getMessage();
+            Log::error('Transaction report generation failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $errorMsg = 'Failed to generate report: ' . $e->getMessage();
+            if (str_contains($e->getMessage(), 'memory')) {
+                $errorMsg = 'Memory error occurred. Please try Excel export or narrow your filters.';
+            }
+
+            $this->errorMessage = $errorMsg;
             $this->isGenerating = false;
+            session()->flash('error', $errorMsg);
+
             return null;
         }
     }
 
-    protected function downloadExcel($transactions)
+    private function buildEmptyItemsMessage(bool $noPeriodActivity = false): string
+    {
+        $filterMessages = [];
+
+        if ($this->startDate || $this->endDate) {
+            $filterMessages[] = 'Date: ' . ($this->startDate ?: '…') . ' to ' . ($this->endDate ?: '…');
+        }
+
+        if ($this->selectedTransactionType !== 'all') {
+            $filterMessages[] = 'Type: ' . $this->selectedTransactionType;
+        }
+
+        if ($this->selectedGroupId) {
+            $group = Group::find($this->selectedGroupId);
+            $filterMessages[] = 'Group: ' . ($group->group_name ?? 'Selected');
+        }
+
+        if ($this->selectedFamilyId) {
+            $family = Family::find($this->selectedFamilyId);
+            $filterMessages[] = 'Brand: ' . ($family->family_name ?? 'Selected');
+        }
+
+        if ($this->selectedCategoryId) {
+            $category = Category::find($this->selectedCategoryId);
+            $filterMessages[] = 'Category: ' . ($category->cat_name ?? 'Selected');
+        }
+
+        if ($this->selectedCompanyName) {
+            $filterMessages[] = 'Company: ' . $this->selectedCompanyName;
+        }
+
+        switch ($this->stockFilter) {
+            case 'gt0':
+                $filterMessages[] = 'Final balance > 0';
+                break;
+            case 'eq0':
+                $filterMessages[] = 'Final balance = 0';
+                break;
+        }
+
+        if ($noPeriodActivity) {
+            return empty($filterMessages)
+                ? 'No stock activity for the selected period.'
+                : 'No stock activity for the selected filters (' . implode(', ', $filterMessages) . ').';
+        }
+
+        return empty($filterMessages)
+            ? 'No items available to generate report.'
+            : 'No items found with the selected filters (' . implode(', ', $filterMessages) . ').';
+    }
+
+    protected function downloadExcel($transactions, array $columns)
     {
         try {
-            $excelColumns = ['item_code', 'item_name', 'um', 'bf', 'in', 'out', 'balance'];
-            $excelLabels = [
-                'item_code' => 'STOCK CODE',
-                'item_name' => 'DESCRIPTION',
-                'um' => 'UOM',
-                'bf' => 'B/F',
-                'in' => 'IN',
-                'out' => 'OUT',
-                'balance' => 'BALANCE',
-            ];
+            $excelLabels = array_intersect_key($this->availableColumns, array_flip($columns));
 
             return Excel::download(
-                new TransactionsExport($transactions, $excelColumns, $excelLabels, true), 
-                'stock_balance_report_' . date('Y-m-d') . '.xlsx'
+                new TransactionsExport($transactions, $columns, $excelLabels, true),
+                'transaction_report_' . date('Y-m-d') . '.xlsx'
             );
         } catch (\Exception $e) {
             throw new \Exception('Excel generation failed: ' . $e->getMessage());
@@ -544,7 +619,7 @@ class TransactionReport extends Component
         $updatedAt = now()->toDateTimeString();
 
         $historyPayload = [
-            'id' => $this->reportJobToken,
+            'token' => $this->reportJobToken,
             'status' => $status,
             'message' => $this->reportStatusMessage,
             'progress' => $this->reportProgress,
@@ -588,14 +663,26 @@ class TransactionReport extends Component
             $categoryName = Category::find($this->selectedCategoryId)->cat_name ?? 'Selected Category';
         }
 
+        $stockFilterLabel = match ($this->stockFilter) {
+            'gt0' => 'Non-zero balance only',
+            'eq0' => 'Zero balance only',
+            default => 'All balances',
+        };
+
+        $transactionTypeLabel = match ($this->selectedTransactionType) {
+            'Stock In' => 'Stock In only',
+            'Stock Out' => 'Stock Out only',
+            default => 'All transaction types',
+        };
+
         return [
             'start_date' => $this->startDate ?: 'N/A',
             'end_date' => $this->endDate ?: 'N/A',
-            'transaction_type' => $this->selectedTransactionType ?: 'all',
-            'stock_filter' => $this->stockFilter ?: 'all',
+            'transaction_type' => $transactionTypeLabel,
+            'stock_filter' => $stockFilterLabel,
             'group' => $groupName,
-            'family' => $familyName,
-            'category' => $categoryName,
+            'brand' => $familyName,
+            'type' => $categoryName,
             'company' => $this->selectedCompanyName ?: 'All Companies',
         ];
     }
@@ -632,10 +719,10 @@ class TransactionReport extends Component
         ];
     }
 
-    private function upsertReportHistory(string $reportId, array $payload): void
+    private function upsertReportHistory(string $token, array $payload): void
     {
         $history = collect($this->reportHistory);
-        $index = $history->search(fn ($item) => ($item['id'] ?? null) === $reportId);
+        $index = $history->search(fn ($item) => ($item['token'] ?? null) === $token);
 
         if ($index === false) {
             $history->prepend($payload);
@@ -694,7 +781,7 @@ class TransactionReport extends Component
                     'filename' => $filename,
                     'generated_at' => date('Y-m-d H:i:s', $lastModified),
                     'size_kb' => round($disk->size($path) / 1024, 1),
-                    'download_url' => route('report.download-file', ['filename' => $filename]),
+                    'download_url' => route('transaction-report.download-file', ['filename' => $filename]),
                 ];
             })
             ->sortByDesc('generated_at')

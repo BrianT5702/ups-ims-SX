@@ -159,7 +159,7 @@
 
                         <!-- Item Table -->
                         @php
-                            $inventoryListInitialColWidths = [120, 260, 72, 72, 72, 72, 72, 130, 64];
+                            $inventoryListInitialColWidths = [120, 260, 72, 72, 72, 72, 72, 88];
                         @endphp
                         <div class="inventory-table-wrap mt-1">
                             <div class="table-responsive list-sticky-table-scroll">
@@ -192,15 +192,7 @@
                                         <th><span class="list-th-label">Cash</span><span class="list-col-resize-handle" data-list-col-index="4" title="Drag to resize"></span></th>
                                         <th><span class="list-th-label">Term</span><span class="list-col-resize-handle" data-list-col-index="5" title="Drag to resize"></span></th>
                                         <th><span class="list-th-label">Cust.</span><span class="list-col-resize-handle" data-list-col-index="6" title="Drag to resize"></span></th>
-                                        <th>
-                                            <span class="list-th-label">
-                                                <button type="button" wire:click="sortBy('created_at')" class="btn btn-sm p-0 border-0 bg-transparent text-dark text-decoration-none fw-semibold inventory-list-sort-btn">
-                                                    Created at{{ $sortField === 'created_at' ? ($sortDirection === 'asc' ? ' ↑' : ' ↓') : '' }}
-                                                </button>
-                                            </span>
-                                            <span class="list-col-resize-handle" data-list-col-index="7" title="Drag to resize"></span>
-                                        </th>
-                                        <th class="text-center"><span class="list-th-label">Action</span><span class="list-col-resize-handle" data-list-col-index="8" title="Drag to resize"></span></th>
+                                        <th class="text-center"><span class="list-th-label">Action</span><span class="list-col-resize-handle" data-list-col-index="7" title="Drag to resize"></span></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -236,22 +228,19 @@
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->term_price }}</a></td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->cust_price }}</a></td>
                                             <td>
-                                                <span>{{ $item->created_at->format('d/m/y H:i') }}</span>
-                                            </td>
-                                            <td>
                                                 <button
                                                     wire:click.prevent="addToRestockList({{ $item->id }})"
                                                     type="button"
-                                                    class="btn btn-link btn-sm p-0 border-0"
-                                                    title="Add to Restock List"
-                                                    aria-label="Add to Restock List">
-                                                    <i class="fa-solid fa-file-circle-plus"></i>
+                                                    class="btn btn-link p-0 border-0 inventory-list-restock-btn"
+                                                    title="Add to Restock List">
+                                                    <i class="fa-solid fa-file-circle-plus fa-xs" aria-hidden="true"></i>
+                                                    <span>Restock</span>
                                                 </button>
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="9" class="text-center">No items found.</td>
+                                            <td colspan="8" class="text-center">No items found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -342,9 +331,9 @@
             background: transparent;
         }
 
-        /* Memo tooltip extends below row; action cell has icon only */
+        /* Memo tooltip extends below row; action cell may overflow for label */
         .table.inventory-list.list-col-resize-table tbody td:nth-child(2),
-        .table.inventory-list.list-col-resize-table tbody td:nth-child(9) {
+        .table.inventory-list.list-col-resize-table tbody td:nth-child(8) {
             overflow: visible;
         }
 
@@ -408,9 +397,22 @@
             text-align: center;
         }
 
-        .table.inventory-list.list-col-resize-table th:nth-child(9),
-        .table.inventory-list.list-col-resize-table td:nth-child(9) {
+        .table.inventory-list.list-col-resize-table th:nth-child(8),
+        .table.inventory-list.list-col-resize-table td:nth-child(8) {
             text-align: center;
+        }
+
+        .table.inventory-list .inventory-list-restock-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            font-size: 0.68rem;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .table.inventory-list .inventory-list-restock-btn .fa-xs {
+            font-size: 0.65rem;
         }
     </style>
 
