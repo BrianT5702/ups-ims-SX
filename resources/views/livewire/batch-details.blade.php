@@ -61,11 +61,7 @@
                                 <tbody>
                                     @forelse($batchItems as $item)
                                         @php
-                                            $initialTransaction = \App\Models\Transaction::where('batch_id', $item->id)
-                                                ->where('transaction_type', 'Stock In')
-                                                ->orderBy('created_at', 'asc')
-                                                ->first();
-                                            $initialQty = $initialTransaction ? $initialTransaction->transaction_qty : 0;
+                                            $initialQty = $importQtyByItemId[$item->item_id] ?? 0;
                                         @endphp
                                         <tr>
                                             <td>{{ $item->item->item_code }}</td>

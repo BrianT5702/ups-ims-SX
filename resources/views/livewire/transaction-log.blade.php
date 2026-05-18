@@ -15,7 +15,7 @@
                                 Current on hand:
                                 <span class="fw-semibold text-body">{{ number_format((float) $filteredItem->qty, 2) }}</span>
                                 <span class="mx-2">·</span>
-                                Table is <strong>newest first</strong>. Balance is stock <strong>right after</strong> that line only — later moves (including hidden DO adjustments) can change on-hand without an extra visible row.
+                                Table is <strong>newest doc date first</strong>, then <strong>doc number</strong> on the same day. Balance is stock <strong>right after</strong> that line only — later moves (including hidden DO adjustments) can change on-hand without an extra visible row.
                             </p>
                         @else
                             <h5 class="fw-bold mb-0 list-page-unified-title">Transaction Log</h5>
@@ -386,7 +386,7 @@
                                                 <td>{{ $customerName }}</td>
                                                 <td>{{ $inQty }}</td>
                                                 <td>{{ $outQty }}</td>
-                                                <td>{{ ($displayBalances ?? [])[$transaction->id] ?? $transaction->qty_after }}</td>
+                                                <td>{{ ($displayBalances ?? [])[(int) $transaction->id] ?? $transaction->qty_after }}</td>
                                             </tr>
                                         @endif
                                     @empty
@@ -447,7 +447,7 @@
                                             <td>{{ $customerName }}</td>
                                             <td>{{ $inQty }}</td>
                                             <td>{{ $outQty }}</td>
-                                            <td>{{ ($displayBalances ?? [])[$transaction->id] ?? $transaction->qty_after }}</td>
+                                            <td>{{ ($displayBalances ?? [])[(int) $transaction->id] ?? $transaction->qty_after }}</td>
                                         </tr>
                                 @empty
                                     <tr>

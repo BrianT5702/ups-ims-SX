@@ -43,9 +43,25 @@ class BatchDetails extends Component
     public function render()
     {
         $batchItems = $this->fetchBatchItems();
-        
+
+        $importQtyByItemId = [];
+        if ($batchItems->isNotEmpty()) {
+            $itemIds = $batchItems->pluck('item_id')->filter()->unique()->values();
+            $importQtyByItemId = BatchTracking::query()
+                ->where('batch_num', BatchTracking::IMPORT_BATCH_NUM)
+                ->whereIn('item_id', $itemIds)
+                ->orderBy('id', 'asc')
+                ->get()
+                ->groupBy('item_id')
+                ->map(fn ($rows) => (float) $rows->sum(
+                    fn ($row) => $row->original_quantity ?? $row->quantity ?? 0
+                ))
+                ->all();
+        }
+
         return view('livewire.batch-details', [
             'batchItems' => $batchItems,
+            'importQtyByItemId' => $importQtyByItemId,
         ])->layout('layouts.app');
     }
 } 

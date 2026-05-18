@@ -1,4 +1,4 @@
-﻿<div class="list-page-unified-density">
+<div class="list-page-unified-density">
     <div class="container my-2" style="padding-left: 0.25rem; padding-right: 0.25rem;">
         <div class="row">
             <div class="col-md-11 m-auto">

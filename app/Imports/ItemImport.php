@@ -316,6 +316,7 @@ class ItemImport implements ToModel, WithStartRow
                     'po_id' => $this->poId,
                     'item_id' => $item->id,
                     'quantity' => $qty,
+                    'original_quantity' => $qty,
                     'received_date' => now(),
                     'received_by' => Auth::id() ?? 1,
                 ]);

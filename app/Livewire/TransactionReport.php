@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Transaction;
 use App\Models\Item;
+use App\Models\BatchTracking;
 use App\Models\CompanyProfile;
 use App\Models\Family;
 use App\Models\Category;
@@ -12,6 +13,7 @@ use App\Models\Group;
 use App\Models\Customer;
 use App\Models\Supplier;
 use App\Jobs\GenerateTransactionPdfReport;
+use App\Services\TransactionLogAggregationService;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\TransactionsExport;
 use Illuminate\Support\Facades\Log;
@@ -203,15 +205,23 @@ class TransactionReport extends Component
                 throw new \Exception('No items found for the selected filters.');
             }
     
-            // Get all transactions in the date range
+            // Get all transactions in the date range (same doc-date window as transaction log).
             $transactionQuery = Transaction::query();
-            
-            // Apply date filters
+
+            if ($this->startDate || $this->endDate) {
+                $transactionQuery->withLogDocDateJoins();
+            }
+
             if ($this->startDate) {
-                $transactionQuery->whereDate('transactions.created_at', '>=', $this->startDate);
+                $transactionQuery->whereRaw(
+                    'COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) >= ?',
+                    [Carbon::parse($this->startDate)->startOfDay()]
+                );
             }
             if ($this->endDate) {
-                $transactionQuery->whereDate('transactions.created_at', '<=', $this->endDate);
+                $transactionQuery->whereLogDisplayDateOnOrBefore(
+                    Carbon::parse($this->endDate)->endOfDay()
+                );
             }
 
             // Apply transaction type filter
@@ -257,11 +267,14 @@ class TransactionReport extends Component
 
             // Get all transactions
             $transactions = $transactionQuery->select([
+                'transactions.id',
                 'transactions.item_id',
                 'transactions.qty_before',
                 'transactions.qty_after',
                 'transactions.transaction_qty',
                 'transactions.transaction_type',
+                'transactions.source_type',
+                'transactions.source_doc_num',
                 'transactions.created_at',
                 'items.item_code',
                 'items.item_name',
@@ -271,28 +284,34 @@ class TransactionReport extends Component
                 'items.cat_id',
                 'groups.group_name',
                 'families.family_name',
-                'categories.cat_name'
-            ])->orderBy('transactions.created_at', 'asc')->get();
+                'categories.cat_name',
+            ])->orderBy('transactions.created_at', 'asc')
+              ->orderBy('transactions.id', 'asc')
+              ->get();
+
+            $startDateCarbon = $this->startDate
+                ? Carbon::parse($this->startDate)->startOfDay()
+                : null;
+
+            $transactionsByItem = $transactions->groupBy('item_id');
+
+            $aggregation = app(TransactionLogAggregationService::class);
+            $doEvents = $aggregation->buildDoStockOutEvents(
+                $transactions->pluck('item_id')->filter()->unique()->map(fn ($id) => (int) $id)->values()->all()
+            );
 
             // Initialize item balances - start with all items that match the filters
             $itemBalances = [];
             
-            // Initialize all items with zero transactions, using the balance
-            // before the selected date range as B/F.
+            // Opening balance (B/F) at period start — not current on-hand qty.
             foreach ($allItems as $item) {
-                $startDateCarbon = $this->startDate
-                    ? Carbon::parse($this->startDate)->startOfDay()
-                    : null;
-
-                $lastTransactionBefore = null;
-                if ($startDateCarbon) {
-                    $lastTransactionBefore = Transaction::where('item_id', $item->item_id)
-                        ->where('created_at', '<', $startDateCarbon)
-                        ->orderBy('created_at', 'desc')
-                        ->first();
-                }
-                
-                $bf = $lastTransactionBefore ? $lastTransactionBefore->qty_after : ($item->qty ?? 0);
+                $itemTransactions = $transactionsByItem->get($item->item_id, collect());
+                $bf = $this->resolveOpeningBalance(
+                    (int) $item->item_id,
+                    $startDateCarbon,
+                    (float) ($item->qty ?? 0),
+                    $itemTransactions
+                );
                 
                 $itemBalances[$item->item_id] = [
                     'item_id' => $item->item_id,
@@ -315,7 +334,14 @@ class TransactionReport extends Component
                 $itemId = $transaction->item_id;
                 
                 if (!isset($itemBalances[$itemId])) {
-                    // Initialize item balance - B/F is the qty_before of the first transaction
+                    $itemTransactions = $transactionsByItem->get($itemId, collect());
+                    $bf = $this->resolveOpeningBalance(
+                        (int) $itemId,
+                        $startDateCarbon,
+                        0,
+                        $itemTransactions
+                    );
+
                     $itemBalances[$itemId] = [
                         'item_id' => $itemId,
                         'item_code' => $transaction->item_code,
@@ -324,19 +350,22 @@ class TransactionReport extends Component
                         'group_name' => $transaction->group_name ?? '',
                         'family_name' => $transaction->family_name ?? '',
                         'cat_name' => $transaction->cat_name ?? '',
-                        'bf' => $transaction->qty_before ?? 0, // Balance Forward (first transaction's qty_before)
+                        'bf' => $bf,
                         'in' => 0,
                         'out' => 0,
-                        'balance' => 0,
+                        'balance' => $bf,
                         'has_transactions' => false,
                     ];
                 }
                 
-                // Calculate IN and OUT
-                if ($transaction->transaction_type === 'Stock In') {
-                    $itemBalances[$itemId]['in'] += abs($transaction->transaction_qty ?? 0);
-                } elseif ($transaction->transaction_type === 'Stock Out') {
-                    $itemBalances[$itemId]['out'] += abs($transaction->transaction_qty ?? 0);
+                // IN / OUT aligned with transaction log (hide reversals, aggregate DO FIFO lines).
+                $movementQty = $aggregation->reportMovementQuantity($transaction, $doEvents);
+                if ($movementQty > 0) {
+                    if ($transaction->transaction_type === 'Stock In') {
+                        $itemBalances[$itemId]['in'] += $movementQty;
+                    } elseif ($transaction->transaction_type === 'Stock Out') {
+                        $itemBalances[$itemId]['out'] += $movementQty;
+                    }
                 }
 
                 // Mark that this item has at least one transaction in the period
@@ -676,5 +705,70 @@ class TransactionReport extends Component
     private function cacheKey(string $token): string
     {
         return 'transaction_report_pdf:' . $token;
+    }
+
+    /**
+     * Opening balance at the start of the report period.
+     *
+     * 1. Last ledger row before period start → qty_after (if non-negative)
+     * 2. No rows before period start → import batch original_quantity (via resolveInitialStockQuantity)
+     * 3. No start date on report → first in-period qty_before when non-negative, else import opening
+     */
+    private function resolveOpeningBalance(
+        int $itemId,
+        ?Carbon $startDateCarbon,
+        float $itemQty,
+        $transactionsInPeriod
+    ): float {
+        $initial = $this->resolveInitialStockQuantity($itemId, $itemQty);
+
+        if ($startDateCarbon) {
+            $lastBefore = Transaction::query()
+                ->withLogDocDateJoins()
+                ->where('transactions.item_id', $itemId)
+                ->whereLogDisplayDateOnOrBefore($startDateCarbon->copy()->subSecond())
+                ->orderByLogDisplayDate('desc')
+                ->first();
+
+            if ($lastBefore) {
+                $opening = (float) $lastBefore->qty_after;
+
+                return $opening >= 0 ? $opening : $initial;
+            }
+
+            return $initial;
+        }
+
+        $periodRows = collect($transactionsInPeriod);
+        if ($periodRows->isNotEmpty()) {
+            $firstInPeriod = $periodRows->sortBy([
+                ['created_at', 'asc'],
+                ['id', 'asc'],
+            ])->first();
+
+            $qtyBefore = (float) ($firstInPeriod->qty_before ?? 0);
+
+            return $qtyBefore >= 0 ? $qtyBefore : $initial;
+        }
+
+        return $initial;
+    }
+
+    /**
+     * Stock on hand before any ledger activity (e.g. Excel import with batch, no transaction).
+     */
+    private function resolveInitialStockQuantity(int $itemId, float $itemQty): float
+    {
+        if (BatchTracking::where('item_id', $itemId)
+            ->where('batch_num', BatchTracking::IMPORT_BATCH_NUM)
+            ->exists()) {
+            return BatchTracking::importOpeningQuantityForItem($itemId);
+        }
+
+        if (BatchTracking::where('item_id', $itemId)->exists()) {
+            return max(0, (float) BatchTracking::where('item_id', $itemId)->sum('quantity'));
+        }
+
+        return max(0, $itemQty);
     }
 }

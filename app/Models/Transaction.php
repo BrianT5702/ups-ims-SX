@@ -128,34 +128,29 @@ class Transaction extends BaseModel
     }
 
     /**
-     * Transaction log ordering: DO/PO document date (from joins) **DESC** (newer
-     * doc dates nearer the top). When the effective doc date is the same, sort by
-     * the **first-ever** posting time for that `source_doc_num` (MIN(`created_at`)
-     * across all ledger rows for the same document number), in the same direction
-     * as the doc date sort — so for DESC, a document whose first row is older sorts
-     * lower than one whose first row is newer. Rows with no `source_doc_num` fall
-     * back to that row’s own `created_at`. Final tie-break: same direction on `id`.
+     * Transaction log ordering:
+     *
+     * 1. DO/PO document date (from joins), direction as requested (default DESC).
+     * 2. Source doc number — numeric when possible (049050 before 049049 when DESC).
+     * 3. Trimmed doc string (non-numeric PO refs).
+     * 4. Row `created_at`, then `id`.
      */
     public function scopeOrderByLogDisplayDate(Builder $query, string $direction = 'desc'): Builder
     {
         $dir = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
         $tieDir = $dir === 'DESC' ? 'desc' : 'asc';
 
-        $table = $query->getModel()->getTable();
         $qualifiedCreated = $query->qualifyColumn('created_at');
         $qualifiedId = $query->qualifyColumn('id');
-
-        $firstDocCreatedSub = Transaction::query()
-            ->from($table . ' as doc_first')
-            ->selectRaw('MIN(doc_first.created_at)')
-            ->whereColumn('doc_first.source_doc_num', $query->qualifyColumn('source_doc_num'));
+        $qualifiedDocNum = $query->qualifyColumn('source_doc_num');
 
         return $query
             ->orderByRaw("COALESCE(tx_log_do.date, tx_log_po.date, transactions.created_at) {$dir}")
             ->orderByRaw(
-                'COALESCE((' . $firstDocCreatedSub->toSql() . "), {$qualifiedCreated}) {$tieDir}",
-                $firstDocCreatedSub->getBindings()
+                "CAST(TRIM({$qualifiedDocNum}) AS UNSIGNED) {$tieDir}"
             )
+            ->orderByRaw("TRIM({$qualifiedDocNum}) {$tieDir}")
+            ->orderByRaw("{$qualifiedCreated} {$tieDir}")
             ->orderByRaw("{$qualifiedId} {$tieDir}");
     }
 

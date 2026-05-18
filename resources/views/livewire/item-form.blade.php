@@ -236,7 +236,7 @@
                             </div>
                         </div>
 
-                            @if($item)
+                            {{-- @if($item)
                             <div class="mt-2 pt-2 border-top item-form-batch-block">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h6 class="fw-bold mb-0 small text-uppercase text-secondary">Batch tracking</h6>
@@ -338,7 +338,7 @@
                                 </div>
                                 @endif
                             </div>
-                            @endif
+                            @endif --}}
 
                     </form>
                 </div>

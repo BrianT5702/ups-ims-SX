@@ -481,6 +481,30 @@ class TransactionLog extends Component
     }
 
     /**
+     * Rows whose source doc is not the given document (inverse of scopeTransactionsMatchingSourceDoc).
+     */
+    private function scopeTransactionsNotMatchingSourceDoc(Builder $query, string $doc): Builder
+    {
+        $doc = trim($doc);
+        if ($doc === '') {
+            return $query;
+        }
+
+        return $query->where(function (Builder $outer) use ($doc) {
+            $outer->where(function (Builder $inner) use ($doc) {
+                $inner->where('transactions.source_doc_num', '!=', $doc)
+                    ->whereRaw('TRIM(transactions.source_doc_num) != ?', [$doc]);
+                if (ctype_digit($doc)) {
+                    $inner->whereRaw(
+                        '(TRIM(transactions.source_doc_num) NOT REGEXP ? OR CAST(TRIM(transactions.source_doc_num) AS UNSIGNED) != ?)',
+                        ['^[0-9]+$', (int) $doc]
+                    );
+                }
+            });
+        });
+    }
+
+    /**
      * Build a "posting-event" index for DO Stock Out rows.
      *
      * A posting event for a (source_doc_num, item_id) pair is a contiguous run
@@ -494,14 +518,10 @@ class TransactionLog extends Component
      *   - Re-deduct after editing qty             -> event 2
      *
      * For each event we choose ONE representative row to display: MAX(id), so
-     * the Out column can aggregate all FIFO lines in that event. The Balance
-     * column uses the **last contiguous run** of equal per-line quantities across
-     * **all** DO Stock Out lines for that (DO, item): if that run has more than one
-     * line, Balance is after the **first** line of that run; if it is a single line,
-     * Balance is after that line. Earlier differing quantities only define where
-     * that final run starts — they do not override it. Each (DO, item) pair is
-     * evaluated independently. Only the latest event per (DO, item) is shown in the
-     * log; older posting events are omitted.
+     * the Out column can aggregate all FIFO lines in that event. Balance for the
+     * visible row is resolved in resolveDoStockOutDisplayBalance() (same event
+     * boundaries). Only the latest event per (DO, item) is shown in the log;
+     * older posting events are omitted.
      *
      * Cached per request (per filter scope) to avoid repeated scans.
      *
@@ -693,20 +713,30 @@ class TransactionLog extends Component
      * The Out column for DO lines is still aggregated separately by
      * aggregateDoStockOutQuantities() on the paginated collection only.
      *
-     * For each visible DO Stock Out row, Balance is then adjusted from **all** DO
-     * Stock Out lines for that source doc + item (loaded directly from the DB so
-     * rows are not missed when `source_doc_num` / `item_id` differ only by trimming
-     * or typing). Lines are ordered by `id`; take the **last** stretch of consecutive
-     * equal per-line quantities. If that stretch has multiple lines, use the on-hand
-     * total after the **first** line in the stretch; if it is a single line, use the
-     * total after that line.
+     * For each visible DO Stock Out row, Balance is adjusted using posting events
+     * (DO Stock Out runs separated by reversal Stock Ins) for that source doc + item:
+     *
+     * - If every posting event shipped the **same** total quantity, default to on-hand
+     *   after the **first** Stock Out of the **first** event — unless another DO/PO
+     *   posted for this item between a reversal and a later repost; then use the
+     *   first Out of the **last** such repost event (e.g. 049050 after 049049 posts).
+     * - If event totals differ (qty was changed on a later edit), use only the
+     *   **latest** event’s FIFO lines and the last equal-qty stretch rule on those.
      *
      * @param  iterable<\App\Models\Transaction>  $pageTransactions
      * @return array<int, float|int>
      */
     private function recomputeDisplayBalances($pageTransactions): array
     {
-        $itemIds = collect($pageTransactions)
+        // Paginator must use ->items(); collect($paginator) does not yield page rows and
+        // leaves itemIds empty, so the view falls back to qty_after for every line.
+        $pageRows = $pageTransactions instanceof \Illuminate\Contracts\Pagination\Paginator
+            ? $pageTransactions->items()
+            : (is_array($pageTransactions) ? $pageTransactions : iterator_to_array($pageTransactions));
+
+        $pageCollection = collect($pageRows);
+
+        $itemIds = $pageCollection
             ->pluck('item_id')
             ->filter()
             ->unique()
@@ -759,7 +789,7 @@ class TransactionLog extends Component
         $doSourceTypes = $this->getDoSourceTypes();
         $processedRepIds = [];
 
-        foreach ($pageTransactions as $tx) {
+        foreach ($pageCollection as $tx) {
             if (!in_array($tx->source_type, $doSourceTypes, true)
                 || $tx->transaction_type !== 'Stock Out'
             ) {
@@ -778,39 +808,182 @@ class TransactionLog extends Component
                 continue;
             }
 
-            // Load every DO Stock Out line for this doc + item (same scopes as the
-            // ledger walk). Do not rely only on the event-builder cache: grouping
-            // used to split pairs when source_doc_num varied by whitespace/type.
-            $lineQuery = $this->scopeTransactionsMatchingSourceDoc(
-                Transaction::query()
-                    ->where('transactions.item_id', $itemId)
-                    ->whereIn('transactions.source_type', $doSourceTypes)
-                    ->where('transactions.transaction_type', 'Stock Out'),
-                $doc
-            );
-
-            $allOutLines = $lineQuery
-                ->orderBy('transactions.id')
-                ->get(['id', 'transaction_qty'])
-                ->map(fn ($r) => [
-                    'id' => (int) $r->id,
-                    'qty' => abs((float) $r->transaction_qty),
-                ])
-                ->values()
-                ->all();
-
-            if ($allOutLines === []) {
-                continue;
-            }
-
-            $balanceByTxId[$repId] = $this->doStockOutPairDisplayBalanceFromOutLines($balanceByTxId, $allOutLines);
+            $balanceByTxId[$repId] = $this->resolveDoStockOutDisplayBalance($balanceByTxId, $doc, $itemId);
         }
 
-        return $balanceByTxId;
+        // Only expose balances for rows on the current page (smaller payload for the view).
+        $pageIds = $pageCollection->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $pageBalances = [];
+        foreach ($pageIds as $id) {
+            if (array_key_exists($id, $balanceByTxId)) {
+                $pageBalances[$id] = $balanceByTxId[$id];
+            }
+        }
+
+        return $pageBalances;
     }
 
     /**
-     * Balance for the visible DO row from every Stock Out line on that (DO, item),
+     * Posting events for one (DO, item): contiguous DO Stock Out rows (by id),
+     * split when a reversal Stock In appears between them.
+     *
+     * @return list<array{ids: list<int>, qty: float, lines: list<array{id: int, qty: float}>}>
+     */
+    private function buildDoStockOutEventsForPair(string $doc, int $itemId): array
+    {
+        $doSourceTypes = $this->getDoSourceTypes();
+        $reversalTypes = $this->getDoReversalSourceTypes();
+
+        $rows = $this->scopeTransactionsMatchingSourceDoc(
+            Transaction::query()
+                ->where('transactions.item_id', $itemId)
+                ->whereIn('transactions.source_type', array_merge($doSourceTypes, $reversalTypes)),
+            $doc
+        )
+            ->orderBy('transactions.id')
+            ->get(['id', 'source_type', 'transaction_type', 'transaction_qty']);
+
+        $events = [];
+        $current = null;
+
+        foreach ($rows as $row) {
+            $isOut = in_array($row->source_type, $doSourceTypes, true)
+                && $row->transaction_type === 'Stock Out';
+            $isReversalIn = in_array($row->source_type, $reversalTypes, true)
+                && $row->transaction_type === 'Stock In';
+
+            if ($isOut) {
+                if ($current === null) {
+                    $current = ['ids' => [], 'qty' => 0.0, 'lines' => []];
+                }
+                $lineQty = abs((float) $row->transaction_qty);
+                $current['ids'][] = (int) $row->id;
+                $current['qty'] += $lineQty;
+                $current['lines'][] = ['id' => (int) $row->id, 'qty' => $lineQty];
+            } elseif ($isReversalIn) {
+                if ($current !== null) {
+                    $events[] = $current;
+                    $current = null;
+                }
+            }
+        }
+
+        if ($current !== null) {
+            $events[] = $current;
+        }
+
+        return $events;
+    }
+
+    /**
+     * Balance shown on the visible DO row for this (doc, item).
+     *
+     * @param  array<int, float|int>  $balanceByTxId
+     */
+    private function resolveDoStockOutDisplayBalance(array $balanceByTxId, string $doc, int $itemId): float
+    {
+        $events = $this->buildDoStockOutEventsForPair($doc, $itemId);
+        if ($events === []) {
+            return 0.0;
+        }
+
+        $roundedTotals = array_map(fn ($ev) => round((float) $ev['qty'], 4), $events);
+        if (count(array_unique($roundedTotals)) === 1) {
+            $eventIndex = $this->resolveSameQtyDoDisplayEventIndex($events, $doc, $itemId);
+            $firstOutId = min($events[$eventIndex]['ids']);
+
+            return (float) ($balanceByTxId[$firstOutId] ?? 0.0);
+        }
+
+        $latestEvent = $events[count($events) - 1];
+
+        return $this->doStockOutPairDisplayBalanceFromOutLines(
+            $balanceByTxId,
+            $latestEvent['lines']
+        );
+    }
+
+    /**
+     * When every posting event for this DO shipped the same qty, pick which event’s
+     * balance to show on the single visible row.
+     *
+     * Start at the first event. For each later event, if another DO/PO moved stock
+     * for this item between the previous event’s last Out and this event’s first Out
+     * **and** that gap is short (same edit session, not weeks later), move the anchor
+     * to this event and stop — e.g. 049050 uses id 272 after 049049 posts between
+     * reversal 253 and repost 272, while 049044 stays on the first event (-6) when
+     * the next repost is weeks later (Apr bulk) with only same-doc rows in between.
+     *
+     * @param  list<array{ids: list<int>, qty: float, lines: list<array{id: int, qty: float}>}>  $events
+     */
+    private function resolveSameQtyDoDisplayEventIndex(array $events, string $doc, int $itemId): int
+    {
+        $selected = 0;
+        $eventCount = count($events);
+
+        for ($i = 1; $i < $eventCount; $i++) {
+            $gapLow = max($events[$i - 1]['ids']);
+            $gapHigh = min($events[$i]['ids']);
+
+            if ($gapHigh <= $gapLow) {
+                continue;
+            }
+
+            if ($this->hasOtherStockMovementForItemBetween($itemId, $doc, $gapLow, $gapHigh)
+                && $this->isShortTransactionGap($gapLow, $gapHigh)
+            ) {
+                $selected = $i;
+                break;
+            }
+        }
+
+        return $selected;
+    }
+
+    /**
+     * True when two ledger rows are close enough in posting time to be one edit session.
+     */
+    private function isShortTransactionGap(int $afterId, int $beforeId, int $maxDays = 14): bool
+    {
+        $bounds = Transaction::query()
+            ->whereIn('id', [$afterId, $beforeId])
+            ->get(['id', 'created_at'])
+            ->keyBy('id');
+
+        $after = $bounds->get($afterId);
+        $before = $bounds->get($beforeId);
+
+        if (!$after || !$before) {
+            return false;
+        }
+
+        return $after->created_at->diffInDays($before->created_at) <= $maxDays;
+    }
+
+    /**
+     * Another document moved stock for this item strictly between two transaction ids.
+     */
+    private function hasOtherStockMovementForItemBetween(
+        int $itemId,
+        string $doc,
+        int $afterId,
+        int $beforeId
+    ): bool {
+        if ($beforeId <= $afterId + 1) {
+            return false;
+        }
+
+        $query = Transaction::query()
+            ->where('item_id', $itemId)
+            ->where('id', '>', $afterId)
+            ->where('id', '<', $beforeId)
+            ->whereIn('transaction_type', ['Stock In', 'Stock Out']);
+
+        return $this->scopeTransactionsNotMatchingSourceDoc($query, $doc)->exists();
+    }
+
+    /**
+     * Balance for the visible DO row from Stock Out lines on that (DO, item),
      * ordered by id: split into runs of consecutive equal qty; use the last run
      * (see recomputeDisplayBalances docblock).
      *
