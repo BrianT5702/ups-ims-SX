@@ -1,71 +1,70 @@
 <div class="p-6">
     <div class="mb-6">
-        <h2 class="text-2xl font-bold mb-4">Generate Stock Balance Report</h2>
-        
+        <h2 class="text-2xl font-bold mb-4">Generate Transaction Report</h2>
+
         @if($errorMessage)
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                {{ $errorMessage }}
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+                <strong>Error:</strong> {{ $errorMessage }}
             </div>
         @endif
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        @if (session()->has('error'))
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+                <strong>Error:</strong> {{ session('error') }}
+            </div>
+        @endif
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">Report Format</label>
+            <select wire:model="fileType" class="rounded-md shadow-sm border-gray-300 w-full max-w-xs">
+                <option value="pdf">PDF</option>
+                <option value="excel">Excel</option>
+            </select>
+        </div>
+
+        <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <label class="block text-sm font-medium mb-2">Start Date</label>
-                <input 
-                    type="date" 
+                <input
+                    type="date"
                     wire:model="startDate"
                     class="rounded-md shadow-sm border-gray-300 w-full"
                     max="{{ $endDate }}"
                 >
-                @error('startDate') 
+                @error('startDate')
                     <span class="text-red-500 text-sm">{{ $message }}</span>
                 @enderror
             </div>
-            
+
             <div>
                 <label class="block text-sm font-medium mb-2">End Date</label>
-                <input 
-                    type="date" 
+                <input
+                    type="date"
                     wire:model="endDate"
                     class="rounded-md shadow-sm border-gray-300 w-full"
                     min="{{ $startDate }}"
                 >
-                @error('endDate') 
+                @error('endDate')
                     <span class="text-red-500 text-sm">{{ $message }}</span>
                 @enderror
             </div>
 
             <div>
                 <label class="block text-sm font-medium mb-2">Transaction Type</label>
-                <select 
-                    wire:model="selectedTransactionType" 
-                    class="rounded-md shadow-sm border-gray-300 w-full"
-                >
+                <select wire:model="selectedTransactionType" class="rounded-md shadow-sm border-gray-300 w-full">
                     @foreach($transactionTypes as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
                 </select>
-                @error('selectedTransactionType') 
+                @error('selectedTransactionType')
                     <span class="text-red-500 text-sm">{{ $message }}</span>
                 @enderror
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-                <label class="block text-sm font-medium mb-2">Stock Filter</label>
-                <select wire:model="stockFilter" class="rounded-md shadow-sm border-gray-300 w-full">
-                    <option value="all">All Stock</option>
-                    <option value="gt0">Stock > 0</option>
-                    <option value="eq0">Stock = 0</option>
-                </select>
-                @error('stockFilter') 
-                    <span class="text-red-500 text-sm">{{ $message }}</span>
-                @enderror
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium mb-2">Group</label>
+                <label class="block text-sm font-medium mb-2">Filter by Group</label>
                 <select wire:model="selectedGroupId" class="rounded-md shadow-sm border-gray-300 w-full">
                     <option value="">All Groups</option>
                     @foreach($groups as $group)
@@ -75,9 +74,9 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium mb-2">Family</label>
+                <label class="block text-sm font-medium mb-2">Filter by Brand</label>
                 <select wire:model="selectedFamilyId" class="rounded-md shadow-sm border-gray-300 w-full">
-                    <option value="">All Families</option>
+                    <option value="">All Brands</option>
                     @foreach($families as $family)
                         <option value="{{ $family->id }}">{{ $family->family_name }}</option>
                     @endforeach
@@ -85,9 +84,9 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium mb-2">Category</label>
+                <label class="block text-sm font-medium mb-2">Filter by Type</label>
                 <select wire:model="selectedCategoryId" class="rounded-md shadow-sm border-gray-300 w-full">
-                    <option value="">All Categories</option>
+                    <option value="">All Types</option>
                     @foreach($categories as $category)
                         <option value="{{ $category->id }}">{{ $category->cat_name }}</option>
                     @endforeach
@@ -95,18 +94,18 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div class="mb-4 max-w-xl">
+            <label class="block text-sm font-medium mb-2">Company Name</label>
             <div x-data="{ open: false }" x-on:click.away="open = false" class="relative">
-                <label class="block text-sm font-medium mb-2">Company Name</label>
                 @if($selectedCompanyName)
                     <div class="flex">
-                        <input 
-                            type="text" 
-                            class="rounded-md shadow-sm border-gray-300 w-full rounded-r-none" 
+                        <input
+                            type="text"
+                            class="rounded-md shadow-sm border-gray-300 w-full rounded-r-none"
                             value="{{ $selectedCompanyName }}"
                             readonly
                         >
-                        <button 
+                        <button
                             type="button"
                             wire:click="clearCompany"
                             class="px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-white hover:bg-gray-50"
@@ -117,17 +116,17 @@
                         </button>
                     </div>
                 @else
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         wire:model.debounce.300ms="companySearchTerm"
                         wire:input.debounce.300ms="searchCompanies"
                         x-on:focus="open = true"
-                        class="rounded-md shadow-sm border-gray-300 w-full" 
+                        class="rounded-md shadow-sm border-gray-300 w-full"
                         placeholder="Search company..."
                         autocomplete="off"
                     >
                     @if((count($companySearchCustomers) > 0 || count($companySearchSuppliers) > 0) && $companySearchTerm)
-                        <div 
+                        <div
                             class="absolute w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 z-50"
                             style="max-height: 300px; overflow-y: auto;"
                             x-show="open"
@@ -138,7 +137,7 @@
                                 </div>
                                 <ul class="py-1">
                                     @foreach($companySearchCustomers as $customer)
-                                        <li 
+                                        <li
                                             class="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                                             wire:click="selectCompany('{{ $customer['id'] }}')"
                                         >
@@ -153,7 +152,7 @@
                                 </div>
                                 <ul class="py-1">
                                     @foreach($companySearchSuppliers as $supplier)
-                                        <li 
+                                        <li
                                             class="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                                             wire:click="selectCompany('{{ $supplier['id'] }}')"
                                         >
@@ -169,15 +168,46 @@
         </div>
 
         <div class="mb-4">
-            <label class="block text-sm font-medium mb-2">Report Format</label>
-            <select wire:model="fileType" class="rounded-md shadow-sm border-gray-300 w-full">
-                <option value="pdf">PDF</option>
-                <option value="excel">Excel</option>
-            </select>
+            <label class="block text-sm font-medium mb-2">Stock Balance Filter</label>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label class="inline-flex items-center">
+                    <input type="radio" wire:model="stockFilter" value="all" class="rounded border-gray-300">
+                    <span class="ml-2">All</span>
+                </label>
+                <label class="inline-flex items-center">
+                    <input type="radio" wire:model="stockFilter" value="gt0" class="rounded border-gray-300">
+                    <span class="ml-2">Non-zero balance only</span>
+                </label>
+                <label class="inline-flex items-center">
+                    <input type="radio" wire:model="stockFilter" value="eq0" class="rounded border-gray-300">
+                    <span class="ml-2">Zero balance only</span>
+                </label>
+            </div>
+            @error('stockFilter')
+                <span class="text-red-500 text-sm">{{ $message }}</span>
+            @enderror
         </div>
 
-        <button 
-            wire:click="generateReport" 
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">Select Columns</label>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                @foreach($availableColumns as $value => $label)
+                    <label class="inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            wire:model="selectedColumns"
+                            value="{{ $value }}"
+                            @if(in_array($value, ['item_code', 'item_name', 'um', 'bf', 'in', 'out', 'balance'])) checked disabled @endif
+                            class="rounded border-gray-300"
+                        >
+                        <span class="ml-2">{{ $label }}</span>
+                    </label>
+                @endforeach
+            </div>
+        </div>
+
+        <button
+            wire:click="generateReport"
             wire:loading.attr="disabled"
             wire:target="generateReport"
             type="button"
@@ -219,62 +249,68 @@
                     $olderHistory = array_slice($reportHistory, 1);
                 @endphp
 
-                @if($latestHistory)
-                    @php
-                        $status = $latestHistory['status'] ?? 'queued';
-                        $statusColor = match($status) {
-                            'ready' => 'bg-green-100 text-green-700 border-green-200',
-                            'failed' => 'bg-red-100 text-red-700 border-red-200',
-                            'processing' => 'bg-yellow-100 text-yellow-700 border-yellow-200',
-                            default => 'bg-blue-100 text-blue-700 border-blue-200',
-                        };
-                        $dotColor = match($status) {
-                            'ready' => 'bg-green-500',
-                            'failed' => 'bg-red-500',
-                            'processing' => 'bg-yellow-500',
-                            default => 'bg-blue-500',
-                        };
-                        $filters = $latestHistory['filters'] ?? [];
-                    @endphp
-                    <div class="relative border rounded-lg p-4 bg-white shadow-sm">
-                        <div class="absolute left-0 top-0 h-full w-1 rounded-l-lg {{ $dotColor }}"></div>
-                        <div class="pl-2">
-                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
-                                <div class="text-sm font-semibold text-gray-800">PDF report (Latest)</div>
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border {{ $statusColor }}">
-                                    {{ ucfirst($status) }}
-                                </span>
-                            </div>
-
-                            <div class="text-sm text-gray-700 mb-2">{{ $latestHistory['message'] ?? 'No status message' }}</div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
-                                <div><span class="font-medium text-gray-700">Progress:</span> {{ (int) ($latestHistory['progress'] ?? 0) }}%</div>
-                                <div><span class="font-medium text-gray-700">Queued:</span> {{ $latestHistory['queued_at'] ?? '-' }}</div>
-                                <div><span class="font-medium text-gray-700">Updated:</span> {{ $latestHistory['updated_at'] ?? '-' }}</div>
-                            </div>
-
-                            <div class="mt-2 text-xs text-gray-600">
-                                <span class="font-medium text-gray-700">Filters:</span>
-                                Date={{ $filters['start_date'] ?? '-' }} to {{ $filters['end_date'] ?? '-' }},
-                                Type={{ $filters['transaction_type'] ?? 'all' }},
-                                Stock={{ $filters['stock_filter'] ?? 'all' }},
-                                Group={{ $filters['group'] ?? 'All Groups' }},
-                                Family={{ $filters['family'] ?? 'All Families' }},
-                                Category={{ $filters['category'] ?? 'All Categories' }},
-                                Company={{ $filters['company'] ?? 'All Companies' }}
-                            </div>
-
-                            @if(!empty($latestHistory['download_url']))
-                                <div class="mt-3">
-                                    <a href="{{ $latestHistory['download_url'] }}" class="inline-flex items-center text-sm text-green-700 hover:text-green-800 font-medium">
-                                        Download this report
-                                    </a>
+                <div class="space-y-3">
+                    @if($latestHistory)
+                        @php
+                            $status = $latestHistory['status'] ?? 'queued';
+                            $statusColor = match($status) {
+                                'ready' => 'bg-green-100 text-green-700 border-green-200',
+                                'failed' => 'bg-red-100 text-red-700 border-red-200',
+                                'processing' => 'bg-yellow-100 text-yellow-700 border-yellow-200',
+                                default => 'bg-blue-100 text-blue-700 border-blue-200',
+                            };
+                            $dotColor = match($status) {
+                                'ready' => 'bg-green-500',
+                                'failed' => 'bg-red-500',
+                                'processing' => 'bg-yellow-500',
+                                default => 'bg-blue-500',
+                            };
+                            $filters = $latestHistory['filters'] ?? [];
+                        @endphp
+                        <div class="relative border rounded-lg p-4 bg-white shadow-sm">
+                            <div class="absolute left-0 top-0 h-full w-1 rounded-l-lg {{ $dotColor }}"></div>
+                            <div class="pl-2">
+                                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
+                                    <div class="text-sm font-semibold text-gray-800">
+                                        {{ strtoupper($latestHistory['file_type'] ?? 'pdf') }} report (Latest)
+                                    </div>
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border {{ $statusColor }}">
+                                        {{ ucfirst($status) }}
+                                    </span>
                                 </div>
-                            @endif
+
+                                <div class="text-sm text-gray-700 mb-2">
+                                    {{ $latestHistory['message'] ?? 'No status message' }}
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
+                                    <div><span class="font-medium text-gray-700">Progress:</span> {{ (int) ($latestHistory['progress'] ?? 0) }}%</div>
+                                    <div><span class="font-medium text-gray-700">Queued:</span> {{ $latestHistory['queued_at'] ?? '-' }}</div>
+                                    <div><span class="font-medium text-gray-700">Updated:</span> {{ $latestHistory['updated_at'] ?? '-' }}</div>
+                                </div>
+
+                                <div class="mt-2 text-xs text-gray-600">
+                                    <span class="font-medium text-gray-700">Filters:</span>
+                                    Date={{ $filters['start_date'] ?? '-' }} to {{ $filters['end_date'] ?? '-' }},
+                                    Txn={{ $filters['transaction_type'] ?? 'All' }},
+                                    Stock={{ $filters['stock_filter'] ?? 'All' }},
+                                    Group={{ $filters['group'] ?? 'All Groups' }},
+                                    Brand={{ $filters['brand'] ?? 'All Brands' }},
+                                    Type={{ $filters['type'] ?? 'All Types' }},
+                                    Company={{ $filters['company'] ?? 'All Companies' }}
+                                </div>
+
+                                @if(!empty($latestHistory['download_url']))
+                                    <div class="mt-3">
+                                        <a href="{{ $latestHistory['download_url'] }}" class="inline-flex items-center text-sm text-green-700 hover:text-green-800 font-medium">
+                                            Download this report
+                                        </a>
+                                    </div>
+                                @endif
+                            </div>
                         </div>
-                    </div>
-                @endif
+                    @endif
+                </div>
 
                 @if(count($olderHistory) > 0)
                     <button
@@ -308,7 +344,9 @@
                                 <div class="absolute left-0 top-0 h-full w-1 rounded-l-lg {{ $dotColor }}"></div>
                                 <div class="pl-2">
                                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
-                                        <div class="text-sm font-semibold text-gray-800">PDF report</div>
+                                        <div class="text-sm font-semibold text-gray-800">
+                                            {{ strtoupper($history['file_type'] ?? 'pdf') }} report
+                                        </div>
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border {{ $statusColor }}">
                                             {{ ucfirst($status) }}
                                         </span>
@@ -322,11 +360,11 @@
                                     <div class="mt-2 text-xs text-gray-600">
                                         <span class="font-medium text-gray-700">Filters:</span>
                                         Date={{ $filters['start_date'] ?? '-' }} to {{ $filters['end_date'] ?? '-' }},
-                                        Type={{ $filters['transaction_type'] ?? 'all' }},
-                                        Stock={{ $filters['stock_filter'] ?? 'all' }},
+                                        Txn={{ $filters['transaction_type'] ?? 'All' }},
+                                        Stock={{ $filters['stock_filter'] ?? 'All' }},
                                         Group={{ $filters['group'] ?? 'All Groups' }},
-                                        Family={{ $filters['family'] ?? 'All Families' }},
-                                        Category={{ $filters['category'] ?? 'All Categories' }},
+                                        Brand={{ $filters['brand'] ?? 'All Brands' }},
+                                        Type={{ $filters['type'] ?? 'All Types' }},
                                         Company={{ $filters['company'] ?? 'All Companies' }}
                                     </div>
                                     @if(!empty($history['download_url']))
@@ -388,3 +426,5 @@
         </div>
     </div>
 </div>
+
+
