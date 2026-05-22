@@ -1200,10 +1200,7 @@ class DOForm extends Component
         if (!empty($currentDesc)) {
             $lines = explode("\n", $currentDesc);
             foreach ($lines as $line) {
-                $lineLength = strlen($line);
-                // If line wraps, count wrapped lines
-                $wrappedLines = max(1, ceil($lineLength / 60));
-                $descLines += $wrappedLines;
+                $descLines += $this->wrappedDescriptionLineCount($line);
             }
         }
         
@@ -2092,6 +2089,16 @@ class DOForm extends Component
         return array_slice(array_values(array_unique($filtered)), 0, 8);
     }
 
+    private function descriptionCharsPerRow(): int
+    {
+        return max(1, (int) config('do.description_chars_per_row', 80));
+    }
+
+    private function wrappedDescriptionLineCount(string $line): int
+    {
+        return max(1, (int) ceil(strlen($line) / $this->descriptionCharsPerRow()));
+    }
+
     /**
      * Estimate total rows needed for all items + remarks
      * Each item = 1 base row + additional rows for descriptions + additional rows for item details
@@ -2104,8 +2111,7 @@ class DOForm extends Component
         $items = $this->stackedItems;
         
         // Base row height: ~25px (padding 4px top + 4px bottom = 8px, font 0.85em with line-height 1.3 ≈ 17px)
-        // Description rows: estimate based on text length and wrapping
-        // Average characters per line in description column: ~60-70 chars (depends on column width)
+        // Description rows: estimate based on text length and wrapping (see config do.description_chars_per_row)
         
         foreach ($items as $stackedItem) {
             // Text-only items count as 1 row
@@ -2122,9 +2128,7 @@ class DOForm extends Component
                 $lines = explode("\n", $desc);
                 $totalDescRows = 0;
                 foreach ($lines as $line) {
-                    $lineLength = strlen($line);
-                    $wrappedLines = max(1, ceil($lineLength / 60));
-                    $totalDescRows += $wrappedLines;
+                    $totalDescRows += $this->wrappedDescriptionLineCount($line);
                 }
                 $totalRows += 1 + $totalDescRows;
             }

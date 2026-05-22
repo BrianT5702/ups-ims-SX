@@ -21,4 +21,12 @@ return [
     */
     'prefix' => '',  // Empty = numbers only (e.g. 049037), use 'DO' for DO049037
     'pad_length' => 6,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Description wrap limit (one-page row estimate)
+    |--------------------------------------------------------------------------
+    | UTF-8 byte length per visual line (strlen) when counting description rows.
+    */
+    'description_chars_per_row' => 90,
 ];

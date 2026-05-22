@@ -984,6 +984,7 @@
                             @php
                                 // Deduct description rows per item using formula (1 + N) for each item with description.
                                 // N = wrapped description lines for that item.
+                                $descCharsPerRow = max(1, (int) config('do.description_chars_per_row', 80));
                                 $rowsDeducedForDesc = 0;
                                 foreach ($deliveryOrder->items as $item) {
                                     $desc = $item->more_description ?? '';
@@ -991,7 +992,7 @@
                                         $lines = explode("\n", $desc);
                                         $itemDescLines = 0;
                                         foreach ($lines as $line) {
-                                            $itemDescLines += max(1, ceil(strlen($line) / 60));
+                                            $itemDescLines += max(1, ceil(strlen($line) / $descCharsPerRow));
                                         }
                                         $rowsDeducedForDesc += (1 + $itemDescLines);
                                     }

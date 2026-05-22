@@ -138,6 +138,7 @@
                                     <h6 class="mb-0">Delivery Order Items (Max 24 rows + NOTES)</h6>
                                     @php
                                         // Calculate current row count (formula 1+N for descriptions)
+                                        $descCharsPerRow = max(1, (int) config('do.description_chars_per_row', 80));
                                         $currentRowCount = 0;
                                         $hasDescLines = false;
                                         foreach ($stackedItems as $item) {
@@ -150,7 +151,7 @@
                                                 $lines = explode("\n", $desc);
                                                 foreach ($lines as $line) {
                                                     $lineLength = strlen($line);
-                                                    $wrappedLines = max(1, ceil($lineLength / 60));
+                                                    $wrappedLines = max(1, ceil($lineLength / $descCharsPerRow));
                                                     $currentRowCount += $wrappedLines;
                                                 }
                                             }
@@ -197,6 +198,7 @@
                                         @php
                                             // Show up to 24 item rows (row 24 is NOTES, 25 total)
                                             // Calculate total used rows for validation purposes
+                                            $descCharsPerRow = max(1, (int) config('do.description_chars_per_row', 80));
                                             $totalUsedRows = 0;
                                             foreach ($stackedItems as $item) {
                                                 $totalUsedRows += 1; // Base row for each item
@@ -207,7 +209,7 @@
                                                     $lines = explode("\n", $desc);
                                                     foreach ($lines as $line) {
                                                         $lineLength = strlen($line);
-                                                        $wrappedLines = max(1, ceil($lineLength / 60));
+                                                        $wrappedLines = max(1, ceil($lineLength / $descCharsPerRow));
                                                         $totalUsedRows += $wrappedLines;
                                                     }
                                                 }
@@ -216,6 +218,7 @@
                                         @php
                                             // Deduct description rows per item using formula (1 + N) for each item with description.
                                             // N = wrapped description lines for that item.
+                                            $descCharsPerRow = max(1, (int) config('do.description_chars_per_row', 80));
                                             $rowsDeducedForDesc = 0;
                                             foreach ($stackedItems as $item) {
                                                 $desc = $item['more_description'] ?? '';
@@ -224,7 +227,7 @@
                                                     $itemDescLines = 0;
                                                     foreach ($lines as $line) {
                                                         $lineLength = strlen($line);
-                                                        $itemDescLines += max(1, ceil($lineLength / 60));
+                                                        $itemDescLines += max(1, ceil($lineLength / $descCharsPerRow));
                                                     }
                                                     $rowsDeducedForDesc += (1 + $itemDescLines);
                                                 }
