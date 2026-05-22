@@ -28,5 +28,5 @@ return [
     |--------------------------------------------------------------------------
     | UTF-8 byte length per visual line (strlen) when counting description rows.
     */
-    'description_chars_per_row' => 90,
+    'description_chars_per_row' => 83,
 ];

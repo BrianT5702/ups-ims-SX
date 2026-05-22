@@ -1290,6 +1290,28 @@ class DOForm extends Component
         return $this->estimateTotalRows(false);
     }
 
+    public function getRemainingRowCount(): int
+    {
+        return max(0, $this->calculateMaxRows() - $this->getCurrentRowCount());
+    }
+
+    /**
+     * How many grid rows (0..23) to render: occupied item rows + empty slots for remaining budget.
+     *
+     * "Used" includes description/remark cost that may not occupy extra grid lines; empty rows
+     * for new items must match remaining page budget, not used row count.
+     *
+     * @param int $maxItemRowIndex Highest row index occupied by an item (-1 if none)
+     */
+    public function getFormRowsToShow(int $maxItemRowIndex = -1): int
+    {
+        $maxRows = $this->calculateMaxRows();
+        $rowsForItems = max(0, $maxItemRowIndex + 1);
+        $remaining = $this->getRemainingRowCount();
+
+        return min($maxRows, $rowsForItems + $remaining);
+    }
+
     public function addDetailLine(int $itemIndex): void
     {
         if ($this->isView || $this->isPosted) {

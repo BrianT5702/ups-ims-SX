@@ -982,22 +982,6 @@
                         </thead>
                         <tbody>
                             @php
-                                // Deduct description rows per item using formula (1 + N) for each item with description.
-                                // N = wrapped description lines for that item.
-                                $descCharsPerRow = max(1, (int) config('do.description_chars_per_row', 80));
-                                $rowsDeducedForDesc = 0;
-                                foreach ($deliveryOrder->items as $item) {
-                                    $desc = $item->more_description ?? '';
-                                    if (!empty($desc)) {
-                                        $lines = explode("\n", $desc);
-                                        $itemDescLines = 0;
-                                        foreach ($lines as $line) {
-                                            $itemDescLines += max(1, ceil(strlen($line) / $descCharsPerRow));
-                                        }
-                                        $rowsDeducedForDesc += (1 + $itemDescLines);
-                                    }
-                                }
-                                
                                 // Build a map from row_index to item for absolute positioning
                                 $rowToItemMap = [];
                                 $itemsWithoutRowIndex = [];
@@ -1022,10 +1006,27 @@
                                     }
                                 }
 
-                                // Deduct rows from bottom using per-item (1+N) description cost.
-                                $rowsDeducedTotal = $rowsDeducedForDesc;
                                 $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
-                                $itemRowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedTotal));
+                                // Match form: show enough rows for items and consumed page budget (1+N descriptions).
+                                $previewUsedRows = 0;
+                                foreach ($deliveryOrder->items as $previewItem) {
+                                    if ($previewItem->item_id === null) {
+                                        $previewUsedRows += 1;
+                                        continue;
+                                    }
+                                    $previewUsedRows += 1;
+                                    $previewDesc = $previewItem->more_description ?? '';
+                                    if (!empty($previewDesc)) {
+                                        $previewDescCharsPerRow = max(1, (int) config('do.description_chars_per_row', 80));
+                                        $previewDescLines = 0;
+                                        foreach (explode("\n", $previewDesc) as $previewLine) {
+                                            $previewDescLines += max(1, (int) ceil(strlen($previewLine) / $previewDescCharsPerRow));
+                                        }
+                                        $previewUsedRows += 1 + $previewDescLines;
+                                    }
+                                }
+                                $previewRemaining = max(0, 24 - $previewUsedRows);
+                                $itemRowsToShow = min(24, ($maxItemRowIndex + 1) + $previewRemaining);
                                 $notesRowIndex = $itemRowsToShow; // NOTES row follows item rows
                             @endphp
                             @for($rowIndex = 0; $rowIndex <= $notesRowIndex; $rowIndex++)

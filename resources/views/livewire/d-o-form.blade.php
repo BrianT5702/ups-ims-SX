@@ -137,29 +137,8 @@
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h6 class="mb-0">Delivery Order Items (Max 24 rows + NOTES)</h6>
                                     @php
-                                        // Calculate current row count (formula 1+N for descriptions)
-                                        $descCharsPerRow = max(1, (int) config('do.description_chars_per_row', 80));
-                                        $currentRowCount = 0;
-                                        $hasDescLines = false;
-                                        foreach ($stackedItems as $item) {
-                                            $currentRowCount += 1; // Base row for each item
-                                            
-                                            // Count description rows
-                                            $desc = $item['more_description'] ?? '';
-                                            if (!empty($desc)) {
-                                                $hasDescLines = true;
-                                                $lines = explode("\n", $desc);
-                                                foreach ($lines as $line) {
-                                                    $lineLength = strlen($line);
-                                                    $wrappedLines = max(1, ceil($lineLength / $descCharsPerRow));
-                                                    $currentRowCount += $wrappedLines;
-                                                }
-                                            }
-                                        }
-                                        if ($hasDescLines) {
-                                            $currentRowCount += 1; // Formula 1+N: extra row when any description
-                                        }
-                                        $remainingRows = 24 - $currentRowCount;
+                                        $currentRowCount = $this->getCurrentRowCount();
+                                        $remainingRows = $this->getRemainingRowCount();
                                     @endphp
                                     <small class="text-muted">
                                         Used: <strong>{{ $currentRowCount }}</strong> / 24 rows | 
@@ -194,47 +173,9 @@
                                             <th style="width: 135px;" class="text-center">Amount</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        @php
-                                            // Show up to 24 item rows (row 24 is NOTES, 25 total)
-                                            // Calculate total used rows for validation purposes
-                                            $descCharsPerRow = max(1, (int) config('do.description_chars_per_row', 80));
-                                            $totalUsedRows = 0;
-                                            foreach ($stackedItems as $item) {
-                                                $totalUsedRows += 1; // Base row for each item
-                                                
-                                                // Count description rows (each line = 1 row)
-                                                $desc = $item['more_description'] ?? '';
-                                                if (!empty($desc)) {
-                                                    $lines = explode("\n", $desc);
-                                                    foreach ($lines as $line) {
-                                                        $lineLength = strlen($line);
-                                                        $wrappedLines = max(1, ceil($lineLength / $descCharsPerRow));
-                                                        $totalUsedRows += $wrappedLines;
-                                                    }
-                                                }
-                                            }
-                                        @endphp
-                                        @php
-                                            // Deduct description rows per item using formula (1 + N) for each item with description.
-                                            // N = wrapped description lines for that item.
-                                            $descCharsPerRow = max(1, (int) config('do.description_chars_per_row', 80));
-                                            $rowsDeducedForDesc = 0;
-                                            foreach ($stackedItems as $item) {
-                                                $desc = $item['more_description'] ?? '';
-                                                if (!empty($desc)) {
-                                                    $lines = explode("\n", $desc);
-                                                    $itemDescLines = 0;
-                                                    foreach ($lines as $line) {
-                                                        $lineLength = strlen($line);
-                                                        $itemDescLines += max(1, ceil($lineLength / $descCharsPerRow));
-                                                    }
-                                                    $rowsDeducedForDesc += (1 + $itemDescLines);
-                                                }
-                                            }
-                                            
-                                            // Build a map from row index to item index (for absolute row positioning)
-                                            $rowToItemMap = [];
+                                    @php
+                                        // Build a map from row index to item index (for absolute row positioning)
+                                        $rowToItemMap = [];
                                             $regularItemIndex = 0;
                                             
                                             foreach ($stackedItems as $idx => $item) {
@@ -266,11 +207,10 @@
                                                 }
                                             }
                                             
-                                            // Deduct rows from bottom using per-item (1+N) description cost.
-                                            $rowsDeducedTotal = $rowsDeducedForDesc;
-                                            $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
-                                            $rowsToShow = min(24, max($maxItemRowIndex + 1, 24 - $rowsDeducedTotal));
-                                        @endphp
+                                        $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
+                                        $rowsToShow = $this->getFormRowsToShow($maxItemRowIndex);
+                                    @endphp
+                                    <tbody wire:key="do-form-tbody-{{ $rowsToShow }}-{{ $this->getCurrentRowCount() }}">
                                         @for($rowIndex = 0; $rowIndex < $rowsToShow; $rowIndex++)
                                             @php
                                                 // Map row index to item index (preserve absolute row positions)
