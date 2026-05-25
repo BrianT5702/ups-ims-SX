@@ -208,7 +208,7 @@
                                             }
                                             
                                         $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
-                                        $rowsToShow = $this->getFormRowsToShow($maxItemRowIndex);
+                                        $rowsToShow = $this->getFormRowsToShow($maxItemRowIndex, count($rowToItemMap));
                                     @endphp
                                     <tbody wire:key="do-form-tbody-{{ $rowsToShow }}-{{ $this->getCurrentRowCount() }}">
                                         @for($rowIndex = 0; $rowIndex < $rowsToShow; $rowIndex++)

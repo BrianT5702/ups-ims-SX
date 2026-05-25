@@ -1026,7 +1026,8 @@
                                     }
                                 }
                                 $previewRemaining = max(0, 24 - $previewUsedRows);
-                                $itemRowsToShow = min(24, ($maxItemRowIndex + 1) + $previewRemaining);
+                                $previewOccupiedRows = count($rowToItemMap);
+                                $itemRowsToShow = min(24, max($maxItemRowIndex + 1, $previewOccupiedRows + $previewRemaining));
                                 $notesRowIndex = $itemRowsToShow; // NOTES row follows item rows
                             @endphp
                             @for($rowIndex = 0; $rowIndex <= $notesRowIndex; $rowIndex++)

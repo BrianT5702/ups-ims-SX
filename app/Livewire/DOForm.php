@@ -1296,20 +1296,22 @@ class DOForm extends Component
     }
 
     /**
-     * How many grid rows (0..23) to render: occupied item rows + empty slots for remaining budget.
+     * How many grid rows (0..23) to render.
      *
-     * "Used" includes description/remark cost that may not occupy extra grid lines; empty rows
-     * for new items must match remaining page budget, not used row count.
+     * Must show row 0..maxItemRowIndex when items keep absolute positions (gaps between items).
+     * Fillable empty slots should match remaining page budget: gaps inside the span plus rows below.
      *
      * @param int $maxItemRowIndex Highest row index occupied by an item (-1 if none)
+     * @param int $occupiedRowCount  Number of grid rows that currently hold an item
      */
-    public function getFormRowsToShow(int $maxItemRowIndex = -1): int
+    public function getFormRowsToShow(int $maxItemRowIndex = -1, int $occupiedRowCount = 0): int
     {
         $maxRows = $this->calculateMaxRows();
-        $rowsForItems = max(0, $maxItemRowIndex + 1);
+        $positionSpan = max(0, $maxItemRowIndex + 1);
         $remaining = $this->getRemainingRowCount();
+        $rowsForBudget = max(0, $occupiedRowCount) + $remaining;
 
-        return min($maxRows, $rowsForItems + $remaining);
+        return min($maxRows, max($positionSpan, $rowsForBudget));
     }
 
     public function addDetailLine(int $itemIndex): void
