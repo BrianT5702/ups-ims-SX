@@ -1,11 +1,38 @@
-<div class="container my-3 item-form-page">
+<div class="container my-3 item-form-page" @if($browseNavEnabled) data-item-browse-nav="1" @endif>
     <div class="row">
         <div class="col-12 col-xxl-11 m-auto item-form-shell">
             <div class="card shadow-sm" style="overflow: visible;">
                 <div class="card-header">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                        <h5 class="fw-bold fs-5 mb-0">{{ $isView ? 'View' : ($item ? 'Edit' : 'Add') }} Item</h5>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <h5 class="fw-bold fs-5 mb-0">{{ $isView ? 'View' : ($item ? 'Edit' : 'Add') }} Item</h5>
+                            @if($browseNavEnabled)
+                                <span id="item-browse-position" class="badge text-bg-light border text-muted fw-normal item-form-browse-position">
+                                    {{ $browsePosition }}
+                                </span>
+                            @endif
+                        </div>
                         <div class="d-flex flex-wrap align-items-center justify-content-end gap-2 item-form-header-actions">
+                            @if($browseNavEnabled)
+                                <div class="btn-group btn-group-sm item-form-browse-nav" role="group" aria-label="Browse inventory list">
+                                    <button type="button"
+                                            class="btn btn-outline-secondary"
+                                            data-item-browse="prev"
+                                            @disabled(! $browseHasPrev)
+                                            title="Previous item (↑)">
+                                        <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Previous item</span>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-outline-secondary"
+                                            data-item-browse="next"
+                                            @disabled(! $browseHasNext)
+                                            title="Next item (↓)">
+                                        <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Next item</span>
+                                    </button>
+                                </div>
+                            @endif
                             @if(!$isView)
                                 <button type="submit"
                                     form="item-form-main"
@@ -22,7 +49,7 @@
                             @endif
                             @can('View Transaction Log')
                                 @if($item)
-                                    <a href="{{ route('transaction-log.show', $item->id) }}" wire:navigate class="btn btn-outline-primary btn-sm" title="Transaction log for this item">
+                                    <a id="item-browse-txlog" href="{{ route('transaction-log.show', $item->id) }}" wire:navigate class="btn btn-outline-primary btn-sm" title="Transaction log for this item">
                                         <i class="fa-solid fa-clock-rotate-left me-1"></i>Transaction log
                                     </a>
                                 @endif
@@ -423,5 +450,250 @@
         .item-form-page .text-danger {
             font-size: 0.77rem;
         }
+
+        .item-form-page .item-form-browse-position {
+            font-size: 0.75rem;
+        }
     </style>
+    @if($browseNavEnabled)
+    <script type="application/json" id="item-browse-client-data">@json($browseClientPayload)</script>
+    <script>
+        (function () {
+            var registered = false;
+            var instantBrowse = null;
+            var fallbackWire = null;
+
+            function isTypingTarget(el) {
+                if (!el || !el.closest) return false;
+                return !!el.closest('input, textarea, select, [contenteditable="true"]');
+            }
+
+            function getWireComponent() {
+                var root = document.querySelector('.item-form-page');
+                var wireId = root && root.closest('[wire\\:id]') && root.closest('[wire\\:id]').getAttribute('wire:id');
+                if (!wireId || typeof Livewire === 'undefined') return null;
+                return Livewire.find(wireId);
+            }
+
+            function readBrowsePayload() {
+                var el = document.getElementById('item-browse-client-data');
+                if (!el || !el.textContent) return null;
+                try {
+                    return JSON.parse(el.textContent);
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            function setField(id, value) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                // Display only — do not dispatch input events (wire:model.live would
+                // run uniqueness validation against the previous item id).
+                el.value = value === null || value === undefined ? '' : String(value);
+            }
+
+            function createInstantBrowse(payload, wire) {
+                var state = {
+                    payload: payload,
+                    index: payload.index,
+                    syncSeq: 0,
+                    syncDebounce: null,
+                    syncInFlight: false,
+                };
+
+                function currentId() {
+                    return state.payload.ids[state.index];
+                }
+
+                function currentItem() {
+                    return state.payload.items[String(currentId())];
+                }
+
+                function reapplyChrome() {
+                    var item = currentItem();
+                    if (!item) return;
+                    applyItem(item);
+                }
+
+                function updateChrome(item) {
+                    var pos = document.getElementById('item-browse-position');
+                    if (pos) {
+                        pos.textContent = (state.index + 1) + ' of ' + state.payload.ids.length;
+                    }
+
+                    var prevBtn = document.querySelector('[data-item-browse="prev"]');
+                    var nextBtn = document.querySelector('[data-item-browse="next"]');
+                    if (prevBtn) prevBtn.disabled = state.index <= 0;
+                    if (nextBtn) nextBtn.disabled = state.index >= state.payload.ids.length - 1;
+
+                    if (state.payload.urlTemplate) {
+                        var url = state.payload.urlTemplate.replace('__ID__', String(item.id));
+                        history.replaceState(null, '', url);
+                        document.title = item.item_code + ' | Manage Item';
+                    }
+
+                    var tx = document.getElementById('item-browse-txlog');
+                    if (tx && tx.href) {
+                        tx.href = tx.href.replace(/transaction-log\/\d+/, 'transaction-log/' + item.id);
+                    }
+                }
+
+                function setLocationOptions(warehouseId, selectedLocationId) {
+                    var sel = document.getElementById('location');
+                    if (!sel) return;
+                    var list = state.payload.locationsByWarehouse[String(warehouseId)] || [];
+                    var html = '<option value="">— None —</option>';
+                    list.forEach(function (loc) {
+                        html += '<option value="' + loc.id + '">' + loc.name + '</option>';
+                    });
+                    sel.innerHTML = html;
+                    sel.value = selectedLocationId ? String(selectedLocationId) : '';
+                }
+
+                function applyItem(item) {
+                    setField('item_code', item.item_code);
+                    setField('item_name', item.item_name);
+                    setField('category', item.category);
+                    setField('family', item.family);
+                    setField('group', item.group);
+                    setField('um', item.um);
+                    setField('cost', item.cost);
+                    setField('cash_price', item.cash_price);
+                    setField('term_price', item.term_price);
+                    setField('cust_price', item.cust_price);
+                    setField('qty', item.qty);
+                    setField('stock_alert_level', item.stock_alert_level);
+                    setField('supplier', item.supplier);
+                    setField('warehouse', item.warehouse_id);
+                    setLocationOptions(item.warehouse_id, item.location_id);
+                    setField('memo', item.memo);
+                    setField('details', item.details);
+
+                    var thumb = document.querySelector('.item-form-image-thumb img');
+                    if (thumb) {
+                        if (item.image_url) {
+                            thumb.src = item.image_url;
+                            thumb.closest('.item-form-image-thumb').style.display = '';
+                        } else {
+                            thumb.removeAttribute('src');
+                        }
+                    }
+
+                    updateChrome(item);
+                }
+
+                function runSync() {
+                    if (!wire) return;
+
+                    var itemId = currentId();
+                    var indexAtRequest = state.index;
+                    var seq = ++state.syncSeq;
+
+                    if (state.syncInFlight) {
+                        return;
+                    }
+
+                    state.syncInFlight = true;
+
+                    wire.call('syncBrowseItem', itemId)
+                        .catch(function () {})
+                        .finally(function () {
+                            state.syncInFlight = false;
+
+                            // Client index is source of truth — undo stale Livewire morphs.
+                            reapplyChrome();
+
+                            if (state.index !== indexAtRequest || seq !== state.syncSeq) {
+                                runSync();
+                            }
+                        });
+                }
+
+                function queueSync() {
+                    if (!wire) return;
+                    clearTimeout(state.syncDebounce);
+                    state.syncDebounce = setTimeout(runSync, 50);
+                }
+
+                function go(direction) {
+                    var delta = direction === 'next' ? 1 : -1;
+                    var newIndex = state.index + delta;
+                    if (newIndex < 0 || newIndex >= state.payload.ids.length) return;
+                    state.index = newIndex;
+                    applyItem(currentItem());
+                    queueSync();
+                }
+
+                return { go: go, reapply: reapplyChrome };
+            }
+
+            function handleBrowse(direction) {
+                if (instantBrowse) {
+                    instantBrowse.go(direction);
+                    return;
+                }
+                if (fallbackWire) {
+                    fallbackWire.call('navigateBrowse', direction);
+                }
+            }
+
+            function refreshBrowseController() {
+                var payload = readBrowsePayload();
+                fallbackWire = getWireComponent();
+                instantBrowse = payload && payload.items
+                    ? createInstantBrowse(payload, fallbackWire)
+                    : null;
+            }
+
+            function registerItemBrowseKeys() {
+                if (typeof Livewire === 'undefined' || registered) return;
+                registered = true;
+
+                refreshBrowseController();
+
+                document.addEventListener('click', function (e) {
+                    var btn = e.target.closest('[data-item-browse]');
+                    if (!btn || !document.querySelector('[data-item-browse-nav="1"]')) return;
+                    e.preventDefault();
+                    handleBrowse(btn.getAttribute('data-item-browse'));
+                });
+
+                document.addEventListener('keydown', function (e) {
+                    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+                    if (!document.querySelector('[data-item-browse-nav="1"]')) return;
+                    if (isTypingTarget(e.target)) return;
+
+                    e.preventDefault();
+                    handleBrowse(e.key === 'ArrowUp' ? 'prev' : 'next');
+                });
+            }
+
+            document.addEventListener('livewire:init', function () {
+                registerItemBrowseKeys();
+
+                Livewire.hook('commit', function (_ref) {
+                    var succeed = _ref.succeed;
+                    var component = _ref.component;
+                    if (!instantBrowse || !document.querySelector('[data-item-browse-nav="1"]')) {
+                        return;
+                    }
+                    var root = document.querySelector('.item-form-page');
+                    var wireId = root && root.closest('[wire\\:id]') && root.closest('[wire\\:id]').getAttribute('wire:id');
+                    if (!wireId || !component || component.id !== wireId) {
+                        return;
+                    }
+                    succeed(function () {
+                        instantBrowse.reapply();
+                    });
+                });
+            });
+            document.addEventListener('livewire:navigated', refreshBrowseController);
+            if (document.readyState !== 'loading' && typeof Livewire !== 'undefined') {
+                registerItemBrowseKeys();
+            }
+        })();
+    </script>
+    @endif
 </div>

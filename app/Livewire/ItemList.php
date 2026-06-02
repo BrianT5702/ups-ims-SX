@@ -14,6 +14,7 @@ use Livewire\Attributes\Title;
 use App\Models\RestockList;
 use Illuminate\Support\Facades\DB;
 use App\Support\ItemPickerSearch;
+use App\Support\InventoryListBrowse;
 
 #[Title('UR | Stock List')]
 class ItemList extends Component
@@ -276,7 +277,14 @@ class ItemList extends Component
 
     public function render()
     {
+        InventoryListBrowse::saveContextFromList($this);
+
         $items = $this->fetchItems();
+
+        InventoryListBrowse::warmOrderedIdsForList(
+            $items->total(),
+            trim((string) $this->itemSearchTerm) !== ''
+        );
 
         // Fetch all necessary data for dropdowns
         $categories = Category::orderBy('cat_name')->get();

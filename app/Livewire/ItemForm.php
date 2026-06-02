@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use App\Support\InventoryListBrowse;
 
 
 #[Title('UR | Manage Item')]
@@ -56,6 +58,9 @@ class ItemForm extends Component
     public $suppliers;
     public $warehouses;
     public $locations = [];
+
+    /** @var \Illuminate\Support\Collection<int, \Illuminate\Database\Eloquent\Collection>|null Not dehydrated — see loadLocations(). */
+    private $locationsGroupedByWarehouse = null;
 
     #[Validate('required', message: 'Item code is required')]
     public $item_code = '';
@@ -108,6 +113,17 @@ class ItemForm extends Component
     public $newBatchSourceDoc = '-';
     public $showAddBatchSection = false;
 
+    public bool $browseNavEnabled = false;
+
+    public bool $browseHasPrev = false;
+
+    public bool $browseHasNext = false;
+
+    public ?string $browsePosition = null;
+
+    /** Suppress item_code/item_name uniqueness checks while arrow-browsing between items. */
+    public bool $suppressBrowseValidation = false;
+
     protected function rules()
     {
         return [
@@ -135,6 +151,10 @@ class ItemForm extends Component
     
     public function updatedItemCode($value)
         {
+            if ($this->suppressBrowseValidation) {
+                return;
+            }
+
             if ($this->item) {
                 // Validate only if it's an existing item and the item code has changed
                 if ($value !== $this->item->item_code) {
@@ -151,8 +171,12 @@ class ItemForm extends Component
 
         public function updatedItemName($value)
         {
+            if ($this->suppressBrowseValidation) {
+                return;
+            }
+
             if ($this->item) {
-                // Validate only if it's an existing item and the item code has changed
+                // Validate only if it's an existing item and the item name has changed
                 if ($value !== $this->item->item_name) {
                     $this->validateOnly('item_name', [
                         'item_name' => ['required', new UniqueInCurrentDatabase('items', 'item_name', $this->item->id)],
@@ -167,44 +191,15 @@ class ItemForm extends Component
 
     public function mount(Item $item)
     {
-        $this->categories = Category::orderBy('cat_name')->get();
-        $this->families = Family::orderBy('family_name')->get();
-        $this->groups = Group::orderBy('group_name')->get();
-        $this->warehouses = Warehouse::orderBy('warehouse_name')->get();
-        $this->locations = Location::orderBy('location_name')->get();
-        $this->suppliers = Supplier::orderBy('sup_name')->get();
+        $this->loadFormMasterData();
 
         $this->isView = request()->routeIs('items.view');
 
         if ($item->id) {
-            $this->item = $item;
-            $this->item_code = $item->item_code;
-            $this->item_name = $item->item_name;
-            $this->qty = $item->qty; // Load actual item quantity (allows negative values)
-
-            $this->cust_price = $item->cust_price;
-            $this->cost = $item->cost;
-            $this->term_price = $item->term_price;
-            $this->cash_price = $item->cash_price;
-            $this->stock_alert_level = $item->stock_alert_level;
-            $this->supplier = $item->sup_id;
-            $this->category = $item->cat_id;
-            $this->family = $item->family_id;
-            $this->group = $item->group_id;
-            $this->warehouse = $item->warehouse_id;
-            $this->location = $item->location_id;
-            $this->existing_image = $item->image;
-            $this->imagePreview = $this->existing_image ? Storage::url($this->existing_image) : null;
-            $this->um = $item->um ?: 'UNIT';
-
-            $this->memo = $item->memo;
-            $this->details = $item->details;
-
-            if ($this->warehouse) {
-                $this->loadLocations(); 
-            }
-
-            $this->loadBatchTrackings();
+            $this->populateFormFromItem(
+                InventoryListBrowse::getCachedItem($item->id) ?? $item,
+                lightweight: false
+            );
         } else {
             $this->um = '';
             $this->batchTrackings = [];
@@ -212,6 +207,163 @@ class ItemForm extends Component
 
         // Prefill new batch received date with today
         $this->newBatchDate = now()->format('Y-m-d');
+
+        $this->refreshBrowseNavState();
+    }
+
+    public function navigateBrowse(string $direction): void
+    {
+        if (! $this->item || ! $this->browseNavEnabled) {
+            return;
+        }
+
+        $ctx = InventoryListBrowse::context();
+        if (! $ctx) {
+            return;
+        }
+
+        $ids = InventoryListBrowse::ensureOrderedIds($ctx);
+        $idx = array_search($this->item->id, $ids, true);
+        if ($idx === false) {
+            return;
+        }
+
+        $newIdx = $direction === 'next' ? $idx + 1 : $idx - 1;
+        if (! isset($ids[$newIdx])) {
+            return;
+        }
+
+        $this->syncBrowseItem((int) $ids[$newIdx]);
+    }
+
+    /** Server sync after instant client browse (session cache only — no list queries). */
+    public function syncBrowseItem(int $itemId): void
+    {
+        if (! $this->browseNavEnabled) {
+            return;
+        }
+
+        $this->suppressBrowseValidation = true;
+        $this->resetValidation();
+
+        $item = InventoryListBrowse::findItemForBrowse($itemId);
+        $this->populateFormFromItem($item, lightweight: true);
+
+        $this->suppressBrowseValidation = false;
+
+        $ctx = InventoryListBrowse::context();
+        if (! $ctx) {
+            return;
+        }
+
+        $ids = InventoryListBrowse::ensureOrderedIds($ctx);
+        $idx = array_search($itemId, $ids, true);
+        if ($idx === false) {
+            return;
+        }
+
+        $total = count($ids);
+        $this->browseNavEnabled = true;
+        $this->browseHasPrev = $idx > 0;
+        $this->browseHasNext = $idx < $total - 1;
+        $this->browsePosition = ($idx + 1) . ' of ' . $total;
+    }
+
+    private function loadFormMasterData(): void
+    {
+        $db = session('active_db', DB::getDefaultConnection());
+        $cacheKey = 'item_form_master_data_' . $db;
+
+        $masters = Cache::remember($cacheKey, 300, function () {
+            return [
+                'categories' => Category::orderBy('cat_name')->get(),
+                'families' => Family::orderBy('family_name')->get(),
+                'groups' => Group::orderBy('group_name')->get(),
+                'warehouses' => Warehouse::orderBy('warehouse_name')->get(),
+                'suppliers' => Supplier::orderBy('sup_name')->get(),
+            ];
+        });
+
+        $this->categories = $masters['categories'];
+        $this->families = $masters['families'];
+        $this->groups = $masters['groups'];
+        $this->warehouses = $masters['warehouses'];
+        $this->suppliers = $masters['suppliers'];
+        $this->locations = collect();
+    }
+
+    private function populateFormFromItem(Item $item, bool $lightweight = false): void
+    {
+        if (! $lightweight || $this->suppressBrowseValidation) {
+            $this->resetValidation();
+        }
+
+        $previousWarehouse = $this->warehouse;
+
+        $this->image = null;
+        $this->isImageUploading = false;
+        $this->showAddBatchSection = false;
+        $this->newBatchQty = null;
+
+        $this->item = $item;
+        $this->item_code = $item->item_code;
+        $this->item_name = $item->item_name;
+        $this->qty = $item->qty;
+        $this->cust_price = $item->cust_price;
+        $this->cost = $item->cost;
+        $this->term_price = $item->term_price;
+        $this->cash_price = $item->cash_price;
+        $this->stock_alert_level = $item->stock_alert_level;
+        $this->supplier = $item->sup_id;
+        $this->category = $item->cat_id;
+        $this->family = $item->family_id;
+        $this->group = $item->group_id;
+        $this->warehouse = $item->warehouse_id;
+        $this->location = $item->location_id;
+        $this->existing_image = $item->image;
+        $this->imagePreview = $this->existing_image ? Storage::url($this->existing_image) : null;
+        $this->um = $item->um ?: 'UNIT';
+        $this->memo = $item->memo;
+        $this->details = $item->details;
+
+        if ($item->warehouse_id !== $previousWarehouse) {
+            $this->loadLocations();
+        }
+
+        if (! $lightweight) {
+            $this->loadBatchTrackings();
+        }
+    }
+
+    private function refreshBrowseNavState(): void
+    {
+        $this->browseNavEnabled = false;
+        $this->browseHasPrev = false;
+        $this->browseHasNext = false;
+        $this->browsePosition = null;
+
+        if (! $this->item?->id) {
+            return;
+        }
+
+        $ctx = InventoryListBrowse::context();
+        if (! $ctx) {
+            return;
+        }
+
+        $ids = InventoryListBrowse::ensureOrderedIds($ctx);
+        $idx = array_search($this->item->id, $ids, true);
+        if ($idx === false) {
+            return;
+        }
+
+        $total = count($ids);
+        $this->browseNavEnabled = true;
+        $this->browseHasPrev = $idx > 0;
+        $this->browseHasNext = $idx < $total - 1;
+        $this->browsePosition = ($idx + 1) . ' of ' . $total;
+
+        InventoryListBrowse::cacheItemsAroundIndex($ids, (int) $idx);
     }
 
     public function loadBatchTrackings()
@@ -396,13 +548,24 @@ class ItemForm extends Component
         $this->loadLocations();
     }
 
-    public function loadLocations()
+    public function loadLocations(): void
     {
-        if ($this->warehouse) {
-            $this->locations = Location::where('warehouse_id', $this->warehouse)->orderBy('location_name')->get();
-        } else {
+        if (! $this->warehouse) {
             $this->locations = collect();
+
+            return;
         }
+
+        if ($this->locationsGroupedByWarehouse === null) {
+            $db = session('active_db', DB::getDefaultConnection());
+            $this->locationsGroupedByWarehouse = Cache::remember(
+                'item_form_locations_by_wh_' . $db,
+                300,
+                fn () => Location::orderBy('location_name')->get()->groupBy('warehouse_id')
+            );
+        }
+
+        $this->locations = $this->locationsGroupedByWarehouse->get($this->warehouse, collect());
     }
 
     private function generateBatchNumber()
@@ -687,9 +850,18 @@ class ItemForm extends Component
         $activeDb = session('active_db', DB::getDefaultConnection());
         $canEditQtyForUpsDervet = $activeDb === 'ups' && $this->item_code === 'DERVET SLIDING DOOR';
 
+        $browseClientPayload = null;
+        if ($this->browseNavEnabled && $this->item?->id) {
+            $browseClientPayload = InventoryListBrowse::buildClientPayload(
+                $this->item->id,
+                $this->isView
+            );
+        }
+
         return view('livewire.item-form', [
             'activeDb' => $activeDb,
             'canEditQtyForUpsDervet' => $canEditQtyForUpsDervet,
+            'browseClientPayload' => $browseClientPayload,
         ])->layout('layouts.app');
     }
 
