@@ -556,11 +556,11 @@
                                                                 style="font-size: 0.85em;"
                                                                 data-do-role="desc">
                                                             <button type="button"
-                                                                wire:click="openItemPickerModal({{ $rowIndex }})"
                                                                 {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                 class="btn btn-sm btn-outline-primary"
                                                                 style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;"
-                                                                data-do-add-item-button="1">
+                                                                data-do-add-item-button="1"
+                                                                data-do-open-item-picker="{{ $rowIndex }}">
                                                                 + Add Item (F2)
                                                             </button>
                                                         </div>
@@ -737,7 +737,7 @@
                                     <a href="{{ route('delivery-orders') }}" class="btn btn-secondary">Back</a>
                                 </div>
                                 <div class="text-end">
-                                    <a href="{{ route('delivery-orders.edit', $deliveryOrder->id) }}" class="btn btn-primary me-2">Edit</a>
+                                    <a href="{{ route('delivery-orders.edit', ['deliveryOrder' => $deliveryOrder->id, 'restore' => 1]) }}" class="btn btn-primary me-2">Edit</a>
                                     <a href="{{ route('print.delivery-order.preview', ['id' => $deliveryOrder->id, 'return' => request()->fullUrl()]) }}" class="btn btn-info">Preview</a>
                                 </div>
                             </div>
@@ -861,144 +861,7 @@
             </div>
         </div>
     </div>
-
-    {{-- Add Item picker (F2): full list + search in a modal --}}
-    @if($showItemPickerModal)
-    <div class="modal fade show do-item-picker-modal {{ $deferItemPickerVisibility ? 'do-item-picker-modal-hidden' : '' }}" tabindex="-1" style="display: block;" aria-modal="true" role="dialog">
-        <div class="modal-backdrop fade show" style="z-index: 1040;" wire:click="closeItemPickerModal"></div>
-        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="z-index: 1045;">
-            <div class="modal-content" wire:click.stop>
-                <div class="modal-header py-2">
-                    <h5 class="modal-title mb-0">Add item — row {{ ($itemPickerRowIndex ?? 0) + 1 }}</h5>
-                    <button type="button" class="btn-close" wire:click="closeItemPickerModal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-3" wire:key="do-item-picker-open-{{ $itemPickerRowIndex }}">
-                    @if($itemPickerSearchMode === '')
-                        @if($deferItemPickerVisibility)
-                            {{-- Preload shell only: client modal handles mode. Avoid duplicate "choose mode" flash when revealed before Livewire updates. --}}
-                            <div class="do-item-picker-preload-placeholder py-4" aria-hidden="true"></div>
-                        @else
-                        <div class="border rounded p-3 bg-light"
-                             data-do-picker-mode-select="1"
-                             data-do-picker-active-index="0">
-                            <label class="form-label small text-muted mb-2">Choose search mode first</label>
-                            <div class="list-group">
-                                <button type="button"
-                                        class="list-group-item list-group-item-action active"
-                                        id="do-item-picker-choice-code"
-                                        data-do-picker-choice="code"
-                                        wire:click="chooseItemPickerSearchMode('code')">
-                                    1. Search by Item Code
-                                </button>
-                                <button type="button"
-                                        class="list-group-item list-group-item-action"
-                                        id="do-item-picker-choice-name"
-                                        data-do-picker-choice="name"
-                                        wire:click="chooseItemPickerSearchMode('name')">
-                                    2. Search by Item Name
-                                </button>
-                            </div>
-                            <p class="small text-muted mb-0 mt-2">
-                                Use <strong>Arrow Up/Down</strong> to switch, then press <strong>Enter</strong>.
-                                Or press <strong>1</strong> / <strong>2</strong> to choose directly.
-                            </p>
-                        </div>
-                        @endif
-                    @else
-                        <div>
-                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-                                <label class="form-label small text-muted mb-0">
-                                    Search by {{ $itemPickerSearchMode === 'code' ? 'item code' : 'item name' }}
-                                </label>
-                                <button type="button"
-                                        class="btn btn-outline-secondary btn-sm"
-                                        wire:click="backToItemPickerModeSelection">
-                                    Back to choose mode
-                                </button>
-                            </div>
-                            <input type="text"
-                                class="form-control form-control-sm mb-2"
-                                wire:model.live.debounce.200ms="itemPickerSearchTerm"
-                                placeholder="{{ $itemPickerSearchMode === 'code' ? 'Type item code…' : 'Type item name…' }} (type to search)"
-                                autocomplete="off"
-                                id="do-item-picker-search">
-                            <p class="small text-muted mb-2">
-                                Showing up to {{ trim($itemPickerSearchTerm) === '' ? '0' : '120' }} matches,
-                                filtered by {{ $itemPickerSearchMode === 'code' ? 'item code' : 'item name' }}
-                                @if($itemPickerSearchMode === 'code')
-                                    and sorted by stock code (A→Z).
-                                @else
-                                    and sorted by relevance then description (leading @@ * # ~ ^ {{ '$' }} and spaces stripped).
-                                @endif
-                                Click a row to add, or use <strong>↑</strong> / <strong>↓</strong> in the search box (or on a row) to move, then <strong>Enter</strong> to choose.
-                            </p>
-                            <div class="table-responsive border rounded do-item-picker-table-wrap" style="max-height: min(55vh, 480px); overflow: auto;">
-                                <table class="table table-sm table-bordered table-hover table-striped mb-0 do-item-picker-table">
-                                    <thead class="table-light sticky-top">
-                                        <tr>
-                                            <th scope="col" style="width: 11%;">Stock Code</th>
-                                            <th scope="col">Stock Description</th>
-                                            <th scope="col" class="text-end" style="width: 9%;">On Hand</th>
-                                            <th scope="col" class="text-center" style="width: 8%;">U.O.M</th>
-                                            <th scope="col" class="text-end" style="width: 10%;">Price</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if($itemPickerLoading && count($itemPickerResults) === 0)
-                                            <tr>
-                                                <td colspan="5" class="text-center text-muted py-4">
-                                                    <span class="spinner-border spinner-border-sm me-2 align-middle" role="status" aria-hidden="true"></span>
-                                                    <span class="align-middle">Loading items…</span>
-                                                </td>
-                                            </tr>
-                                        @else
-                                        @forelse($itemPickerResults as $result)
-                                            @php
-                                                $pickerUm = ($result->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($result->um ?? 'UNITS');
-                                                $pickerPrice = (float) ($result->cash_price ?? 0);
-                                                $rawPickerDesc = (string) ($result->item_name ?? '');
-                                                $pickerDesc = preg_replace('/^[\s@*#~^$]+/u', '', $rawPickerDesc);
-                                                $pickerDesc = ltrim($pickerDesc);
-                                                if ($pickerDesc === '') {
-                                                    $pickerDesc = $rawPickerDesc;
-                                                }
-                                            @endphp
-                                            <tr class="do-item-picker-row"
-                                                data-item-id="{{ $result->id }}"
-                                                wire:click="selectItemFromPicker({{ $result->id }})"
-                                                wire:key="do-picker-item-{{ $result->id }}"
-                                                role="button"
-                                                tabindex="0"
-                                                style="cursor: pointer;">
-                                                <td class="small fw-semibold text-nowrap">{{ $result->item_code }}</td>
-                                                <td class="small">{{ $pickerDesc }}</td>
-                                                <td class="small text-end font-monospace @if($result->qty < 0) text-danger @elseif((float) $result->qty == 0.0) text-warning @endif">
-                                                    {{ number_format((float) $result->qty, 2) }}
-                                                </td>
-                                                <td class="small text-center text-nowrap">{{ $pickerUm }}</td>
-                                                <td class="small text-end font-monospace">{{ number_format($pickerPrice, 2) }}</td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="5" class="text-muted small py-3 px-3">
-                                                    {{ trim($itemPickerSearchTerm) === '' ? 'Type at least 1 character to search items.' : 'No items found. Try a different search.' }}
-                                                </td>
-                                            </tr>
-                                        @endforelse
-                                        @endif
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    @endif
-                </div>
-                <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" wire:click="closeItemPickerModal">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
+    <livewire:d-o-item-picker />
 
     <style>
         :root {
@@ -1435,6 +1298,32 @@
 
     <script>
         (function () {
+            function openClientPickerForRow(rowIdx) {
+                var clientModal = document.getElementById('do-client-item-picker-modal');
+                if (!clientModal || typeof Livewire === 'undefined') return;
+                if (document.querySelector('.do-item-picker-modal:not(.d-none)')) {
+                    Livewire.dispatch('do-item-picker-close');
+                }
+
+                clientModal.setAttribute('data-row-index', String(rowIdx));
+                var titleEl = document.getElementById('do-client-item-picker-title');
+                if (titleEl) titleEl.textContent = 'Add item — row ' + (rowIdx + 1);
+
+                var modeBox = clientModal.querySelector('[data-do-client-picker-mode-select="1"]');
+                if (modeBox) {
+                    modeBox.setAttribute('data-do-picker-active-index', '0');
+                    modeBox.style.display = '';
+                }
+                var modeBtns = clientModal.querySelectorAll('[data-do-client-picker-choose]');
+                modeBtns.forEach(function (b, i) { b.classList.toggle('active', i === 0); });
+
+                clientModal.style.display = 'block';
+                clientModal.setAttribute('aria-modal', 'true');
+                setTimeout(function () {
+                    document.getElementById('do-client-item-picker-choice-code')?.focus();
+                }, 0);
+            }
+
             // F2: open the item picker modal for the current (or last) row; F2 again closes it.
             document.addEventListener('keydown', function (e) {
                 if (e.key !== 'F2') return;
@@ -1453,12 +1342,12 @@
                 if (clientModal && clientModal.style.display !== 'none') {
                     clientModal.style.display = 'none';
                     clientModal.removeAttribute('data-row-index');
-                    comp.call('closeItemPickerModal');
+                    Livewire.dispatch('do-item-picker-close');
                     return;
                 }
 
-                if (document.querySelector('.do-item-picker-modal')) {
-                    comp.call('closeItemPickerModal');
+                if (document.querySelector('.do-item-picker-modal:not(.d-none)')) {
+                    Livewire.dispatch('do-item-picker-close');
                     return;
                 }
 
@@ -1473,27 +1362,16 @@
                 var rowIdx = parseInt(targetRow.dataset.rowIndex, 10);
                 if (isNaN(rowIdx)) return;
 
-                if (!clientModal) return;
+                openClientPickerForRow(rowIdx);
+            });
 
-                clientModal.setAttribute('data-row-index', String(rowIdx));
-                var titleEl = document.getElementById('do-client-item-picker-title');
-                if (titleEl) {
-                    titleEl.textContent = 'Add item — row ' + (rowIdx + 1);
-                }
-                var modeBox = clientModal.querySelector('[data-do-client-picker-mode-select="1"]');
-                if (modeBox) {
-                    modeBox.setAttribute('data-do-picker-active-index', '0');
-                }
-                var modeBtns = clientModal.querySelectorAll('[data-do-client-picker-choose]');
-                modeBtns.forEach(function (b, i) {
-                    b.classList.toggle('active', i === 0);
-                });
-                clientModal.style.display = 'block';
-                clientModal.setAttribute('aria-modal', 'true');
-                comp.call('preloadItemPickerModal', rowIdx);
-                setTimeout(function () {
-                    document.getElementById('do-client-item-picker-choice-code')?.focus();
-                }, 0);
+            document.addEventListener('click', function (e) {
+                var openBtn = e.target.closest('[data-do-open-item-picker]');
+                if (!openBtn) return;
+                var rowIdx = parseInt(openBtn.getAttribute('data-do-open-item-picker') || '', 10);
+                if (isNaN(rowIdx)) return;
+                e.preventDefault();
+                openClientPickerForRow(rowIdx);
             });
         })();
         (function () {
@@ -1508,19 +1386,19 @@
                         var rootForClient = formForClient.closest('[wire\\:id]');
                         if (rootForClient && typeof Livewire !== 'undefined') {
                             var compForClient = Livewire.find(rootForClient.getAttribute('wire:id'));
-                            if (compForClient) compForClient.call('closeItemPickerModal');
+                            Livewire.dispatch('do-item-picker-close');
                         }
                     }
                     return;
                 }
-                var modal = document.querySelector('.do-item-picker-modal');
+                var modal = document.querySelector('.do-item-picker-modal:not(.d-none)');
                 if (!modal) return;
                 var form = document.querySelector('form[wire\\:submit\\.prevent="addDO"]');
                 if (!form) return;
                 var lwRoot = form.closest('[wire\\:id]');
                 if (!lwRoot || typeof Livewire === 'undefined') return;
                 var comp = Livewire.find(lwRoot.getAttribute('wire:id'));
-                if (comp) comp.call('closeItemPickerModal');
+                if (comp) Livewire.dispatch('do-item-picker-close');
             });
         })();
         (function () {
@@ -1561,7 +1439,7 @@
                 if (clientModal && window.getComputedStyle(clientModal).display !== 'none') {
                     clientContainer = clientModal.querySelector('[data-do-client-picker-mode-select="1"]');
                 }
-                var serverContainer = document.querySelector('.do-item-picker-modal [data-do-picker-mode-select="1"]');
+                var serverContainer = document.querySelector('.do-item-picker-modal:not(.d-none) [data-do-picker-mode-select="1"]');
                 var container = clientContainer || serverContainer;
                 if (!container) return;
 
@@ -1622,7 +1500,7 @@
                         var rootClose = formClose.closest('[wire\\:id]');
                         if (rootClose && typeof Livewire !== 'undefined') {
                             var compClose = Livewire.find(rootClose.getAttribute('wire:id'));
-                            if (compClose) compClose.call('closeItemPickerModal');
+                            Livewire.dispatch('do-item-picker-close');
                         }
                     }
                     return;
@@ -1645,28 +1523,28 @@
 
                 cm.style.display = 'none';
                 cm.removeAttribute('data-row-index');
-                comp.call('chooseItemPickerSearchMode', mode);
+                Livewire.dispatch('do-item-picker-open', { rowIndex: rowIdx, mode: mode });
             });
         })();
         (function () {
             var pickerListActiveIndex = -1;
 
-            function getDoLivewire() {
-                var form = document.querySelector('form[wire\\:submit\\.prevent="addDO"]');
-                if (!form || typeof Livewire === 'undefined') return null;
-                var root = form.closest('[wire\\:id]');
+            function getPickerLivewire() {
+                var modal = document.querySelector('.do-item-picker-modal:not(.d-none)');
+                if (!modal || typeof Livewire === 'undefined') return null;
+                var root = modal.closest('[wire\\:id]');
                 if (!root) return null;
                 return Livewire.find(root.getAttribute('wire:id'));
             }
 
             function getPickerDataRows() {
-                var wrap = document.querySelector('.do-item-picker-modal .do-item-picker-table-wrap');
+                var wrap = document.querySelector('.do-item-picker-modal:not(.d-none) .do-item-picker-table-wrap');
                 if (!wrap) return [];
                 return Array.from(wrap.querySelectorAll('tbody tr.do-item-picker-row[data-item-id]'));
             }
 
             function clearPickerHighlight() {
-                document.querySelectorAll('.do-item-picker-modal tr.do-item-picker-row').forEach(function (row) {
+                document.querySelectorAll('.do-item-picker-modal:not(.d-none) tr.do-item-picker-row').forEach(function (row) {
                     row.classList.remove('table-active');
                 });
             }
@@ -1695,7 +1573,7 @@
             });
 
             document.addEventListener('click', function (e) {
-                var row = e.target.closest('.do-item-picker-modal tr.do-item-picker-row[data-item-id]');
+                var row = e.target.closest('.do-item-picker-modal:not(.d-none) tr.do-item-picker-row[data-item-id]');
                 if (!row) return;
                 var rows = getPickerDataRows();
                 var idx = rows.indexOf(row);
@@ -1703,7 +1581,7 @@
             });
 
             document.addEventListener('keydown', function (e) {
-                if (!document.querySelector('.do-item-picker-modal')) return;
+                if (!document.querySelector('.do-item-picker-modal:not(.d-none)')) return;
                 var search = document.getElementById('do-item-picker-search');
                 if (!search) return;
 
@@ -1712,7 +1590,7 @@
 
                 var t = e.target;
                 var inSearch = t === search;
-                var inPickerRow = t.closest && t.closest('.do-item-picker-modal tr.do-item-picker-row');
+                var inPickerRow = t.closest && t.closest('.do-item-picker-modal:not(.d-none) tr.do-item-picker-row');
                 if (!inSearch && !inPickerRow) return;
 
                 if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -1756,8 +1634,8 @@
 
                 e.preventDefault();
                 e.stopPropagation();
-                var comp = getDoLivewire();
-                if (comp) comp.call('selectItemFromPicker', parseInt(id, 10));
+                var pickerComp = getPickerLivewire();
+                if (pickerComp) pickerComp.call('selectItem', parseInt(id, 10));
             }, true);
         })();
     </script>

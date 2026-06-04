@@ -63,19 +63,15 @@ class DOForm extends Component
     public $duplicateSelectedDoId = null;
     public $duplicateDoSearchTerm = '';
 
-    /** Add-item picker modal (F2): full scrollable list + search */
-    public bool $showItemPickerModal = false;
-    public bool $deferItemPickerVisibility = false;
+    #[On('do-item-picker-item-selected')]
+    public function onDoItemPickerItemSelected(int $itemId, int $rowIndex): void
+    {
+        if ($this->isView || $this->isPosted) {
+            return;
+        }
 
-    public ?int $itemPickerRowIndex = null;
-
-    public string $itemPickerSearchTerm = '';
-    public string $itemPickerSearchMode = '';
-
-    /** @var \Illuminate\Database\Eloquent\Collection<int, Item>|array */
-    public $itemPickerResults = [];
-
-    public bool $itemPickerLoading = false;
+        $this->addItemToRow($itemId, $rowIndex);
+    }
 
     /**
      * Check if the DO is posted (status is Completed)
@@ -218,9 +214,16 @@ class DOForm extends Component
                 $this->salesmanSearchTerm = $deliveryOrder->salesman->name;
             }
         }
-        
-        // Auto-restore completed DOs when entering the edit route so user can edit immediately
-        if (!$this->isView && $this->deliveryOrder && $this->deliveryOrder->status === 'Completed') {
+
+        // Restore posted stock only when user explicitly opens Edit (View → Edit with ?restore=1).
+        // Preview → Print → Back lands on edit without restore, so the DO stays posted.
+        if (
+            !$this->isView
+            && $this->deliveryOrder
+            && $this->deliveryOrder->id
+            && $this->deliveryOrder->status === 'Completed'
+            && request()->boolean('restore')
+        ) {
             $this->saveAsDraft = true;
             $this->addDO();
         }
@@ -361,189 +364,6 @@ class DOForm extends Component
         } else {
             $this->itemSearchResults = [];
             $this->itemHighlightIndex = -1;
-        }
-    }
-
-    public function openItemPickerModal(int $rowIndex): void
-    {
-        if ($this->isView || $this->isPosted) {
-            return;
-        }
-        $this->itemPickerRowIndex = $rowIndex;
-        $this->itemPickerSearchMode = '';
-        $this->itemPickerSearchTerm = '';
-        $this->itemPickerResults = [];
-        $this->itemPickerLoading = false;
-        $this->deferItemPickerVisibility = false;
-        $this->showItemPickerModal = true;
-        $this->js('setTimeout(() => document.getElementById("do-item-picker-choice-code")?.focus(), 10)');
-    }
-
-    /**
-     * Prepare server picker in background while client mode modal is visible.
-     */
-    public function preloadItemPickerModal(int $rowIndex): void
-    {
-        if ($this->isView || $this->isPosted) {
-            return;
-        }
-
-        $this->itemPickerRowIndex = $rowIndex;
-        $this->itemPickerSearchMode = '';
-        $this->itemPickerSearchTerm = '';
-        $this->itemPickerResults = [];
-        $this->itemPickerLoading = false;
-        $this->deferItemPickerVisibility = true;
-        $this->showItemPickerModal = true;
-    }
-
-    /**
-     * Open picker already on code or name search (one round-trip after instant client mode step).
-     */
-    public function openItemPickerModalWithMode(int $rowIndex, string $mode): void
-    {
-        if ($this->isView || $this->isPosted) {
-            return;
-        }
-        if (!in_array($mode, ['code', 'name'], true)) {
-            return;
-        }
-
-        $this->itemPickerRowIndex = $rowIndex;
-        $this->itemPickerSearchMode = $mode;
-        $this->itemPickerSearchTerm = '';
-        $this->itemPickerResults = [];
-        $this->itemPickerLoading = false;
-        $this->deferItemPickerVisibility = false;
-        $this->showItemPickerModal = true;
-        $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
-    }
-
-    public function closeItemPickerModal(): void
-    {
-        $this->showItemPickerModal = false;
-        $this->itemPickerRowIndex = null;
-        $this->itemPickerSearchMode = '';
-        $this->itemPickerSearchTerm = '';
-        $this->itemPickerResults = [];
-        $this->itemPickerLoading = false;
-        $this->deferItemPickerVisibility = false;
-        $this->js('setTimeout(() => document.getElementById("do-item-picker-choice-code")?.focus(), 10)');
-    }
-
-    public function updatedItemPickerSearchTerm(): void
-    {
-        if ($this->showItemPickerModal && !$this->isView && !$this->isPosted) {
-            $this->refreshItemPickerResults();
-        }
-    }
-
-    public function updatedItemPickerSearchMode(): void
-    {
-        if ($this->itemPickerSearchMode !== '' && !in_array($this->itemPickerSearchMode, ['code', 'name'], true)) {
-            $this->itemPickerSearchMode = '';
-        }
-        // Intentionally no refresh here: mode is set from chooseItemPickerSearchMode / open/close only
-        // (not wire:model).
-    }
-
-    public function chooseItemPickerSearchMode(string $mode): void
-    {
-        if (!in_array($mode, ['code', 'name'], true)) {
-            return;
-        }
-
-        $this->itemPickerSearchMode = $mode;
-        $this->itemPickerSearchTerm = '';
-        $this->itemPickerResults = [];
-        $this->itemPickerLoading = false;
-        $this->deferItemPickerVisibility = false;
-        $this->showItemPickerModal = true;
-        $this->js('setTimeout(() => document.getElementById("do-item-picker-search")?.focus(), 10)');
-    }
-
-    public function backToItemPickerModeSelection(): void
-    {
-        if (!$this->showItemPickerModal || $this->isView || $this->isPosted) {
-            return;
-        }
-
-        $this->itemPickerSearchMode = '';
-        $this->itemPickerSearchTerm = '';
-        $this->itemPickerResults = [];
-        $this->itemPickerLoading = false;
-        $this->deferItemPickerVisibility = false;
-    }
-
-    public function selectItemFromPicker(int $itemId): void
-    {
-        if ($this->isView || $this->isPosted || $this->itemPickerRowIndex === null) {
-            return;
-        }
-        $rowIndex = $this->itemPickerRowIndex;
-        $this->closeItemPickerModal();
-        $this->addItemToRow($itemId, $rowIndex);
-    }
-
-    private function refreshItemPickerResults(): void
-    {
-        if ($this->isPosted) {
-            $this->itemPickerResults = [];
-
-            return;
-        }
-
-        $term = trim((string) $this->itemPickerSearchTerm);
-        $query = Item::query()->select(['id', 'item_code', 'item_name', 'qty', 'um', 'cash_price']);
-
-        if ($term === '') {
-            // Do not preload huge lists on mode select; wait for user input for faster modal open.
-            $this->itemPickerResults = [];
-        } else {
-            $isFractionSearch = preg_match('/\d+\s*\/\s*\d+/', $term) === 1;
-            $isNameSearch = $this->itemPickerSearchMode !== 'code';
-            if ($this->itemPickerSearchMode === 'code') {
-                $escapedCodeTerm = addcslashes($term, '\%_');
-                $query->where('item_code', 'like', $escapedCodeTerm . '%');
-            } else {
-                // Word-by-word search: match only when a token starts with the term.
-                // Examples: "1/4" matches "... 1/4 ...", not "... 11/4 ...".
-                $regexTerm = preg_quote($term, '/');
-                $query->whereRaw(
-                    "REGEXP_REPLACE(item_name, '^[[:space:]@#*~^$]+', '') REGEXP ?",
-                    ['(^|[[:space:][:punct:]])' . $regexTerm]
-                );
-            }
-
-            $fetchLimit = $isFractionSearch ? 300 : 120;
-            if ($isNameSearch) {
-                $displayExpr = $this->itemPickerDisplayNameSqlExpression();
-                $lowerTerm = mb_strtolower($term);
-                $results = $query
-                    // Best rank: display name starts with term.
-                    ->orderByRaw("CASE WHEN LOWER($displayExpr) LIKE ? THEN 0 ELSE 1 END", [$lowerTerm . '%'])
-                    // Next: earliest token-start position.
-                    ->orderByRaw("LOCATE(?, LOWER($displayExpr)) ASC", [$lowerTerm])
-                    // Tie-breaker: alphabetical display name.
-                    ->orderByRaw($displayExpr . ' ASC')
-                    ->orderBy('id')
-                    ->limit($fetchLimit)
-                    ->get();
-            } else {
-                $results = $query->orderBy('item_code')->orderBy('id')
-                    ->limit($fetchLimit)
-                    ->get();
-            }
-
-            if ($isFractionSearch && $this->itemPickerSearchMode !== 'code') {
-                $results = $results
-                    ->filter(fn ($item) => $this->itemDescriptionFractionSearchKeepsRow($item->item_name ?? '', $term))
-                    ->sortBy(fn ($item) => mb_strtolower($this->itemPickerDescriptionSortKey($item->item_name ?? '')))
-                    ->values()
-                    ->take(120);
-            }
-
-            $this->itemPickerResults = $results;
         }
     }
 
@@ -2632,29 +2452,8 @@ class DOForm extends Component
                         // the full qty again (double Stock Out for the same DO).
                         $this->revertPreviousDoStock();
                     } elseif ($previousStatus === 'Save to Draft' && $newStatus === 'Completed') {
-                        // Special case: Deduct stock when changing from Draft to Completed
-                        // Allow negative stock - no validation
-                        foreach ($this->stackedItems as $item) {
-                            // Skip text-only items
-                            if (isset($item['is_text_only']) && $item['is_text_only']) {
-                                continue;
-                            }
-                            
-                            $itemId = $item['item']['id'];
-                            $qty = $this->normalizeDoStockQty($item['item_qty'] ?? 0);
-                            
-                            if ($qty > 0) {
-                                $this->deductFromBatchesFifo($itemId, $qty, false);
-                                
-                                // Update item qty to reflect current batches (can be negative)
-                                $itemRecord = Item::find($itemId);
-                                if ($itemRecord) {
-                                    $itemRecord->qty = BatchTracking::where('item_id', $itemId)->sum('quantity');
-                                    $itemRecord->save();
-                                    $this->checkStockAlertLevel($itemRecord);
-                                }
-                            }
-                        }
+                        // Deduct once per item (grouped qty), not once per stackedItems row.
+                        $this->applyPostStockDeductions($newQtyByItem);
                     } else {
                         // Use delta logic for other status changes
                         $this->reconcileDoStockDeltas($previousQtyByItem, $newQtyByItem, $isDraft);
@@ -2839,29 +2638,7 @@ class DOForm extends Component
 
             // Handle stock changes for new delivery orders
             if ($isNewDeliveryOrder && !$isDraft) {
-                // For new DOs going to Completed status, deduct stock
-                // Allow negative stock - no validation
-                foreach ($this->stackedItems as $item) {
-                    // Skip text-only items
-                    if (isset($item['is_text_only']) && $item['is_text_only']) {
-                        continue;
-                    }
-                    
-                    $itemId = $item['item']['id'];
-                    $qty = $this->normalizeDoStockQty($item['item_qty'] ?? 0);
-
-                    if ($qty > 0) {
-                        $this->deductFromBatchesFifo($itemId, $qty, false);
-
-                        // Update item qty to reflect current batches (can be negative)
-                        $itemRecord = Item::find($itemId);
-                        if ($itemRecord) {
-                            $itemRecord->qty = BatchTracking::where('item_id', $itemId)->sum('quantity');
-                            $itemRecord->save();
-                            $this->checkStockAlertLevel($itemRecord);
-                        }
-                    }
-                }
+                $this->applyPostStockDeductions($this->buildStackedStockQtyByItem());
             }
 
             DB::connection($connection)->commit();
@@ -2965,6 +2742,56 @@ class DOForm extends Component
     }
 
     /**
+     * @return array<int, float> item_id => total qty
+     */
+    private function buildStackedStockQtyByItem(): array
+    {
+        return collect($this->stackedItems)
+            ->filter(fn ($item) => empty($item['is_text_only']))
+            ->filter(fn ($item) => !empty($item['item']['id']))
+            ->groupBy(fn ($item) => (int) $item['item']['id'])
+            ->map(fn ($group) => round((float) $group->sum(fn ($item) => $item['item_qty'] ?? 0), 2))
+            ->filter(fn ($qty) => $qty > 0)
+            ->all();
+    }
+
+    /**
+     * Post stock once per item: align items.qty with batches, deduct grouped qty, sync again.
+     *
+     * @param  array<int|string, float>  $qtyByItem
+     */
+    private function applyPostStockDeductions(array $qtyByItem): void
+    {
+        foreach ($qtyByItem as $itemId => $qty) {
+            $itemId = (int) $itemId;
+            $qty = $this->normalizeDoStockQty($qty);
+            if ($itemId <= 0 || $qty <= 0) {
+                continue;
+            }
+
+            $this->syncItemQtyFromBatches($itemId);
+            $this->deductFromBatchesFifo($itemId, $qty, false);
+            $this->syncItemQtyFromBatches($itemId);
+
+            $itemRecord = Item::find($itemId);
+            if ($itemRecord) {
+                $this->checkStockAlertLevel($itemRecord);
+            }
+        }
+    }
+
+    private function syncItemQtyFromBatches(int $itemId): void
+    {
+        $itemRecord = Item::find($itemId);
+        if (!$itemRecord) {
+            return;
+        }
+
+        $itemRecord->qty = BatchTracking::where('item_id', $itemId)->sum('quantity');
+        $itemRecord->save();
+    }
+
+    /**
      * Reconcile stock based on deltas between previous DO quantities and new input.
      * Positive delta => deduct (Stock Out). Negative delta => restore (Stock In).
      */
@@ -3034,27 +2861,64 @@ class DOForm extends Component
             $batches = collect([$batch]);
         }
 
-        $currentQtyOnHand = BatchTracking::where('item_id', $itemId)->sum('quantity');
+        $currentQtyOnHand = (float) BatchTracking::where('item_id', $itemId)->sum('quantity');
         $baseTimestamp = now();
         $remainingDeductQty = $deductQty;
+        $txIndex = 0;
 
-        // Deduct from batches in FIFO order, allowing negative values
-        foreach ($batches as $index => $batch) {
-            if ($remainingDeductQty <= 0) break;
-            
-            $qtyBefore = $currentQtyOnHand;
-            
-            // Take from this batch - if batch has stock, take up to its quantity, otherwise take all remaining
-            if ($batch->quantity > 0) {
-                $take = min($remainingDeductQty, $batch->quantity);
-            } else {
-                // Batch is empty or negative, take all remaining quantity from this batch
-                $take = $remainingDeductQty;
+        $positiveBatches = $batches->filter(fn ($batch) => (float) $batch->quantity > 0);
+
+        // No positive stock: one batch update + one transaction (avoids loop+tail double batch move).
+        if ($positiveBatches->isEmpty()) {
+            $batch = $batches->last();
+            if (!$batch) {
+                $batch = BatchTracking::create([
+                    'batch_num' => 'AUTO-' . now()->format('YmdHis'),
+                    'item_id' => $itemId,
+                    'quantity' => 0,
+                    'received_date' => now(),
+                    'received_by' => auth()->id(),
+                ]);
             }
-            
-            $batch->quantity -= $take;
+
+            $qtyBefore = $currentQtyOnHand;
+            $batch->quantity = (float) $batch->quantity - $remainingDeductQty;
+            $batch->save();
+            $qtyAfter = (float) BatchTracking::where('item_id', $itemId)->sum('quantity');
+
+            Transaction::create([
+                'item_id' => $itemId,
+                'qty_on_hand' => $qtyAfter,
+                'qty_before' => $qtyBefore,
+                'qty_after' => $qtyAfter,
+                'transaction_qty' => $remainingDeductQty,
+                'transaction_type' => 'Stock Out',
+                'user_id' => auth()->id(),
+                'source_type' => $isDraft ? 'DO Draft Delta' : 'DO',
+                'source_doc_num' => $this->do_num,
+                'batch_id' => $batch->id,
+                'created_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
+                'updated_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
+            ]);
+
+            return;
+        }
+
+        foreach ($positiveBatches as $batch) {
+            if ($remainingDeductQty <= 0) {
+                break;
+            }
+
+            $take = min($remainingDeductQty, (float) $batch->quantity);
+            if ($take <= 0) {
+                continue;
+            }
+
+            $qtyBefore = $currentQtyOnHand;
+            $batch->quantity = (float) $batch->quantity - $take;
             $batch->save();
             $currentQtyOnHand -= $take;
+            $remainingDeductQty = round($remainingDeductQty - $take, 2);
 
             Transaction::create([
                 'item_id' => $itemId,
@@ -3067,35 +2931,36 @@ class DOForm extends Component
                 'source_type' => $isDraft ? 'DO Draft Delta' : 'DO',
                 'source_doc_num' => $this->do_num,
                 'batch_id' => $batch->id,
-                'created_at' => $baseTimestamp->copy()->subSeconds($index * 0.01),
-                'updated_at' => $baseTimestamp->copy()->subSeconds($index * 0.01)
+                'created_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
+                'updated_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
             ]);
-
-            $remainingDeductQty -= $take;
+            $txIndex++;
         }
-        
-        // If there's still quantity to deduct after processing all batches, 
-        // deduct from the last batch to allow negative stock
+
         if ($remainingDeductQty > 0) {
             $lastBatch = $batches->last();
+            if (!$lastBatch) {
+                return;
+            }
+
             $qtyBefore = $currentQtyOnHand;
-            $lastBatch->quantity -= $remainingDeductQty;
+            $lastBatch->quantity = (float) $lastBatch->quantity - $remainingDeductQty;
             $lastBatch->save();
-            $currentQtyOnHand -= $remainingDeductQty;
+            $qtyAfter = (float) BatchTracking::where('item_id', $itemId)->sum('quantity');
 
             Transaction::create([
                 'item_id' => $itemId,
-                'qty_on_hand' => $currentQtyOnHand,
+                'qty_on_hand' => $qtyAfter,
                 'qty_before' => $qtyBefore,
-                'qty_after' => $currentQtyOnHand,
+                'qty_after' => $qtyAfter,
                 'transaction_qty' => $remainingDeductQty,
                 'transaction_type' => 'Stock Out',
                 'user_id' => auth()->id(),
                 'source_type' => $isDraft ? 'DO Draft Delta' : 'DO',
                 'source_doc_num' => $this->do_num,
                 'batch_id' => $lastBatch->id,
-                'created_at' => $baseTimestamp->copy()->subSeconds($batches->count() * 0.01),
-                'updated_at' => $baseTimestamp->copy()->subSeconds($batches->count() * 0.01)
+                'created_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
+                'updated_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
             ]);
         }
     }

@@ -125,27 +125,63 @@ class PrintController extends Controller
             $batches = collect([$batch]);
         }
 
-        $currentQtyOnHand = BatchTracking::where('item_id', $itemId)->sum('quantity');
+        $currentQtyOnHand = (float) BatchTracking::where('item_id', $itemId)->sum('quantity');
         $baseTimestamp = now();
         $remainingDeductQty = $deductQty;
+        $txIndex = 0;
 
-        // Deduct from batches in FIFO order, allowing negative values
-        foreach ($batches as $index => $batch) {
-            if ($remainingDeductQty <= 0) break;
-            
-            $qtyBefore = $currentQtyOnHand;
-            
-            // Take from this batch - if batch has stock, take up to its quantity, otherwise take all remaining
-            if ($batch->quantity > 0) {
-                $take = min($remainingDeductQty, $batch->quantity);
-            } else {
-                // Batch is empty or negative, take all remaining quantity from this batch
-                $take = $remainingDeductQty;
+        $positiveBatches = $batches->filter(fn ($batch) => (float) $batch->quantity > 0);
+
+        if ($positiveBatches->isEmpty()) {
+            $batch = $batches->last();
+            if (!$batch) {
+                $batch = BatchTracking::create([
+                    'batch_num' => 'AUTO-' . now()->format('YmdHis'),
+                    'item_id' => $itemId,
+                    'quantity' => 0,
+                    'received_date' => now(),
+                    'received_by' => auth()->id(),
+                ]);
             }
-            
-            $batch->quantity -= $take;
+
+            $qtyBefore = $currentQtyOnHand;
+            $batch->quantity = (float) $batch->quantity - $remainingDeductQty;
+            $batch->save();
+            $qtyAfter = (float) BatchTracking::where('item_id', $itemId)->sum('quantity');
+
+            Transaction::create([
+                'item_id' => $itemId,
+                'qty_on_hand' => $qtyAfter,
+                'qty_before' => $qtyBefore,
+                'qty_after' => $qtyAfter,
+                'transaction_qty' => $remainingDeductQty,
+                'transaction_type' => 'Stock Out',
+                'user_id' => auth()->id(),
+                'source_type' => 'DO',
+                'source_doc_num' => $doNum,
+                'batch_id' => $batch->id,
+                'created_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
+                'updated_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
+            ]);
+
+            return;
+        }
+
+        foreach ($positiveBatches as $batch) {
+            if ($remainingDeductQty <= 0) {
+                break;
+            }
+
+            $take = min($remainingDeductQty, (float) $batch->quantity);
+            if ($take <= 0) {
+                continue;
+            }
+
+            $qtyBefore = $currentQtyOnHand;
+            $batch->quantity = (float) $batch->quantity - $take;
             $batch->save();
             $currentQtyOnHand -= $take;
+            $remainingDeductQty = round($remainingDeductQty - $take, 2);
 
             Transaction::create([
                 'item_id' => $itemId,
@@ -158,35 +194,36 @@ class PrintController extends Controller
                 'source_type' => 'DO',
                 'source_doc_num' => $doNum,
                 'batch_id' => $batch->id,
-                'created_at' => $baseTimestamp->copy()->subSeconds($index * 0.01),
-                'updated_at' => $baseTimestamp->copy()->subSeconds($index * 0.01)
+                'created_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
+                'updated_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
             ]);
-
-            $remainingDeductQty -= $take;
+            $txIndex++;
         }
-        
-        // If there's still quantity to deduct after processing all batches, 
-        // deduct from the last batch to allow negative stock
+
         if ($remainingDeductQty > 0) {
             $lastBatch = $batches->last();
+            if (!$lastBatch) {
+                return;
+            }
+
             $qtyBefore = $currentQtyOnHand;
-            $lastBatch->quantity -= $remainingDeductQty;
+            $lastBatch->quantity = (float) $lastBatch->quantity - $remainingDeductQty;
             $lastBatch->save();
-            $currentQtyOnHand -= $remainingDeductQty;
+            $qtyAfter = (float) BatchTracking::where('item_id', $itemId)->sum('quantity');
 
             Transaction::create([
                 'item_id' => $itemId,
-                'qty_on_hand' => $currentQtyOnHand,
+                'qty_on_hand' => $qtyAfter,
                 'qty_before' => $qtyBefore,
-                'qty_after' => $currentQtyOnHand,
+                'qty_after' => $qtyAfter,
                 'transaction_qty' => $remainingDeductQty,
                 'transaction_type' => 'Stock Out',
                 'user_id' => auth()->id(),
                 'source_type' => 'DO',
                 'source_doc_num' => $doNum,
                 'batch_id' => $lastBatch->id,
-                'created_at' => $baseTimestamp->copy()->subSeconds($batches->count() * 0.01),
-                'updated_at' => $baseTimestamp->copy()->subSeconds($batches->count() * 0.01)
+                'created_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
+                'updated_at' => $baseTimestamp->copy()->subSeconds($txIndex * 0.01),
             ]);
         }
     }
