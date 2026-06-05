@@ -19,7 +19,7 @@
                         <h5 class="fw-bold fs-5">Delivery Order</h5>
                     </div>
                     <div class="card-body">
-                        <form wire:submit.prevent="addDO">
+                        <form wire:submit.prevent="addDO" @if($this->isDepartment2) data-do-dept2="1" @endif>
                         @php
                             $activeDb = strtolower(session('active_db') ?: config('database.default'));
                             $showInvoiceNoField = in_array($activeDb, ['ups', 'ucs'], true);
@@ -141,13 +141,22 @@
                                         $remainingRows = $this->getRemainingRowCount();
                                     @endphp
                                     <small class="text-muted">
-                                        Used: <strong>{{ $currentRowCount }}</strong> / 24 rows | 
-                                        Remaining: <strong>{{ $remainingRows }}</strong> rows
+                                        Used: <strong data-do-row-used>{{ $currentRowCount }}</strong> / 24 rows |
+                                        Remaining: <strong data-do-row-remaining>{{ $remainingRows }}</strong> rows
                                     </small>
                                 </div>
                                 @error('stackedItems')
                                     <p class="text-danger">{{ $message }}</p>
                                 @enderror
+                                @if($this->isDepartment2)
+                                    <livewire:d-o-form-dept2-grid
+                                        :stacked-items="$stackedItems"
+                                        :free-form-text-rows="$freeFormTextRows"
+                                        :is-view="$isView"
+                                        :is-posted="$this->isPosted"
+                                        wire:key="dept2-grid-{{ $deliveryOrder?->id ?? 'new' }}"
+                                    />
+                                @else
                                 <div class="do-table-shell">
                                 <table class="table table-bordered do-fixed-table">
                                     <thead>
@@ -662,6 +671,7 @@
                                     </tbody>
                                 </table>
                                 </div>
+                                @endif
                             </div>
 
                             <div class="text-end mb-3">
@@ -680,15 +690,15 @@
                                         }
                                         $displayTotalAmount = (float) ($total_amount ?? 0) + $freeFormPreviewAmountTotal;
                                     @endphp
-                                    <h6>Total Amount: 
+                                    <h6>Total Amount:
                                         @if($deliveryOrder && $deliveryOrder->id)
-                                            {{ $deliveryOrder->customerSnapshot->currency ?? $deliveryOrder->customer->currency ?? 'RM' }}
+                                            <span data-do-currency>{{ $deliveryOrder->customerSnapshot->currency ?? $deliveryOrder->customer->currency ?? 'RM' }}</span>
                                         @elseif($selectedCustomer)
-                                            {{ $selectedCustomer->currency ?? 'RM' }}
+                                            <span data-do-currency>{{ $selectedCustomer->currency ?? 'RM' }}</span>
                                         @else
-                                            RM
+                                            <span data-do-currency>RM</span>
                                         @endif
-                                        {{ number_format($displayTotalAmount, 2) }}
+                                        <span data-do-total-amount>{{ number_format($displayTotalAmount, 2) }}</span>
                                     </h6>
                                 </div>
                             </div>
@@ -819,6 +829,11 @@
     </div>
     @endif
 
+    @if($this->isDepartment2)
+        @include('livewire.partials.d-o-form-dept2-quick-add-modal')
+    @endif
+
+    @if(!$this->isDepartment2)
     {{-- Instant (client-only) mode step for F2: shown before any Livewire round-trip; wire:ignore keeps Livewire from stripping it. --}}
     <div id="do-client-item-picker-modal" class="do-client-item-picker-modal" style="display: none;" wire:ignore>
         <div class="modal-backdrop fade show do-client-item-picker-backdrop" data-do-client-picker-close="1"></div>
@@ -862,6 +877,7 @@
         </div>
     </div>
     <livewire:d-o-item-picker />
+    @endif
 
     <style>
         :root {
@@ -1018,9 +1034,16 @@
             background: #fcfdff;
         }
 
-        /* QTY header and values align right toward UNIT */
-        .do-fixed-table th:nth-child(2) {
+        /* QTY header and values align right toward UNIT (Dept 1 grid) */
+        .do-fixed-table:not(.do-dept2-grid) th:nth-child(2) {
             text-align: right;
+        }
+
+        /* Dept 2: column 2 is Code — left-align header and values */
+        .do-fixed-table.do-dept2-grid th.do-dept2-col-code,
+        .do-fixed-table.do-dept2-grid td:nth-child(2) {
+            text-align: left;
+            padding-left: 0.45rem;
         }
 
         .do-fixed-table td.do-qty-cell {
@@ -1330,6 +1353,7 @@
 
                 var form = e.target.closest('form[wire\\:submit\\.prevent="addDO"]');
                 if (!form) return;
+                if (form.getAttribute('data-do-dept2') === '1') return;
 
                 e.preventDefault();
 
@@ -1718,6 +1742,37 @@
             if (document.readyState !== 'loading' && typeof Livewire !== 'undefined') registerFocusQtyAfterAdd();
         })();
     </script>
+    @if($this->isDepartment2)
+    <script>
+        (function() {
+            var registered = false;
+            function registerDept2Totals() {
+                if (typeof Livewire === 'undefined' || registered) return;
+                registered = true;
+                Livewire.on('dept2-total-updated', function (event) {
+                    var payload = event && (event[0] || event.detail || event);
+                    if (!payload) return;
+                    var form = document.querySelector('form[data-do-dept2="1"]');
+                    if (!form) return;
+                    if (payload.displayTotal != null) {
+                        var totalEl = form.querySelector('[data-do-total-amount]');
+                        if (totalEl) totalEl.textContent = payload.displayTotal;
+                    }
+                    if (payload.usedRows != null) {
+                        var usedEl = form.querySelector('[data-do-row-used]');
+                        if (usedEl) usedEl.textContent = String(payload.usedRows);
+                    }
+                    if (payload.remainingRows != null) {
+                        var remEl = form.querySelector('[data-do-row-remaining]');
+                        if (remEl) remEl.textContent = String(payload.remainingRows);
+                    }
+                });
+            }
+            document.addEventListener('livewire:init', registerDept2Totals);
+            if (document.readyState !== 'loading' && typeof Livewire !== 'undefined') registerDept2Totals();
+        })();
+    </script>
+    @endif
     <script>
         (function() {
             // Enter handling inside DO form:
@@ -1740,6 +1795,11 @@
                 var currentRow = e.target.closest('tr.item-row');
                 if (!currentRow) {
                     // Outside grid in the form: Enter is just blocked (no submit, no move)
+                    return;
+                }
+
+                // Department 2: Enter in Code runs Livewire search (wire:keydown.enter.prevent); do not move focus here.
+                if (form.getAttribute('data-do-dept2') === '1' && e.target.matches('[data-do-role="code"]')) {
                     return;
                 }
 

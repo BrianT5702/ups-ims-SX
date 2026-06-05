@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Support\InventoryListBrowse;
+use App\Helpers\CompanyAccess;
 
 
 #[Title('UR | Manage Item')]
@@ -124,6 +125,11 @@ class ItemForm extends Component
     /** Suppress item_code/item_name uniqueness checks while arrow-browsing between items. */
     public bool $suppressBrowseValidation = false;
 
+    public function getIsDepartment2Property(): bool
+    {
+        return CompanyAccess::isDepartment2Connection();
+    }
+
     protected function rules()
     {
         return [
@@ -175,6 +181,14 @@ class ItemForm extends Component
                 return;
             }
 
+            if ($this->isDepartment2) {
+                $this->validateOnly('item_name', [
+                    'item_name' => ['required'],
+                ]);
+
+                return;
+            }
+
             if ($this->item) {
                 // Validate only if it's an existing item and the item name has changed
                 if ($value !== $this->item->item_name) {
@@ -201,7 +215,7 @@ class ItemForm extends Component
                 lightweight: false
             );
         } else {
-            $this->um = '';
+            $this->um = $this->isDepartment2 ? 'UNIT' : '';
             $this->batchTrackings = [];
         }
 
@@ -598,6 +612,10 @@ class ItemForm extends Component
         if ($this->getErrorBag()->isNotEmpty()) {
             return;
         }
+
+        if ($this->isDepartment2) {
+            $this->ensureDept2ItemDefaults();
+        }
     
         $unit_measurement = is_string($this->um) ? trim($this->um) : '';
     
@@ -863,6 +881,42 @@ class ItemForm extends Component
             'canEditQtyForUpsDervet' => $canEditQtyForUpsDervet,
             'browseClientPayload' => $browseClientPayload,
         ])->layout('layouts.app');
+    }
+
+    private function ensureDept2ItemDefaults(): void
+    {
+        if (trim((string) $this->um) === '') {
+            $this->um = 'UNIT';
+        }
+
+        $category = Category::query()->firstOrCreate(['cat_name' => 'UNDEFINED']);
+        $family = Family::query()->firstOrCreate(['family_name' => 'UNDEFINED']);
+        $group = Group::query()->firstOrCreate(['group_name' => 'UNDEFINED']);
+
+        if (! filled($this->category)) {
+            $this->category = $category->id;
+        }
+
+        if (! filled($this->family)) {
+            $this->family = $family->id;
+        }
+
+        if (! filled($this->group)) {
+            $this->group = $group->id;
+        }
+
+        if (! filled($this->supplier) && ($supplier = Supplier::query()->first())) {
+            $this->supplier = $supplier->id;
+        }
+
+        if (! filled($this->warehouse) && ($warehouse = Warehouse::query()->first())) {
+            $this->warehouse = $warehouse->id;
+            $this->loadLocations();
+        }
+
+        if (! filled($this->location) && ($location = Location::query()->first())) {
+            $this->location = $location->id;
+        }
     }
 
     private function checkStockAlertLevel(Item $item)

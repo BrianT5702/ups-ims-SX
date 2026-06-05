@@ -19,6 +19,11 @@ use Maatwebsite\Excel\Concerns\WithStartRow;
 
 class ItemImport implements ToModel, WithStartRow
 {
+    public const FORMAT_FULL = 'full';
+
+    /** Department 2: column A = code, B = name only; prices/qty left at 0 on create; updates name only. */
+    public const FORMAT_CODE_NAME = 'code_name';
+
     private $itemCode = 0;
     private $successCount = 0;
     private $failureCount = 0;
@@ -29,8 +34,18 @@ class ItemImport implements ToModel, WithStartRow
     private $undefinedGroup;
     private $rowNumber = 1;
     private $connection;
+    private string $format;
 
-    public function __construct()
+    public static function formatForConnection(?string $connection): string
+    {
+        $connection = strtolower((string) $connection);
+
+        return in_array($connection, ['ups2', 'urs2', 'ucs2'], true)
+            ? self::FORMAT_CODE_NAME
+            : self::FORMAT_FULL;
+    }
+
+    public function __construct(?string $format = null)
     {
         // Get the current database connection - check session first, then default
         $sessionDb = session('active_db');
@@ -39,8 +54,13 @@ class ItemImport implements ToModel, WithStartRow
         } else {
             $this->connection = DB::getDefaultConnection();
         }
+
+        $this->format = $format ?? self::formatForConnection($this->connection);
         
-        Log::info('[ItemImport] Initializing with connection', ['connection' => $this->connection]);
+        Log::info('[ItemImport] Initializing with connection', [
+            'connection' => $this->connection,
+            'format' => $this->format,
+        ]);
         
         // Ensure we're using the correct connection for all queries
         $this->poId = PurchaseOrder::on($this->connection)->first()?->id ?? null;
@@ -70,7 +90,11 @@ class ItemImport implements ToModel, WithStartRow
         try {
             $this->rowNumber++;
             Log::info('[ItemImport] Incoming row', ['rowNumber' => $this->rowNumber, 'row' => $row]);
-            
+
+            if ($this->format === self::FORMAT_CODE_NAME) {
+                return $this->importCodeNameRow($row);
+            }
+
             // NEW Excel format mapping (URS STOCK NOV 2025.xls):
             // Column A (index 0) = code1 (Stock Code)
             // Column B (index 1) = desc (Description/Item Name)
@@ -355,7 +379,82 @@ class ItemImport implements ToModel, WithStartRow
 
     public function startRow(): int
     {
-        return 4; // Start from row 4 (row 3 is the header in the new Excel format)
+        return $this->format === self::FORMAT_CODE_NAME
+            ? 2 // Row 1 = header (Stock Code, Stock Name); data from row 2
+            : 4; // Department 1: row 3 = header; data from row 4
+    }
+
+    /**
+     * Department 2 item list: code + name only.
+     */
+    private function importCodeNameRow(array $row): ?Item
+    {
+        $stockCode = $this->getString($row, 0);
+        $itemName = $this->getString($row, 1);
+
+        if ($stockCode === null || trim($stockCode) === '') {
+            $this->failureCount++;
+
+            return null;
+        }
+
+        $stockCode = trim($stockCode);
+
+        if (strcasecmp($stockCode, 'stock code') === 0 || strcasecmp($stockCode, 'code') === 0) {
+            $this->failureCount++;
+
+            return null;
+        }
+
+        $displayName = (is_string($itemName) && trim($itemName) !== '') ? trim($itemName) : $stockCode;
+
+        $supplier = Supplier::on($this->connection)->first();
+        $warehouse = Warehouse::on($this->connection)->first();
+        $location = Location::on($this->connection)->first();
+
+        $existingItem = Item::on($this->connection)->where('item_code', $stockCode)->first();
+
+        if ($existingItem) {
+            $existingItem->item_name = $displayName;
+            $existingItem->save();
+
+            Log::info('[ItemImport] Updated item (code+name format)', [
+                'rowNumber' => $this->rowNumber,
+                'item_id' => $existingItem->id,
+                'item_code' => $existingItem->item_code,
+            ]);
+
+            $this->successCount++;
+
+            return $existingItem;
+        }
+
+        $item = Item::on($this->connection)->create([
+            'item_code' => $stockCode,
+            'item_name' => $displayName,
+            'cat_id' => $this->undefinedCategory->id,
+            'family_id' => $this->undefinedFamily->id,
+            'group_id' => $this->undefinedGroup->id,
+            'qty' => 0,
+            'cost' => 0,
+            'cash_price' => 0,
+            'term_price' => 0,
+            'cust_price' => 0,
+            'sup_id' => $supplier?->id,
+            'warehouse_id' => $warehouse?->id,
+            'location_id' => $location?->id,
+            'um' => 'UNIT',
+        ]);
+
+        Log::info('[ItemImport] Created item (code+name format)', [
+            'rowNumber' => $this->rowNumber,
+            'item_id' => $item->id,
+            'item_code' => $item->item_code,
+        ]);
+
+        $this->successCount++;
+
+        return $item;
     }
 
     public function __destruct()

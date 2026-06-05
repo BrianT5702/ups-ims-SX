@@ -132,7 +132,8 @@ class GenerateInventoryPdfReport implements ShouldQueue
             $grandTotal = 0;
             if ($showTotals) {
                 foreach ($items as $item) {
-                    $grandTotal += (($item->qty ?? 0) * ($item->cost ?? 0));
+                    $qty = \App\Helpers\CompanyAccess::displayInventoryQty($item->qty ?? 0, $dbConn);
+                    $grandTotal += ($qty * ($item->cost ?? 0));
                 }
             }
 
@@ -161,6 +162,7 @@ class GenerateInventoryPdfReport implements ShouldQueue
                     'grandTotal' => $grandTotal,
                     'showGrandTotal' => true,
                     'suppressHeader' => false,
+                    'databaseConnection' => $dbConn,
                 ])->setPaper('a4', 'portrait')->setOptions($pdfOptions)->output();
             } else {
                 $cacheTtl = now()->addHours(2);
@@ -185,6 +187,7 @@ class GenerateInventoryPdfReport implements ShouldQueue
                         'grandTotal' => $grandTotal,
                         'showGrandTotal' => $chunkNumber === $totalChunks,
                         'suppressHeader' => $chunkNumber > 1,
+                        'databaseConnection' => $dbConn,
                     ])->setPaper('a4', 'portrait')->setOptions($pdfOptions)->output();
 
                     $tempPath = 'reports/tmp/chunk_' . $this->token . '_' . $chunkNumber . '.pdf';

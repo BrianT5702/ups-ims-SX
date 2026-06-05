@@ -220,6 +220,12 @@
             </tr>
         </thead>
         <tbody>
+            @php
+                use App\Helpers\CompanyAccess;
+
+                $reportDb = $databaseConnection ?? session('active_db') ?? null;
+                $itemQtyForReport = fn ($item) => CompanyAccess::displayInventoryQty($item->qty ?? 0, $reportDb);
+            @endphp
             @if(isset($useGrouping) && $useGrouping)
                 @php
                     $prevGroup = '';
@@ -299,7 +305,7 @@
                     @php
                         $amount = 0;
                         if (isset($showTotals) && $showTotals) {
-                            $qty = $item->qty ?? 0;
+                            $qty = $itemQtyForReport($item);
                             $cost = $item->cost ?? 0;
                             $amount = $qty * $cost;
                             $groupSubtotal += $amount;
@@ -310,7 +316,7 @@
                         <td>{{ $item->item_code }}</td>
                         <td>{{ $item->item_name }}</td>
                         @if(isset($columns['qty']))
-                        <td class="q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
+                        <td class="q">{{ $item->qty !== null ? number_format($qty, 0) : '' }}</td>
                         @endif
                         @if(isset($columns['cost']))
                         <td class="n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>
@@ -352,7 +358,7 @@
                 @php
                     $amount = 0;
                     if (isset($showTotals) && $showTotals) {
-                        $qty = $item->qty ?? 0;
+                        $qty = $itemQtyForReport($item);
                         $cost = $item->cost ?? 0;
                         $amount = $qty * $cost;
                     }
@@ -361,7 +367,7 @@
                     <td>{{ $item->item_code }}</td>
                     <td>{{ $item->item_name }}</td>
                     @if(isset($columns['qty']))
-                    <td class="q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
+                    <td class="q">{{ $item->qty !== null ? number_format($qty, 0) : '' }}</td>
                     @endif
                     @if(isset($columns['cost']))
                     <td class="n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>

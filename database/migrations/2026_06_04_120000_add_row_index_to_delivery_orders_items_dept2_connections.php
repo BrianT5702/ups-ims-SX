@@ -3,43 +3,44 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Earlier migration (2026_01_05) only added row_index on ups/urs/ucs.
+     * Department 2 databases (ups2, urs2, ucs2) need the same column for the DO form.
      */
     public function up(): void
     {
-        // Apply to all company database connections (Dept 1 + Dept 2)
-        $connections = ['ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'];
-        
+        $connections = ['ups2', 'urs2', 'ucs2'];
+
         foreach ($connections as $connection) {
             try {
+                if (!Schema::connection($connection)->hasTable('delivery_orders_items')) {
+                    continue;
+                }
+
                 if (!Schema::connection($connection)->hasColumn('delivery_orders_items', 'row_index')) {
                     Schema::connection($connection)->table('delivery_orders_items', function (Blueprint $table) {
                         $table->integer('row_index')->nullable()->after('item_id');
                     });
                 }
             } catch (\Exception $e) {
-                // If connection doesn't exist or table doesn't exist, skip it
                 continue;
             }
         }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        // Revert on all company database connections (Dept 1 + Dept 2)
-        $connections = ['ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'];
-        
+        $connections = ['ups2', 'urs2', 'ucs2'];
+
         foreach ($connections as $connection) {
             try {
-                if (Schema::connection($connection)->hasColumn('delivery_orders_items', 'row_index')) {
+                if (
+                    Schema::connection($connection)->hasTable('delivery_orders_items')
+                    && Schema::connection($connection)->hasColumn('delivery_orders_items', 'row_index')
+                ) {
                     Schema::connection($connection)->table('delivery_orders_items', function (Blueprint $table) {
                         $table->dropColumn('row_index');
                     });

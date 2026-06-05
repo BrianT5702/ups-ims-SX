@@ -270,8 +270,8 @@
             padding:3.7px 8px;
             text-align: left;
             border-bottom: none;
-            font-size: 1.0em;
-            line-height: 1.2;
+            font-size: 1.06em;
+            line-height: 1.15;
             vertical-align: top;
             word-wrap: break-word;
             word-break: break-word;
@@ -744,8 +744,8 @@
             }
             .items-table td {
                 padding: 3.7px 8px !important;
-                font-size: 1.0em !important;
-                line-height: 1.2 !important;
+                font-size: 1.06em !important;
+                line-height: 1.14 !important;
             }
             /* QTY column: slightly smaller font - match preview */
             .items-table td:nth-child(1) {

@@ -26,7 +26,7 @@
             background-color: #fff4e5;
             border-color: #f0d9b8;
         }
-        .customer-form-page .customer-form-address-block {
+        .customer-form-page .customer-form-contact-block {
             border-top: 1px dashed rgba(0, 0, 0, 0.12);
             margin-top: 0.25rem;
             padding-top: 0.25rem;
@@ -128,51 +128,51 @@
                                     </div>
 
                                     <div class="form-group">
-                                        <label for="phone_num" class="form-label">Phone Number</label>
-                                        <input type="text" name="phone_num" wire:model.live="phone_num" class="form-control form-control-sm rounded" id="phone_num" {{ $isView ? 'disabled' : ''}}>
-                                        @error('phone_num')
+                                        <label for="address_line1" class="form-label">Address Line 1</label>
+                                        <input type="text" name="address_line1" wire:model.live="address_line1" class="form-control form-control-sm rounded" id="address_line1" {{ $isView ? 'disabled' : ''}}>
+                                        @error('address_line1')
                                             <p class="text-danger mb-0 small">{{ $message }}</p>
                                         @enderror
                                     </div>
-
                                     <div class="form-group">
-                                        <label for="fax_num" class="form-label">Fax No.</label>
-                                        <input type="text" name="fax_num" wire:model.live="fax_num" class="form-control form-control-sm rounded" id="fax_num" {{ $isView ? 'disabled' : ''}}>
-                                        @error('fax_num')
+                                        <label for="address_line2" class="form-label">Address Line 2</label>
+                                        <input type="text" name="address_line2" wire:model.live="address_line2" class="form-control form-control-sm rounded" id="address_line2" {{ $isView ? 'disabled' : ''}}>
+                                        @error('address_line2')
                                             <p class="text-danger mb-0 small">{{ $message }}</p>
                                         @enderror
                                     </div>
-
                                     <div class="form-group">
-                                        <label for="email" class="form-label">Email</label>
-                                        <input type="email" name="email" wire:model.live="email" class="form-control form-control-sm rounded" id="email" {{ $isView ? 'disabled' : ''}}>
-                                        @error('email')
-                                            <p class="text-danger mb-0 small">{{ $message }}</p>
-                                        @enderror
+                                        <label for="address_line3" class="form-label">Address Line 3</label>
+                                        <input type="text" name="address_line3" wire:model.live="address_line3" class="form-control form-control-sm rounded" id="address_line3" {{ $isView ? 'disabled' : ''}}>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="address_line4" class="form-label">Address Line 4</label>
+                                        <input type="text" name="address_line4" wire:model.live="address_line4" class="form-control form-control-sm rounded" id="address_line4" {{ $isView ? 'disabled' : ''}}>
                                     </div>
 
-                                    <div class="customer-form-address-block">
+                                    <div class="customer-form-contact-block">
                                         <div class="form-group">
-                                            <label for="address_line1" class="form-label">Address Line 1</label>
-                                            <input type="text" name="address_line1" wire:model.live="address_line1" class="form-control form-control-sm rounded" id="address_line1" {{ $isView ? 'disabled' : ''}}>
-                                            @error('address_line1')
+                                            <label for="phone_num" class="form-label">Phone Number</label>
+                                            <input type="text" name="phone_num" wire:model.live="phone_num" class="form-control form-control-sm rounded" id="phone_num" {{ $isView ? 'disabled' : ''}}>
+                                            @error('phone_num')
                                                 <p class="text-danger mb-0 small">{{ $message }}</p>
                                             @enderror
                                         </div>
+
                                         <div class="form-group">
-                                            <label for="address_line2" class="form-label">Address Line 2</label>
-                                            <input type="text" name="address_line2" wire:model.live="address_line2" class="form-control form-control-sm rounded" id="address_line2" {{ $isView ? 'disabled' : ''}}>
-                                            @error('address_line2')
+                                            <label for="fax_num" class="form-label">Fax No.</label>
+                                            <input type="text" name="fax_num" wire:model.live="fax_num" class="form-control form-control-sm rounded" id="fax_num" {{ $isView ? 'disabled' : ''}}>
+                                            @error('fax_num')
                                                 <p class="text-danger mb-0 small">{{ $message }}</p>
                                             @enderror
                                         </div>
-                                        <div class="form-group">
-                                            <label for="address_line3" class="form-label">Address Line 3</label>
-                                            <input type="text" name="address_line3" wire:model.live="address_line3" class="form-control form-control-sm rounded" id="address_line3" {{ $isView ? 'disabled' : ''}}>
-                                        </div>
+
                                         <div class="form-group mb-0">
-                                            <label for="address_line4" class="form-label">Address Line 4</label>
-                                            <input type="text" name="address_line4" wire:model.live="address_line4" class="form-control form-control-sm rounded" id="address_line4" {{ $isView ? 'disabled' : ''}}>
+                                            <label for="email" class="form-label">Email</label>
+                                            <input type="email" name="email" wire:model.live="email" class="form-control form-control-sm rounded" id="email" {{ $isView ? 'disabled' : ''}}>
+                                            @error('email')
+                                                <p class="text-danger mb-0 small">{{ $message }}</p>
+                                            @enderror
                                         </div>
                                     </div>
                                 </div>

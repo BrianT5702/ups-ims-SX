@@ -3,7 +3,7 @@
 namespace App\Helpers;
 
 use App\Models\User;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 
 class CompanyAccess
 {
@@ -18,10 +18,20 @@ class CompanyAccess
         'Department1' => ['ups', 'urs', 'ucs'],
         'Department 2' => ['ups2', 'urs2', 'ucs2'],
         'Department2' => ['ups2', 'urs2', 'ucs2'],
+        'Department 2 Admin' => ['ups2', 'urs2', 'ucs2'],
+        'Department2 Admin' => ['ups2', 'urs2', 'ucs2'],
         // Add other role mappings here if needed
         // 'Salesperson' => ['ups'],
         // 'User' => ['ups'],
     ];
+
+    /**
+     * All tenant database connection names (Department 1 + Department 2).
+     */
+    public static function allCompanyConnections(): array
+    {
+        return ['ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'];
+    }
 
     /**
      * Get all companies accessible by the given user
@@ -96,5 +106,48 @@ class CompanyAccess
     {
         $accessibleCompanies = self::getAccessibleCompanies($user);
         return in_array(strtolower($connection), array_map('strtolower', $accessibleCompanies));
+    }
+
+    /**
+     * Login default: users who only have Dept 2 companies should land on UPS2, not UPS.
+     */
+    public static function landsOnDepartment2ByDefault(?User $user = null): bool
+    {
+        $accessible = array_values(self::getAccessibleCompanies($user));
+        if ($accessible === []) {
+            return false;
+        }
+
+        foreach (['ups', 'urs', 'ucs'] as $dept1) {
+            if (in_array($dept1, $accessible, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Department 2 tenant databases (UPS2, URS2, UCS2).
+     */
+    public static function isDepartment2Connection(?string $connection = null): bool
+    {
+        $connection = strtolower((string) ($connection ?? session('active_db') ?? ''));
+
+        return in_array($connection, ['ups2', 'urs2', 'ucs2'], true);
+    }
+
+    /**
+     * Inventory qty for display: Dept 2 never shows negatives (floor at 0).
+     */
+    public static function displayInventoryQty(float|int|string|null $qty, ?string $connection = null): float
+    {
+        $qty = (float) ($qty ?? 0);
+
+        if (self::isDepartment2Connection($connection)) {
+            return max(0.0, $qty);
+        }
+
+        return $qty;
     }
 }

@@ -131,11 +131,19 @@
             @csrf
             <div class="form-group">
                 <label for="db_connection">Select Database:</label>
+                @php
+                    $deleteAccessibleCompanies = \App\Helpers\CompanyAccess::getAccessibleCompanies(Auth::user());
+                    $deleteActiveDb = session('active_db');
+                @endphp
                 <select name="db_connection" id="db_connection" required>
-                    <option value="">-- Choose DB --</option>
-                    <option value="ups" {{ session('active_db') === 'ups' ? 'selected' : '' }}>UPS</option>
-                    <option value="urs" {{ session('active_db') === 'urs' ? 'selected' : '' }}>URS</option>
-                    <option value="ucs" {{ session('active_db') === 'ucs' ? 'selected' : '' }}>UCS</option>
+                    <option value="">-- Choose company --</option>
+                    @forelse($deleteAccessibleCompanies as $company)
+                        <option value="{{ $company }}" {{ $deleteActiveDb === $company ? 'selected' : '' }}>
+                            {{ strtoupper($company) }}
+                        </option>
+                    @empty
+                        <option value="" disabled>No companies available for your account</option>
+                    @endforelse
                 </select>
             </div>
             

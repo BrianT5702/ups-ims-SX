@@ -72,6 +72,8 @@ class QuotationList extends Component
             || $user->hasRole('Department 1')
             || $user->hasRole('Department2')
             || $user->hasRole('Department 2')
+            || $user->hasRole('Department2 Admin')
+            || $user->hasRole('Department 2 Admin')
         );
         
         $query = Quotation::with(['customer', 'user', 'updatedBy'])

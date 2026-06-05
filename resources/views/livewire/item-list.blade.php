@@ -220,7 +220,7 @@
                                             </td>
                                             <td>
                                                 <a wire:navigate href="{{ route('items.edit', $item->id) }}">
-                                                    {{ $item->qty }}
+                                                    {{ $item->display_qty }}
                                                 </a>
                                             </td>
                                             <td><a wire:navigate href="{{ route('items.edit', $item->id) }}">{{ $item->cost }}</a></td>

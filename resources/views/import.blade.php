@@ -82,12 +82,20 @@
                         <div class="grid sm:grid-cols-2 gap-6">
                             <div>
                                 <label for="db_connection" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Database</label>
+                                @php
+                                    $importAccessibleCompanies = \App\Helpers\CompanyAccess::getAccessibleCompanies(Auth::user());
+                                    $importActiveDb = session('active_db');
+                                @endphp
                                 <select name="db_connection" id="db_connection" required
                                     class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
-                                    <option value="">-- Choose DB --</option>
-                                    <option value="ups" {{ session('active_db') === 'ups' ? 'selected' : '' }}>UPS</option>
-                                    <option value="urs" {{ session('active_db') === 'urs' ? 'selected' : '' }}>URS</option>
-                                    <option value="ucs" {{ session('active_db') === 'ucs' ? 'selected' : '' }}>UCS</option>
+                                    <option value="">-- Choose company --</option>
+                                    @forelse($importAccessibleCompanies as $company)
+                                        <option value="{{ $company }}" {{ $importActiveDb === $company ? 'selected' : '' }}>
+                                            {{ strtoupper($company) }}
+                                        </option>
+                                    @empty
+                                        <option value="" disabled>No companies available for your account</option>
+                                    @endforelse
                                 </select>
                             </div>
                             <div>
@@ -116,12 +124,26 @@
                         </div>
 
                         {{-- Format info panels (shown based on import type) --}}
+                        @php
+                            $importFormatHintDb = strtolower(session('active_db', ''));
+                            $importUsesDept2ItemFormat = in_array($importFormatHintDb, ['ups2', 'urs2', 'ucs2'], true);
+                        @endphp
                         <div id="item-format-info" class="format-panel hidden p-5 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
                             <h3 class="text-base font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
                                 <i class="fas fa-list-ul text-emerald-600"></i>
                                 Item Import Format
                             </h3>
-                            <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                            <div id="item-format-dept2" class="space-y-3 text-sm text-gray-600 dark:text-gray-400 {{ $importUsesDept2ItemFormat ? '' : 'hidden' }}">
+                                <p class="text-emerald-700 dark:text-emerald-300 font-medium">Department 2 (UPS2 / URS2 / UCS2) — simple list</p>
+                                <ul class="list-disc list-inside space-y-1 ml-2">
+                                    <li><strong>A:</strong> Stock Code (required)</li>
+                                    <li><strong>B:</strong> Stock Name / Description</li>
+                                </ul>
+                                <p class="text-xs pt-2 border-t border-gray-200 dark:border-gray-600">
+                                    Row 1 = headers. Data from row 2. New items: qty and prices are set to <strong>0</strong>; category/family/group = UNDEFINED. Existing items: only the name is updated (cost and stock are not changed).
+                                </p>
+                            </div>
+                            <div id="item-format-dept1" class="space-y-3 text-sm text-gray-600 dark:text-gray-400 {{ $importUsesDept2ItemFormat ? 'hidden' : '' }}">
                                 <div>
                                     <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Required columns:</p>
                                     <ul class="list-disc list-inside space-y-1 ml-2">
@@ -149,7 +171,7 @@
                                     </ul>
                                 </div>
                                 <p class="text-xs pt-2 border-t border-gray-200 dark:border-gray-600 mt-3">
-                                    <strong>Note:</strong> Import starts from row 4. Header row is at row 3. At minimum, Description (column B) must be provided. Supplier, warehouse, and location use default values.
+                                    <strong>Note:</strong> Import starts from row 4. Header row is at row 3. Supplier, warehouse, and location use default values.
                                 </p>
                             </div>
                         </div>
@@ -202,7 +224,7 @@
                                     <li>Data starts at Row 9, Column B: Account (required)</li>
                                 </ul>
                                 <p class="text-xs pt-2 border-t border-gray-200 dark:border-gray-600 mt-3">
-                                    Only existing customer accounts are updated. Selected database (UPS/URS/UCS) determines which customers. Use the file picker’s multi-select to upload several salesman files at once.
+                                    Only existing customer accounts are updated. The selected company database determines which customers are updated. Use the file picker’s multi-select to upload several salesman files at once.
                                 </p>
                             </div>
                         </div>
@@ -235,6 +257,19 @@
             fileInput.value = '';
         }
 
+        const dept2Dbs = ['ups2', 'urs2', 'ucs2'];
+
+        function syncItemFormatPanel() {
+            const db = (document.getElementById('db_connection')?.value || '').toLowerCase();
+            const isDept2 = dept2Dbs.includes(db);
+            const d2 = document.getElementById('item-format-dept2');
+            const d1 = document.getElementById('item-format-dept1');
+            if (d2) d2.classList.toggle('hidden', !isDept2);
+            if (d1) d1.classList.toggle('hidden', isDept2);
+        }
+
+        document.getElementById('db_connection')?.addEventListener('change', syncItemFormatPanel);
+
         document.getElementById('import_type').addEventListener('change', function() {
             document.querySelectorAll('.format-panel').forEach(el => el.classList.add('hidden'));
             const panels = {
@@ -246,6 +281,7 @@
             const id = panels[this.value];
             if (id) document.getElementById(id).classList.remove('hidden');
             syncImportFileInput();
+            if (this.value === 'items') syncItemFormatPanel();
         });
 
         (function() {
@@ -253,6 +289,7 @@
             const typeSelect = document.getElementById('import_type');
             typeSelect.value = current;
             typeSelect.dispatchEvent(new Event('change'));
+            syncItemFormatPanel();
         })();
     </script>
 </x-app-layout>

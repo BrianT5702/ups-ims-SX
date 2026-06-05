@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Helpers\CompanyAccess;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Item extends BaseModel
@@ -129,5 +130,18 @@ class Item extends BaseModel
     {
         $rawValue = $this->attributes['details'] ?? $value;
         return $this->fixDegreeSymbol($rawValue);
+    }
+
+    /**
+     * Qty shown in inventory UI (Dept 2: never negative).
+     */
+    public function getDisplayQtyAttribute(): float
+    {
+        return $this->displayQtyFor($this->getConnectionName());
+    }
+
+    public function displayQtyFor(?string $connection = null): float
+    {
+        return CompanyAccess::displayInventoryQty($this->qty, $connection);
     }
 }

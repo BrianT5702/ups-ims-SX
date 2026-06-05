@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Helpers\CompanyAccess;
 use App\Models\Item;
 use App\Models\Location;
 use Illuminate\Database\Eloquent\Builder;
@@ -220,7 +221,7 @@ class InventoryListBrowse
             'id' => (int) $row['id'],
             'item_code' => (string) ($row['item_code'] ?? ''),
             'item_name' => (string) ($row['item_name'] ?? ''),
-            'qty' => $row['qty'] ?? 0,
+            'qty' => CompanyAccess::displayInventoryQty($row['qty'] ?? 0, session('active_db')),
             'cust_price' => $row['cust_price'] ?? 0,
             'cost' => $row['cost'] ?? 0,
             'term_price' => $row['term_price'] ?? 0,

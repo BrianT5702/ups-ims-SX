@@ -4,10 +4,17 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Renderless;
+use App\Models\Category;
 use App\Models\DeliveryOrder;
 use App\Models\DeliveryOrderItem;
 use App\Models\Customer;
+use App\Models\Family;
+use App\Models\Group;
 use App\Models\Item;
+use App\Models\Location;
+use App\Models\Supplier;
+use App\Models\Warehouse;
 use App\Models\User;
 use App\Models\Transaction;
 use App\Rules\UniqueInCurrentDatabase;
@@ -63,6 +70,32 @@ class DOForm extends Component
     public $duplicateSelectedDoId = null;
     public $duplicateDoSearchTerm = '';
 
+    // Dept 2 quick-add item modal (parent-owned so it renders outside the DO form)
+    public bool $showDept2QuickAddModal = false;
+
+    /** @var 'confirm'|'form' */
+    public string $dept2QuickAddModalStep = 'confirm';
+
+    public string $dept2QuickAddItemCode = '';
+
+    public string $dept2QuickAddItemName = '';
+
+    public string $dept2QuickAddUm = 'UNIT';
+
+    public $dept2QuickAddCost = 0;
+
+    public $dept2QuickAddCashPrice = 0;
+
+    public $dept2QuickAddTermPrice = 0;
+
+    public $dept2QuickAddCustPrice = 0;
+
+    public string $dept2QuickAddMemo = '';
+
+    public string $dept2QuickAddDetails = '';
+
+    public ?int $dept2PendingQuickAddRowIndex = null;
+
     #[On('do-item-picker-item-selected')]
     public function onDoItemPickerItemSelected(int $itemId, int $rowIndex): void
     {
@@ -73,6 +106,214 @@ class DOForm extends Component
         $this->addItemToRow($itemId, $rowIndex);
     }
 
+    #[On('dept2-request-quick-add')]
+    public function onDept2RequestQuickAdd(int $rowIndex, string $code): void
+    {
+        if (!$this->isDepartment2 || $this->isView || $this->isPosted) {
+            return;
+        }
+
+        $this->openDept2QuickAddModal($rowIndex, $code);
+    }
+
+    public function openDept2QuickAddModal(int $rowIndex, string $code, string $step = 'confirm'): void
+    {
+        if (!$this->isDepartment2 || $this->isView || $this->isPosted) {
+            return;
+        }
+
+        $this->dept2PendingQuickAddRowIndex = $rowIndex;
+        $this->dept2QuickAddItemCode = trim($code);
+        $this->resetDept2QuickAddFormFields();
+        $this->dept2QuickAddModalStep = in_array($step, ['confirm', 'form'], true) ? $step : 'confirm';
+        $this->showDept2QuickAddModal = true;
+        $this->resetErrorBag();
+
+        if ($this->dept2QuickAddModalStep === 'form') {
+            $this->js('setTimeout(() => document.getElementById("dept2-quick-item-name")?.focus(), 80)');
+        }
+    }
+
+    public function proceedDept2QuickAddForm(): void
+    {
+        if (!$this->showDept2QuickAddModal) {
+            return;
+        }
+
+        $this->dept2QuickAddModalStep = 'form';
+        $this->resetErrorBag();
+        $this->js('setTimeout(() => document.getElementById("dept2-quick-item-name")?.focus(), 80)');
+    }
+
+    public function closeDept2QuickAddModal(): void
+    {
+        $this->showDept2QuickAddModal = false;
+        $this->dept2QuickAddModalStep = 'confirm';
+        $this->dept2QuickAddItemCode = '';
+        $this->resetDept2QuickAddFormFields();
+        $this->dept2PendingQuickAddRowIndex = null;
+        $this->resetErrorBag();
+    }
+
+    private function resetDept2QuickAddFormFields(): void
+    {
+        $this->dept2QuickAddItemName = '';
+        $this->dept2QuickAddUm = 'UNIT';
+        $this->dept2QuickAddCost = 0;
+        $this->dept2QuickAddCashPrice = 0;
+        $this->dept2QuickAddTermPrice = 0;
+        $this->dept2QuickAddCustPrice = 0;
+        $this->dept2QuickAddMemo = '';
+        $this->dept2QuickAddDetails = '';
+    }
+
+    public function saveDept2QuickAddItem(): void
+    {
+        if (!$this->isDepartment2 || $this->isView || $this->isPosted || !$this->showDept2QuickAddModal) {
+            return;
+        }
+
+        $code = trim($this->dept2QuickAddItemCode);
+        $name = trim($this->dept2QuickAddItemName);
+        $um = trim($this->dept2QuickAddUm) ?: 'UNIT';
+        $rowIndex = $this->dept2PendingQuickAddRowIndex;
+
+        $validator = Validator::make(
+            [
+                'dept2QuickAddItemCode' => $code,
+                'dept2QuickAddItemName' => $name,
+                'dept2QuickAddUm' => $um,
+                'dept2QuickAddCost' => $this->dept2QuickAddCost,
+                'dept2QuickAddCashPrice' => $this->dept2QuickAddCashPrice,
+                'dept2QuickAddTermPrice' => $this->dept2QuickAddTermPrice,
+                'dept2QuickAddCustPrice' => $this->dept2QuickAddCustPrice,
+                'dept2QuickAddMemo' => $this->dept2QuickAddMemo,
+                'dept2QuickAddDetails' => $this->dept2QuickAddDetails,
+            ],
+            [
+                'dept2QuickAddItemCode' => ['required', 'max:255', new UniqueInCurrentDatabase('items', 'item_code')],
+                'dept2QuickAddItemName' => ['required', 'max:255'],
+                'dept2QuickAddUm' => ['required', 'max:255'],
+                'dept2QuickAddCost' => ['required', 'numeric', 'min:0'],
+                'dept2QuickAddCashPrice' => ['required', 'numeric', 'min:0'],
+                'dept2QuickAddTermPrice' => ['required', 'numeric', 'min:0'],
+                'dept2QuickAddCustPrice' => ['required', 'numeric', 'min:0'],
+                'dept2QuickAddMemo' => ['nullable', 'string', 'max:1000'],
+                'dept2QuickAddDetails' => ['nullable', 'string', 'max:5000'],
+            ],
+            [
+                'dept2QuickAddItemCode.required' => 'Item code is required.',
+                'dept2QuickAddItemCode.unique' => 'An item with this code already exists.',
+                'dept2QuickAddItemName.required' => 'Item name / description is required.',
+                'dept2QuickAddUm.required' => 'Unit is required.',
+            ]
+        );
+
+        if ($validator->fails()) {
+            $this->setErrorBag($validator->errors());
+
+            return;
+        }
+
+        if ($rowIndex === null || $rowIndex < 0 || $rowIndex > 23) {
+            toastr()->error('Could not determine which row to fill. Close the modal and try again.');
+
+            return;
+        }
+
+        $existing = Item::query()->where('item_code', $code)->first();
+        $item = $existing ?? $this->createDept2QuickItem(
+            $code,
+            $name,
+            $um,
+            (float) $this->dept2QuickAddCost,
+            (float) $this->dept2QuickAddCashPrice,
+            (float) $this->dept2QuickAddTermPrice,
+            (float) $this->dept2QuickAddCustPrice,
+            $this->dept2QuickAddMemo !== '' ? $this->dept2QuickAddMemo : null,
+            $this->dept2QuickAddDetails !== '' ? $this->dept2QuickAddDetails : null,
+        );
+
+        $this->closeDept2QuickAddModal();
+
+        $this->dispatch(
+            'dept2-append-item-at-row',
+            itemId: $item->id,
+            rowIndex: $rowIndex,
+        )->to(DOFormDept2Grid::class);
+
+        if ($existing) {
+            toastr()->info('Item already exists — added to the line.');
+        } else {
+            toastr()->success('New item created and added to the line.');
+        }
+    }
+
+    private function createDept2QuickItem(
+        string $code,
+        string $name,
+        string $um = 'UNIT',
+        float $cost = 0,
+        float $cashPrice = 0,
+        float $termPrice = 0,
+        float $custPrice = 0,
+        ?string $memo = null,
+        ?string $details = null,
+    ): Item {
+        $category = Category::query()->firstOrCreate(['cat_name' => 'UNDEFINED']);
+        $family = Family::query()->firstOrCreate(['family_name' => 'UNDEFINED']);
+        $group = Group::query()->firstOrCreate(['group_name' => 'UNDEFINED']);
+        $supplier = Supplier::query()->first();
+        $warehouse = Warehouse::query()->first();
+        $location = Location::query()->first();
+
+        return Item::create([
+            'item_code' => $code,
+            'item_name' => $name,
+            'cat_id' => $category->id,
+            'family_id' => $family->id,
+            'group_id' => $group->id,
+            'qty' => 0,
+            'cost' => $cost,
+            'cash_price' => $cashPrice,
+            'term_price' => $termPrice,
+            'cust_price' => $custPrice,
+            'sup_id' => $supplier?->id,
+            'warehouse_id' => $warehouse?->id,
+            'location_id' => $location?->id,
+            'um' => $um,
+            'memo' => $memo,
+            'details' => $details,
+        ]);
+    }
+
+    /**
+     * Dept 2 grid runs in a child component; sync line state without re-rendering this form.
+     */
+    #[Renderless]
+    #[On('dept2-grid-sync')]
+    public function onDept2GridSync(array $stackedItems, array $freeFormTextRows, float $linesTotalAmount): void
+    {
+        $this->stackedItems = $stackedItems;
+        $this->freeFormTextRows = $freeFormTextRows;
+        $this->total_amount = $linesTotalAmount;
+
+        $freeFormPreview = 0.0;
+        foreach ($freeFormTextRows as $rowData) {
+            if (!is_array($rowData)) {
+                continue;
+            }
+            $freeFormPreview += (float) ($rowData['qty'] ?? 0) * (float) ($rowData['price'] ?? 0);
+        }
+
+        $this->dispatch(
+            'dept2-total-updated',
+            displayTotal: number_format($linesTotalAmount + $freeFormPreview, 2),
+            usedRows: count($stackedItems),
+            remainingRows: max(0, 24 - count($stackedItems)),
+        );
+    }
+
     /**
      * Check if the DO is posted (status is Completed)
      * When posted, all fields should be disabled unless "Restore All" is clicked
@@ -80,6 +321,135 @@ class DOForm extends Component
     public function getIsPostedProperty()
     {
         return $this->deliveryOrder && $this->deliveryOrder->status === 'Completed';
+    }
+
+    /**
+     * Department 2 companies (UPS2, URS2, UCS2) use a simplified line grid with inline code entry.
+     */
+    public function getIsDepartment2Property(): bool
+    {
+        $connection = strtolower((string) (session('active_db') ?: DB::getDefaultConnection()));
+
+        return in_array($connection, ['ups2', 'urs2', 'ucs2'], true);
+    }
+
+    /**
+     * Department 2: search by item code and place item on the given grid row (fast path).
+     */
+    public function addItemByCodeAtRow(int $rowIndex, ?string $code = null): void
+    {
+        if ($this->isView || $this->isPosted || !$this->isDepartment2) {
+            return;
+        }
+
+        if ($rowIndex < 0 || $rowIndex > 23) {
+            return;
+        }
+
+        $code = trim((string) ($code ?? $this->freeFormTextRows[$rowIndex]['code'] ?? ''));
+        if ($code === '') {
+            toastr()->warning('Enter an item code first.');
+
+            return;
+        }
+
+        $item = $this->findItemByCodeSearch($code);
+        if (!$item) {
+            toastr()->error('No item found for code: ' . $code);
+
+            return;
+        }
+
+        $this->appendDept2ItemAtRow($item, $rowIndex);
+    }
+
+    /**
+     * Lightweight Dept 2 line insert (avoids full addItem() work on every Enter).
+     */
+    private function appendDept2ItemAtRow(Item $item, int $rowIndex): void
+    {
+        [$rowToItemMap] = $this->buildCurrentRowMaps();
+        if (isset($rowToItemMap[$rowIndex])) {
+            toastr()->warning('This row already has a line. Clear it or use another row.');
+
+            return;
+        }
+
+        if (count($this->stackedItems) >= $this->calculateMaxRows()) {
+            toastr()->error('⚠️ PAGE LIMIT REACHED: Cannot add item.');
+
+            return;
+        }
+
+        unset($this->freeFormTextRows[$rowIndex]);
+
+        $defaultUm = ($item->um ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item->um ?? 'UNIT');
+        $unitPrice = floatval($item->cash_price ?? 0);
+        $qty = 1.0;
+
+        $this->stackedItems[] = [
+            'item' => [
+                'id' => $item->id,
+                'item_code' => $item->item_code,
+                'item_name' => $item->item_name,
+                'qty' => $item->qty,
+                'cost' => $item->cost,
+                'cust_price' => $item->cust_price,
+                'term_price' => $item->term_price,
+                'cash_price' => $item->cash_price,
+                'latest_do_price' => 0,
+                'latest_do_date' => null,
+                'details' => '',
+                'memo' => $item->memo ?? '',
+                'um' => $item->um ?? 'UNIT',
+            ],
+            'details_lines' => [],
+            'custom_um' => $defaultUm,
+            'item_qty' => $qty,
+            'pricing_tier' => '',
+            'item_unit_price' => $unitPrice,
+            'amount' => $qty * $unitPrice,
+            'more_description' => null,
+            'custom_item_name' => $item->item_name,
+            'price_manually_modified' => true,
+            'original_row_index' => $rowIndex,
+        ];
+
+        $this->calculateTotalAmount();
+        $this->notifyDept2GridReload();
+        $this->dispatch('focus-qty-row', ['rowIndex' => $rowIndex]);
+    }
+
+    private function findItemByCodeSearch(string $term): ?Item
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return null;
+        }
+
+        $columns = [
+            'id', 'item_code', 'item_name', 'um', 'qty', 'cost',
+            'cust_price', 'term_price', 'cash_price', 'memo',
+        ];
+
+        $exact = Item::query()
+            ->select($columns)
+            ->where('item_code', $term)
+            ->first();
+
+        if ($exact) {
+            return $exact;
+        }
+
+        $escapedTerm = addcslashes($term, '\%_');
+
+        return Item::query()
+            ->select($columns)
+            ->where('item_code', 'like', $escapedTerm . '%')
+            ->orderBy('item_code')
+            ->orderBy('id')
+            ->limit(1)
+            ->first();
     }
 
     public function mount(DeliveryOrder $deliveryOrder)
@@ -227,6 +597,8 @@ class DOForm extends Component
             $this->saveAsDraft = true;
             $this->addDO();
         }
+
+        $this->ensureSalesmenLoaded();
     }
     
     public function updatedCustomerSearchTerm()
@@ -446,20 +818,30 @@ class DOForm extends Component
     public function addItem($itemId, $rowIndex = null)
     {
         if (!$this->isView) {
-            // Convert any free-form text to text-only items BEFORE adding new item
-            // This preserves text entries when items are added, preventing them from being "wiped"
-            $this->convertFreeFormTextToItems();
-            
             $item = Item::find($itemId);
 
-            // Enhanced validation: Check if item exists and has sufficient stock
             if (!$item) {
                 toastr()->error('Item not found.');
                 return;
             }
 
-            // Always create a new row for the selected item
-            // (even if the same item already exists on this DO)
+            // Department 2: fast path (e.g. legacy addItemToRow callers).
+            if ($this->isDepartment2) {
+                if ($rowIndex === null) {
+                    $rowIndex = $this->firstAvailableRowIndex();
+                    if ($rowIndex === null) {
+                        toastr()->error('⚠️ PAGE LIMIT REACHED: No free row positions available.');
+
+                        return;
+                    }
+                }
+                $this->appendDept2ItemAtRow($item, $rowIndex);
+
+                return;
+            }
+
+            // Convert any free-form text to text-only items BEFORE adding new item
+            $this->convertFreeFormTextToItems();
 
             // DO MUST FIT ON ONE PAGE - check current rows first
             $maxRows = 24; // Fixed 24-item-row limit (row 24 is for NOTES, 25 rows total)
@@ -727,6 +1109,19 @@ class DOForm extends Component
 
         $this->stackedItems[$index]['original_row_index'] = $targetRow;
         $this->syncLastValidDetailsLines();
+    }
+
+    private function firstAvailableRowIndex(): ?int
+    {
+        [$rowToItemMap] = $this->buildCurrentRowMaps();
+
+        for ($rowIndex = 0; $rowIndex < 24; $rowIndex++) {
+            if (!isset($rowToItemMap[$rowIndex])) {
+                return $rowIndex;
+            }
+        }
+
+        return null;
     }
 
     private function buildCurrentRowMaps(): array
@@ -1107,11 +1502,19 @@ class DOForm extends Component
      */
     public function getCurrentRowCount()
     {
+        if ($this->isDepartment2) {
+            return count($this->stackedItems);
+        }
+
         return $this->estimateTotalRows(false);
     }
 
     public function getRemainingRowCount(): int
     {
+        if ($this->isDepartment2) {
+            return max(0, $this->calculateMaxRows() - count($this->stackedItems));
+        }
+
         return max(0, $this->calculateMaxRows() - $this->getCurrentRowCount());
     }
 
@@ -1980,7 +2383,7 @@ class DOForm extends Component
         
         // If including new item, add 1 base row + projected rows for details.
         // Use the same projection rules as addItem() so we don't over-count rows.
-        if ($includeNewItem && $newItem) {
+        if ($includeNewItem && $newItem && !$this->isDepartment2) {
             $totalRows += 1; // Base row for the item
 
             // Projected detail rows:
@@ -1988,6 +2391,8 @@ class DOForm extends Component
             // - OR groups can collapse into a single choice row
             $detailLines = $this->normalizeDetailsLines($newItem->details ?? '');
             $totalRows += $this->projectedDetailRowsForNewItem($detailLines);
+        } elseif ($includeNewItem && $newItem && $this->isDepartment2) {
+            $totalRows += 1;
         }
         
         // Add rows for remarks if present
@@ -3290,10 +3695,34 @@ class DOForm extends Component
         $this->syncLastValidDetailsLines();
         $this->calculateTotalAmount();
         $this->closeDuplicateModal();
+        $this->notifyDept2GridReload();
         toastr()->success('Items and customer copied from selected Delivery Order. Please fill in date and other details.');
     }
 
+    private function notifyDept2GridReload(): void
+    {
+        if (!$this->isDepartment2) {
+            return;
+        }
+
+        $this->dispatch(
+            'dept2-grid-reload',
+            stackedItems: $this->stackedItems,
+            freeFormTextRows: $this->freeFormTextRows,
+        )->to(DOFormDept2Grid::class);
+    }
+
     
+    private function ensureSalesmenLoaded(): void
+    {
+        if (!empty($this->salesmen)) {
+            return;
+        }
+
+        $connection = session('active_db') ?: DB::getDefaultConnection();
+        $this->salesmen = User::on($connection)->role('Salesperson')->orderBy('name', 'asc')->get();
+    }
+
     public function render()
     {
         if ($this->date instanceof \DateTimeInterface) {
@@ -3302,10 +3731,7 @@ class DOForm extends Component
         $this->date = $this->date ?? now()->toDateString();
         // do_num is set in mount for new DOs; avoid overwriting here (would consume extra numbers)
         $this->user_id = $this->user_id ?? auth()->id();
-        // Load salesmen list sorted by name for dropdown
-        // Use current database connection (not just 'ups') to match validation
-        $connection = session('active_db') ?: DB::getDefaultConnection();
-        $this->salesmen = User::on($connection)->role('Salesperson')->orderBy('name','asc')->get();
+        $this->ensureSalesmenLoaded();
 
         $duplicateDoList = collect();
         if ($this->showDuplicateModal) {
@@ -3327,6 +3753,8 @@ class DOForm extends Component
             || $user->hasRole('Department 1')
             || $user->hasRole('Department2')
             || $user->hasRole('Department 2')
+            || $user->hasRole('Department2 Admin')
+            || $user->hasRole('Department 2 Admin')
         );
 
         return DeliveryOrder::with(['customerSnapshot', 'customer'])

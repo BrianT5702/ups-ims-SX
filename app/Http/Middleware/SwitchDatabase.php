@@ -34,7 +34,7 @@ class SwitchDatabase
             // Note: Users are always stored in UPS database
             // We don't rehydrate from target database to avoid confusion
             // The authenticated user from UPS database is used for all company databases
-            // Roles are checked from UPS, permissions are checked from current database
+            // Users, roles, and permissions are always on UPS (see App\Models\Role / Permission)
             
         }
 

@@ -77,6 +77,67 @@
                             </div>
                         </div>
 
+                        @if($this->isDepartment2)
+                        <div class="row g-1 g-lg-2">
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group mb-1">
+                                    <label for="um" class="form-label">Unit <span class="text-danger">*</span></label>
+                                    <input type="text" wire:model.live="um" id="um" class="form-control form-control-sm rounded" placeholder="e.g. PCS, UNIT" {{ $isView ? 'disabled' : '' }}>
+                                    @error('um') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="item-form-section-title">Pricing</div>
+                        <div class="row g-1 g-lg-2">
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
+                                    <label for="cost" class="form-label">Cost <span class="text-danger">*</span></label>
+                                    <input type="number" step="0.01" wire:model.live="cost" min="0" id="cost" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                    @error('cost') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
+                                    <label for="cash_price" class="form-label">Cash <span class="text-danger">*</span></label>
+                                    <input type="number" step="0.01" wire:model.live="cash_price" min="0" id="cash_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                    @error('cash_price') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
+                                    <label for="term_price" class="form-label">Term <span class="text-danger">*</span></label>
+                                    <input type="number" step="0.01" wire:model.live="term_price" min="0" id="term_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                    @error('term_price') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-6">
+                                <div class="form-group mb-1">
+                                    <label for="cust_price" class="form-label">Cust. <span class="text-danger">*</span></label>
+                                    <input type="number" step="0.01" wire:model.live="cust_price" min="0" id="cust_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                    @error('cust_price') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="item-form-section-title">Memo &amp; Details</div>
+                        <div class="row g-1 g-lg-2">
+                            <div class="col-lg-6">
+                                <div class="form-group mb-1">
+                                    <label for="memo" class="form-label">Memo</label>
+                                    <textarea id="memo" wire:model.defer="memo" class="form-control form-control-sm rounded item-form-textarea" rows="2" placeholder="Memo / special handling" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
+                                    @error('memo') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="form-group mb-1">
+                                    <label for="details" class="form-label">Details</label>
+                                    <textarea id="details" wire:model.defer="details" class="form-control form-control-sm rounded item-form-textarea" rows="2" placeholder="Shown on DO" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
+                                    @error('details') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+                        @else
                         <div class="item-form-section-title">Classification</div>
                         <div class="row g-1 g-lg-2">
                             <div class="col-lg-3 col-6">
@@ -366,6 +427,7 @@
                                 @endif
                             </div>
                             @endif --}}
+                        @endif
 
                     </form>
                 </div>

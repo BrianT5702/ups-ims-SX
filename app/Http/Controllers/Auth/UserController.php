@@ -13,7 +13,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 use Illuminate\Validation\ValidationException;
+use App\Helpers\CompanyAccess;
 use App\Imports\ItemImport;
+use Illuminate\Validation\Rule;
 use App\Imports\CustomerImport;
 use App\Imports\CustomerSalesmanImport;
 use App\Imports\SupplierImport;
@@ -61,9 +63,9 @@ class UserController extends Controller
     // Regenerate the session
     $request->session()->regenerate();
 
-    // Set default landing company based on role: Department 2 users land on UPS2
+    // Dept 2–only accounts land on UPS2; Department 1 / global admins still default to UPS.
     $user = Auth::user();
-    if ($user->hasRole('Department2') || $user->hasRole('Department 2')) {
+    if (CompanyAccess::landsOnDepartment2ByDefault($user)) {
         $request->session()->put('active_db', 'ups2');
     } else {
         $request->session()->put('active_db', 'ups');
@@ -167,33 +169,35 @@ class UserController extends Controller
 
     public function importExcel(Request $request)
     {
+        $accessibleCompanies = CompanyAccess::getAccessibleCompanies($request->user());
+
         $request->validate([
             'file' => ['required', 'array', 'min:1'],
             'file.*' => ['file'],
             'import_type' => 'required|in:items,customers,suppliers,customer_salesman',
-            'db_connection' => 'required|in:ups,urs,ucs',
+            'db_connection' => ['required', Rule::in($accessibleCompanies)],
         ]);
 
         /** @var array<int, \Illuminate\Http\UploadedFile> $uploadedFiles */
         $uploadedFiles = $request->file('file');
 
         try {
-            // Set selected DB for this import run
-            session(['active_db' => $request->db_connection]);
-            config(['database.default' => $request->db_connection]);
-            \DB::setDefaultConnection($request->db_connection);
-            \DB::purge($request->db_connection);
-            \DB::reconnect($request->db_connection);
+            $this->applyTenantDatabaseConnection($request->db_connection, $request->user());
 
             if ($request->import_type === 'items') {
-                $itemImporter = new ItemImport();
+                $itemImporter = new ItemImport(ItemImport::formatForConnection($request->db_connection));
                 Excel::import($itemImporter, $uploadedFiles[0]);
                 $imported = $itemImporter->getSuccessCount();
                 $skipped = $itemImporter->getFailureCount();
+                $isDept2Format = ItemImport::formatForConnection($request->db_connection) === ItemImport::FORMAT_CODE_NAME;
                 if ($imported === 0 && $skipped > 0) {
+                    $formatHint = $isDept2Format
+                        ? 'column A = Stock Code, column B = Stock Name, header on row 1, data from row 2'
+                        : 'empty stock code in column A, or file layout does not match the expected format (data from row 4)';
+
                     return back()->with(
                         'import_error',
-                        "No items were imported ({$skipped} row(s) skipped). Common causes: empty stock code in column A, or file layout does not match the expected format (data from row 4). See the application log for details."
+                        "No items were imported ({$skipped} row(s) skipped). Common causes: {$formatHint}. See the application log for details."
                     );
                 }
                 $message = $imported > 0
@@ -275,18 +279,15 @@ class UserController extends Controller
 
     public function deleteRecords(Request $request)
     {
+        $accessibleCompanies = CompanyAccess::getAccessibleCompanies($request->user());
+
         $request->validate([
             'delete_type' => 'required|in:items,customers,suppliers,delivery_orders,quotations,purchase_orders',
-            'db_connection' => 'required|in:ups,urs,ucs',
+            'db_connection' => ['required', Rule::in($accessibleCompanies)],
         ]);
 
         try {
-            // Set selected DB for this delete operation
-            session(['active_db' => $request->db_connection]);
-            config(['database.default' => $request->db_connection]);
-            \DB::setDefaultConnection($request->db_connection);
-            \DB::purge($request->db_connection);
-            \DB::reconnect($request->db_connection);
+            $this->applyTenantDatabaseConnection($request->db_connection, $request->user());
 
             $deletedCount = 0;
             $message = '';
@@ -348,6 +349,26 @@ class UserController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', 'Error deleting records: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Switch session and default connection to a tenant database the user may access.
+     */
+    private function applyTenantDatabaseConnection(string $connection, ?User $user = null): void
+    {
+        if (!CompanyAccess::canAccessCompany($connection, $user)) {
+            abort(403, 'You do not have access to this company database.');
+        }
+
+        if (!array_key_exists($connection, config('database.connections'))) {
+            abort(400, 'Invalid database connection.');
+        }
+
+        session(['active_db' => $connection]);
+        config(['database.default' => $connection]);
+        \DB::setDefaultConnection($connection);
+        \DB::purge($connection);
+        \DB::reconnect($connection);
     }
 
 }

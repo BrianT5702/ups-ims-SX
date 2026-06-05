@@ -68,4 +68,33 @@ class DoNumberService
 
         return DB::connection($connection)->transaction($doIncrement);
     }
+
+    /**
+     * Set the next DO number that will be issued (preview + next save use this value).
+     */
+    public static function setNextNumber(string $connection, int $nextNumber): void
+    {
+        if ($nextNumber < 1) {
+            throw new \InvalidArgumentException('Next DO number must be at least 1.');
+        }
+
+        $row = DB::connection($connection)->table('do_number_sequences')->first();
+
+        if ($row) {
+            DB::connection($connection)->table('do_number_sequences')
+                ->where('id', $row->id)
+                ->update([
+                    'next_number' => $nextNumber,
+                    'updated_at' => now(),
+                ]);
+
+            return;
+        }
+
+        DB::connection($connection)->table('do_number_sequences')->insert([
+            'next_number' => $nextNumber,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
 }

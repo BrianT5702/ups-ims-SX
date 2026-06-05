@@ -148,10 +148,14 @@
 </head>
 <body>
     @php
+        use App\Helpers\CompanyAccess;
+
         $itemsCollection = is_array($items) ? collect($items) : $items;
         $suppressHeader = (bool) ($suppressHeader ?? false);
         $showGrandTotal = (bool) ($showGrandTotal ?? true);
-        
+        $reportDb = $databaseConnection ?? session('active_db') ?? null;
+        $itemQtyForReport = fn ($item) => CompanyAccess::displayInventoryQty($item->qty ?? 0, $reportDb);
+
         // Calculate grand total if needed
         $hasGrandTotal = isset($grandTotal);
         if (!$hasGrandTotal) {
@@ -159,7 +163,7 @@
         }
         if (isset($showTotals) && $showTotals && !$hasGrandTotal) {
             foreach ($itemsCollection as $item) {
-                $qty = $item->qty ?? 0;
+                $qty = $itemQtyForReport($item);
                 $cost = $item->cost ?? 0;
                 $grandTotal += ($qty * $cost);
             }
@@ -278,7 +282,7 @@
                     @php
                         $amount = 0;
                         if (isset($showTotals) && $showTotals) {
-                            $qty = $item->qty ?? 0;
+                            $qty = $itemQtyForReport($item);
                             $cost = $item->cost ?? 0;
                             $amount = $qty * $cost;
                             $groupSubtotal += $amount;
@@ -289,7 +293,7 @@
                         <td class="col-code">{{ $item->item_code }}</td>
                         <td class="col-desc">{{ $item->item_name }}</td>
                         @if(isset($columns['qty']))
-                        <td class="col-qty q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
+                        <td class="col-qty q">{{ $item->qty !== null ? number_format($qty, 0) : '' }}</td>
                         @endif
                         @if(isset($columns['cost']))
                         <td class="col-cost n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>
@@ -331,7 +335,7 @@
                 @php
                     $amount = 0;
                     if (isset($showTotals) && $showTotals) {
-                        $qty = $item->qty ?? 0;
+                        $qty = $itemQtyForReport($item);
                         $cost = $item->cost ?? 0;
                         $amount = $qty * $cost;
                     }
@@ -340,7 +344,7 @@
                     <td class="col-code">{{ $item->item_code }}</td>
                     <td class="col-desc">{{ $item->item_name }}</td>
                     @if(isset($columns['qty']))
-                    <td class="col-qty q">{{ $item->qty !== null ? number_format($item->qty, 0) : '' }}</td>
+                    <td class="col-qty q">{{ $item->qty !== null ? number_format($qty, 0) : '' }}</td>
                     @endif
                     @if(isset($columns['cost']))
                     <td class="col-cost n">{{ $item->cost ? number_format($item->cost, 2) : '' }}</td>

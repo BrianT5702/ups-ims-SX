@@ -14,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use Illuminate\Support\Collection;
+use App\Helpers\CompanyAccess;
 use App\Models\CompanyProfile;
 use Carbon\Carbon;
 
@@ -71,7 +72,8 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
             
             // Handle quantity: show '0' if qty is 0, otherwise show value or empty
             if ($column === 'qty') {
-                $value = $item->qty === 0 ? '0' : ($item->qty ?: '');
+                $displayQty = CompanyAccess::displayInventoryQty($item->qty, $item->getConnectionName());
+                $value = $displayQty === 0.0 ? '0' : ($displayQty ?: '');
             }
             
             $row[] = $value;
@@ -79,7 +81,7 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
         
         // Add subtotal if totals are enabled
         if ($this->showTotals) {
-            $qty = $item->qty ?? 0;
+            $qty = CompanyAccess::displayInventoryQty($item->qty ?? 0, $item->getConnectionName());
             $cost = $item->cost ?? 0;
             $subtotal = $qty * $cost;
             $row[] = number_format($subtotal, 2);
@@ -195,7 +197,7 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
                     // Calculate grand total
                     $grandTotal = 0;
                     foreach ($this->items as $item) {
-                        $qty = $item->qty ?? 0;
+                        $qty = CompanyAccess::displayInventoryQty($item->qty ?? 0, $item->getConnectionName());
                         $cost = $item->cost ?? 0;
                         $grandTotal += ($qty * $cost);
                     }
@@ -326,7 +328,7 @@ class ItemsExport implements FromCollection, WithHeadings, WithMapping, WithEven
             
             // Calculate and accumulate subtotal
             if ($this->showTotals) {
-                $qty = $item->qty ?? 0;
+                $qty = CompanyAccess::displayInventoryQty($item->qty ?? 0, $item->getConnectionName());
                 $cost = $item->cost ?? 0;
                 $groupSubtotal += ($qty * $cost);
             }

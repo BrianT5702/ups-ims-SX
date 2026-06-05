@@ -567,10 +567,11 @@ class Report extends Component
             $showTotals = $this->shouldShowTotals();
             $grandTotal = 0;
             
+            $reportDb = session('active_db');
             if ($showTotals) {
                 // Calculate grand total
                 foreach ($items as $item) {
-                    $qty = $item->qty ?? 0;
+                    $qty = \App\Helpers\CompanyAccess::displayInventoryQty($item->qty ?? 0, $reportDb);
                     $cost = $item->cost ?? 0;
                     $grandTotal += ($qty * $cost);
                 }
@@ -583,7 +584,8 @@ class Report extends Component
                 'companyProfile' => $companyProfile,
                 'useGrouping' => $this->showGrouping,
                 'showTotals' => $showTotals,
-                'grandTotal' => $grandTotal
+                'grandTotal' => $grandTotal,
+                'databaseConnection' => $reportDb,
             ])->render();
             
             return $htmlContent;

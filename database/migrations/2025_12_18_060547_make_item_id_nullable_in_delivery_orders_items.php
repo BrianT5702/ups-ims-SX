@@ -12,8 +12,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Apply to all database connections (ups, urs, ucs)
-        $connections = ['ups', 'urs', 'ucs'];
+        // Apply to all company database connections (Dept 1 + Dept 2)
+        $connections = ['ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'];
         
         foreach ($connections as $connection) {
             try {
@@ -50,8 +50,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert on all database connections
-        $connections = ['ups', 'urs', 'ucs'];
+        // Revert on all company database connections (Dept 1 + Dept 2)
+        $connections = ['ups', 'urs', 'ucs', 'ups2', 'urs2', 'ucs2'];
         
         foreach ($connections as $connection) {
             try {
