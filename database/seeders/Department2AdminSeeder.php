@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use App\Models\Permission;
 use App\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -35,7 +34,7 @@ class Department2AdminSeeder extends Seeder
                 'name' => 'Department 2 Admin',
                 'email' => 'admin2@example.com',
                 'phone_num' => '0123456789',
-                'password' => Hash::make('admin212345'),
+                'password' => 'admin212345',
             ]
         );
 

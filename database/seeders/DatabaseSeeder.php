@@ -584,5 +584,10 @@ class DatabaseSeeder extends Seeder
                 ]
             );
         }
+
+        // Department 2 admin lives in UPS only (shared auth store)
+        if ($connection === 'ups') {
+            $this->call(Department2AdminSeeder::class);
+        }
     }
 }
