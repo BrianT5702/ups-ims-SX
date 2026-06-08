@@ -138,9 +138,10 @@
                                 <ul class="list-disc list-inside space-y-1 ml-2">
                                     <li><strong>A:</strong> Stock Code (required)</li>
                                     <li><strong>B:</strong> Stock Name / Description</li>
+                                    <li><strong>C:</strong> Units / UOM (defaults to <strong>UNITS</strong> if empty)</li>
                                 </ul>
                                 <p class="text-xs pt-2 border-t border-gray-200 dark:border-gray-600">
-                                    Row 1 = headers. Data from row 2. New items: qty and prices are set to <strong>0</strong>; category/family/group = UNDEFINED. Existing items: only the name is updated (cost and stock are not changed).
+                                    Row 1 = headers. Data from row 2. New items: qty and prices are set to <strong>0</strong>; category/family/group = UNDEFINED. Existing items: name and units are updated when provided (cost and stock are not changed).
                                 </p>
                             </div>
                             <div id="item-format-dept1" class="space-y-3 text-sm text-gray-600 dark:text-gray-400 {{ $importUsesDept2ItemFormat ? 'hidden' : '' }}">

@@ -21,7 +21,7 @@ class ItemImport implements ToModel, WithStartRow
 {
     public const FORMAT_FULL = 'full';
 
-    /** Department 2: column A = code, B = name only; prices/qty left at 0 on create; updates name only. */
+    /** Department 2: column A = code, B = name, C = units (UOM); prices/qty left at 0 on create. */
     public const FORMAT_CODE_NAME = 'code_name';
 
     private $itemCode = 0;
@@ -385,12 +385,13 @@ class ItemImport implements ToModel, WithStartRow
     }
 
     /**
-     * Department 2 item list: code + name only.
+     * Department 2 item list: code, name, and units (column C).
      */
     private function importCodeNameRow(array $row): ?Item
     {
         $stockCode = $this->getString($row, 0);
         $itemName = $this->getString($row, 1);
+        $units = $this->getString($row, 2);
 
         if ($stockCode === null || trim($stockCode) === '') {
             $this->failureCount++;
@@ -407,6 +408,7 @@ class ItemImport implements ToModel, WithStartRow
         }
 
         $displayName = (is_string($itemName) && trim($itemName) !== '') ? trim($itemName) : $stockCode;
+        $unitsTrimmed = is_string($units) ? trim($units) : '';
 
         $supplier = Supplier::on($this->connection)->first();
         $warehouse = Warehouse::on($this->connection)->first();
@@ -416,12 +418,16 @@ class ItemImport implements ToModel, WithStartRow
 
         if ($existingItem) {
             $existingItem->item_name = $displayName;
+            if ($unitsTrimmed !== '') {
+                $existingItem->um = $unitsTrimmed;
+            }
             $existingItem->save();
 
-            Log::info('[ItemImport] Updated item (code+name format)', [
+            Log::info('[ItemImport] Updated item (code+name+units format)', [
                 'rowNumber' => $this->rowNumber,
                 'item_id' => $existingItem->id,
                 'item_code' => $existingItem->item_code,
+                'um' => $existingItem->um,
             ]);
 
             $this->successCount++;
@@ -443,18 +449,26 @@ class ItemImport implements ToModel, WithStartRow
             'sup_id' => $supplier?->id,
             'warehouse_id' => $warehouse?->id,
             'location_id' => $location?->id,
-            'um' => 'UNIT',
+            'um' => $this->normalizeImportUom($units),
         ]);
 
-        Log::info('[ItemImport] Created item (code+name format)', [
+        Log::info('[ItemImport] Created item (code+name+units format)', [
             'rowNumber' => $this->rowNumber,
             'item_id' => $item->id,
             'item_code' => $item->item_code,
+            'um' => $item->um,
         ]);
 
         $this->successCount++;
 
         return $item;
+    }
+
+    private function normalizeImportUom(?string $units, string $default = 'UNITS'): string
+    {
+        $units = $units !== null ? trim($units) : '';
+
+        return $units !== '' ? $units : $default;
     }
 
     public function __destruct()

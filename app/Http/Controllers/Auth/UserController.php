@@ -192,7 +192,7 @@ class UserController extends Controller
                 $isDept2Format = ItemImport::formatForConnection($request->db_connection) === ItemImport::FORMAT_CODE_NAME;
                 if ($imported === 0 && $skipped > 0) {
                     $formatHint = $isDept2Format
-                        ? 'column A = Stock Code, column B = Stock Name, header on row 1, data from row 2'
+                        ? 'column A = Stock Code, column B = Stock Name, column C = Units, header on row 1, data from row 2'
                         : 'empty stock code in column A, or file layout does not match the expected format (data from row 4)';
 
                     return back()->with(
