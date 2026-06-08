@@ -46,7 +46,7 @@
                         <div class="do-list-wrapper" style="position: relative;">
                             @php
                                 $activeDb = strtolower(session('active_db') ?: config('database.default'));
-                                $showInvoiceNoColumn = in_array($activeDb, ['ups', 'ucs'], true);
+                                $showInvoiceNoColumn = \App\Helpers\CompanyAccess::showsDoInvoiceNo($activeDb);
                                 $doListInitialColWidths = $showInvoiceNoColumn
                                     ? [100, 70, 175, 85, 90, 70, 58, 42, 65, 65]
                                     : [100, 70, 200, 85, 70, 58, 42, 65, 65];

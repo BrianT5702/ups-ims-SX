@@ -128,6 +128,17 @@ class CompanyAccess
     }
 
     /**
+     * DO form/list: show Invoice No for UPS, UCS, and all Department 2 companies.
+     */
+    public static function showsDoInvoiceNo(?string $connection = null): bool
+    {
+        $connection = strtolower((string) ($connection ?? session('active_db') ?? ''));
+
+        return in_array($connection, ['ups', 'ucs'], true)
+            || self::isDepartment2Connection($connection);
+    }
+
+    /**
      * Department 2 tenant databases (UPS2, URS2, UCS2).
      */
     public static function isDepartment2Connection(?string $connection = null): bool

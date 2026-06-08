@@ -299,18 +299,30 @@ class DOForm extends Component
         $this->total_amount = $linesTotalAmount;
 
         $freeFormPreview = 0.0;
+        $hasFreeFormText = false;
         foreach ($freeFormTextRows as $rowData) {
             if (!is_array($rowData)) {
                 continue;
             }
+            $text = trim((string) ($rowData['text'] ?? ''));
+            if ($text !== '') {
+                $hasFreeFormText = true;
+            }
             $freeFormPreview += (float) ($rowData['qty'] ?? 0) * (float) ($rowData['price'] ?? 0);
         }
+
+        $hasContent = !empty($stackedItems) || $hasFreeFormText;
+        $canSaveExistingDoEmpty = $this->deliveryOrder && $this->deliveryOrder->id;
+        $canPostOrSave = $hasContent || $canSaveExistingDoEmpty;
+        $isCompleted = $this->deliveryOrder && $this->deliveryOrder->status === 'Completed';
 
         $this->dispatch(
             'dept2-total-updated',
             displayTotal: number_format($linesTotalAmount + $freeFormPreview, 2),
             usedRows: count($stackedItems),
             remainingRows: max(0, 24 - count($stackedItems)),
+            canPostOrSave: $canPostOrSave,
+            canSaveDraft: $canPostOrSave || $isCompleted,
         );
     }
 

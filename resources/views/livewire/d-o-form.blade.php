@@ -22,7 +22,7 @@
                         <form wire:submit.prevent="addDO" @if($this->isDepartment2) data-do-dept2="1" @endif>
                         @php
                             $activeDb = strtolower(session('active_db') ?: config('database.default'));
-                            $showInvoiceNoField = in_array($activeDb, ['ups', 'ucs'], true);
+                            $showInvoiceNoField = \App\Helpers\CompanyAccess::showsDoInvoiceNo($activeDb);
                         @endphp
                         <div class="do-header-fields">
                         {{-- One row: left = customer + currency/address + created by | middle = date, salesperson, cust PO | right = DO, ref, invoice --}}
@@ -726,16 +726,16 @@
                                         $canPostOrSave = $hasContent || $canSaveExistingDoEmpty;
                                     @endphp
                                     @if(!$deliveryOrder || $deliveryOrder->status !== 'Completed')
-                                        <button type="submit" class="btn btn-success me-2" @if(!$canPostOrSave) disabled @endif>Post</button>
+                                        <button type="submit" class="btn btn-success me-2" data-do-action="post" @if(!$canPostOrSave) disabled @endif>Post</button>
                                     @endif
-                                    <button type="button" class="btn btn-secondary me-2" wire:click="saveDraft" @if(!$canPostOrSave && !($deliveryOrder && $deliveryOrder->status === 'Completed')) disabled @endif>
+                                    <button type="button" class="btn btn-secondary me-2" data-do-action="save-draft" wire:click="saveDraft" @if(!$canPostOrSave && !($deliveryOrder && $deliveryOrder->status === 'Completed')) disabled @endif>
                                         @if($deliveryOrder && $deliveryOrder->status === 'Completed')
                                             Restore All
                                         @else
                                             Save Draft
                                         @endif
                                     </button>
-                                    <button type="button" class="btn btn-info" wire:click="preview" @if(!$canPostOrSave) disabled @endif>
+                                    <button type="button" class="btn btn-info" data-do-action="preview" wire:click="preview" @if(!$canPostOrSave) disabled @endif>
                                         Preview
                                     </button>
                                 </div>
@@ -1765,6 +1765,16 @@
                     if (payload.remainingRows != null) {
                         var remEl = form.querySelector('[data-do-row-remaining]');
                         if (remEl) remEl.textContent = String(payload.remainingRows);
+                    }
+                    if (payload.canPostOrSave != null) {
+                        var postBtn = form.querySelector('[data-do-action="post"]');
+                        if (postBtn) postBtn.disabled = !payload.canPostOrSave;
+                        var previewBtn = form.querySelector('[data-do-action="preview"]');
+                        if (previewBtn) previewBtn.disabled = !payload.canPostOrSave;
+                    }
+                    if (payload.canSaveDraft != null) {
+                        var saveBtn = form.querySelector('[data-do-action="save-draft"]');
+                        if (saveBtn) saveBtn.disabled = !payload.canSaveDraft;
                     }
                 });
             }

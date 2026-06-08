@@ -102,7 +102,7 @@
                             </div>
                         @elseif(!$isView && $isEmptyRow)
                             <input type="text"
-                                wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text"
+                                wire:model.live.debounce.400ms="freeFormTextRows.{{ $rowIndex }}.text"
                                 class="form-control form-control-sm"
                                 placeholder="Description (optional)"
                                 {{ ($isView || $isPosted) ? 'disabled' : '' }}
