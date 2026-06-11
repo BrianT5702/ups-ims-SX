@@ -609,42 +609,50 @@
     }
 }
 
-        .back-button {
-            position: fixed;
-            top: 0;
-            left: 0;
-            padding: 10px 20px;
-            font-size: 17px;
-            color: #fff;
-            background-color: #007bff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            z-index: 1000;
-        }
-
-        .print-button {
+        .preview-actions {
             position: fixed;
             top: 0;
             right: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: fit-content;
+        }
+
+        .back-button,
+        .print-button {
+            width: 100%;
             padding: 10px 20px;
             font-size: 17px;
             color: #fff;
-            background-color: #007bff;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            z-index: 1000;
+            box-sizing: border-box;
+            text-align: center;
         }
 
-        .print-button:hover, .back-button:hover {
+        .back-button {
+            background-color: #6c757d;
+        }
+
+        .print-button {
+            background-color: #007bff;
+        }
+
+        .print-button:hover {
             background-color: #0056b3;
+        }
+
+        .back-button:hover {
+            background-color: #5a6268;
         }
 
         /* On-screen reminder for correct print formatting */
         .print-reminder {
             position: fixed;
-            top: 70px;
+            top: 100px;
             right: 20px;
             padding: 4px 8px;
             font-size: 10px;
@@ -660,7 +668,7 @@
         /* Force standard zoom detection warning */
         #zoom-warning {
             position: fixed;
-            top: 110px;
+            top: 140px;
             right: 20px;
             padding: 10px 15px;
             font-size: 13px;
@@ -697,8 +705,8 @@
                 line-height: 1.45 !important; /* Match preview line-height exactly */
             }
 
-            .print-button, .back-button {
-                display: none !important; 
+            .preview-actions {
+                display: none !important;
             }
 
             .container {
@@ -880,7 +888,6 @@
     <div id="zoom-warning">⚠️ Browser zoom is not 100%! Press Ctrl+0 (Cmd+0 on Mac) to reset zoom for accurate printing.</div>
     <div id="page-counter" class="page-counter">Calculating pages...</div>
     <div class="container">
-        <button onclick="goBack()" class="back-button">Back</button>
         <script>
             function goBack() {
                 if (window.self !== window.top) {
@@ -1119,7 +1126,10 @@
         </div>
     </div>
 
-    <button type="button" onclick="triggerPrint()" class="print-button">Print</button>
+    <div class="preview-actions">
+        <button type="button" onclick="triggerPrint()" class="print-button">Print</button>
+        <button type="button" onclick="goBack()" class="back-button">Back</button>
+    </div>
 
     <script>
         // Force standard zoom level detection and warning (skip when embedded in iframe, e.g. Duplicate DO modal)
@@ -1129,13 +1139,11 @@
                 var warning = document.getElementById('zoom-warning');
                 var printReminder = document.querySelector('.print-reminder');
                 var pageCounter = document.getElementById('page-counter');
-                var backBtn = document.querySelector('.back-button');
-                var printBtn = document.querySelector('.print-button');
+                var previewActions = document.querySelector('.preview-actions');
                 if (warning) warning.style.display = 'none';
                 if (printReminder) printReminder.style.display = 'none';
                 if (pageCounter) pageCounter.style.display = 'none';
-                if (backBtn) backBtn.style.display = 'none';
-                if (printBtn) printBtn.style.display = 'none';
+                if (previewActions) previewActions.style.display = 'none';
                 return;
             }
             var warning = document.getElementById('zoom-warning');

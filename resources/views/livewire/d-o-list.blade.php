@@ -47,9 +47,10 @@
                             @php
                                 $activeDb = strtolower(session('active_db') ?: config('database.default'));
                                 $showInvoiceNoColumn = \App\Helpers\CompanyAccess::showsDoInvoiceNo($activeDb);
-                                $doListInitialColWidths = $showInvoiceNoColumn
+                                $doListBaseColWidths = $showInvoiceNoColumn
                                     ? [100, 70, 175, 85, 90, 70, 58, 42, 65, 65]
                                     : [100, 70, 200, 85, 70, 58, 42, 65, 65];
+                                $doListInitialColWidths = array_merge($doListBaseColWidths, [95]);
                             @endphp
                             <style>
                                 /* Wrapper to separate scrollable table from fixed pagination */
@@ -75,8 +76,9 @@
                                 
                                 /* Table styling — borders (layout / resize / clip from partial .list-col-resize-table) */
                                 .table.do-list.list-col-resize-table { 
-                                    width: 100%;
-                                    max-width: 100%;
+                                    width: max-content;
+                                    min-width: 100%;
+                                    max-width: none;
                                     border-collapse: collapse; /* Changed to collapse for clearer borders */
                                     border-spacing: 0;
                                     margin-bottom: 0;
@@ -170,18 +172,28 @@
                                 }
 
                                 .table.do-list th.do-list-col-user,
-                                .table.do-list td.do-list-col-user {
+                                .table.do-list td.do-list-col-user,
+                                .table.do-list th.do-list-col-datetime,
+                                .table.do-list td.do-list-col-datetime {
                                     font-size: 0.72rem;
                                     line-height: 1.2;
+                                }
+
+                                .table.do-list td.do-list-col-datetime {
+                                    white-space: nowrap;
                                 }
                             </style>
                             
                             <!-- Scrollable table area -->
                             <div class="table-responsive do-list-scrollable list-sticky-table-scroll">
-                                <table class="table table-hover do-list list-col-resize-table" data-list-col-storage-key="doList" data-list-col-variant="{{ $showInvoiceNoColumn ? 'inv' : 'noinv' }}">
+                                <table class="table table-hover do-list list-col-resize-table" data-list-col-storage-key="doList" data-list-col-variant="{{ $showInvoiceNoColumn ? 'inv-v2' : 'noinv-v2' }}">
                                     <colgroup>
                                         @foreach($doListInitialColWidths as $idx => $wPx)
-                                            <col data-list-col-index="{{ $idx }}" style="width: {{ $wPx }}px;">
+                                            <col
+                                                data-list-col-index="{{ $idx }}"
+                                                @if($idx === count($doListInitialColWidths) - 1) data-list-col-overflow="1" @endif
+                                                style="width: {{ $wPx }}px;"
+                                            >
                                         @endforeach
                                     </colgroup>
                                     <thead>
@@ -197,12 +209,14 @@
                                                 <th class="text-center"><span class="list-th-label">Print</span><span class="list-col-resize-handle" data-list-col-index="7" title="Drag to resize"></span></th>
                                                 <th class="do-list-col-user"><span class="list-th-label">Created by</span><span class="list-col-resize-handle" data-list-col-index="8" title="Drag to resize"></span></th>
                                                 <th class="do-list-col-user"><span class="list-th-label">Last edited by</span><span class="list-col-resize-handle" data-list-col-index="9" title="Drag to resize"></span></th>
+                                                <th class="do-list-col-datetime"><span class="list-th-label">Last edited at</span><span class="list-col-resize-handle" data-list-col-index="10" title="Drag to resize"></span></th>
                                             @else
                                                 <th><span class="list-th-label">Salesman</span><span class="list-col-resize-handle" data-list-col-index="4" title="Drag to resize"></span></th>
                                                 <th><span class="list-th-label">Status</span><span class="list-col-resize-handle" data-list-col-index="5" title="Drag to resize"></span></th>
                                                 <th class="text-center"><span class="list-th-label">Print</span><span class="list-col-resize-handle" data-list-col-index="6" title="Drag to resize"></span></th>
                                                 <th class="do-list-col-user"><span class="list-th-label">Created by</span><span class="list-col-resize-handle" data-list-col-index="7" title="Drag to resize"></span></th>
                                                 <th class="do-list-col-user"><span class="list-th-label">Last edited by</span><span class="list-col-resize-handle" data-list-col-index="8" title="Drag to resize"></span></th>
+                                                <th class="do-list-col-datetime"><span class="list-th-label">Last edited at</span><span class="list-col-resize-handle" data-list-col-index="9" title="Drag to resize"></span></th>
                                             @endif
                                         </tr>
                                     </thead>
@@ -237,11 +251,17 @@
                                                 </td>
                                                 <td class="do-list-col-user"><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->user->name ?? '-' }}</a></td>
                                                 <td class="do-list-col-user"><a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">{{ $delivery_order->updatedBy->name ?? ($delivery_order->user->name ?? '-') }}</a></td>
-                                                
+                                                <td class="do-list-col-datetime">
+                                                    <a wire:navigate href="{{ route('delivery-orders.view', $delivery_order->id)}}">
+                                                        {{ $delivery_order->updated_at
+                                                            ? \Carbon\Carbon::parse($delivery_order->updated_at)->timezone('Asia/Kuala_Lumpur')->format('d/m/Y H:i')
+                                                            : '—' }}
+                                                    </a>
+                                                </td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="{{ $showInvoiceNoColumn ? 10 : 9 }}" class="text-center">No delivery orders found.</td>
+                                                <td colspan="{{ $showInvoiceNoColumn ? 11 : 10 }}" class="text-center">No delivery orders found.</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
@@ -272,86 +292,4 @@
     </div>
     @include('partials.unified-list-page-styles')
     @include('partials.list-table-column-resize')
-    <script>
-        (function () {
-            var MIN_COL_PX = 48;
-
-            function getDoListCols(table) {
-                var cols = Array.from(table.querySelectorAll('colgroup col[data-list-col-index]'));
-                cols.sort(function (a, b) {
-                    return parseInt(a.getAttribute('data-list-col-index'), 10) - parseInt(b.getAttribute('data-list-col-index'), 10);
-                });
-                return cols;
-            }
-
-            function readColWidthPx(col) {
-                var w = col.style.width;
-                if (w && w.indexOf('px') !== -1) {
-                    return parseFloat(w);
-                }
-                return col.getBoundingClientRect().width;
-            }
-
-            function fitDoListTableToContainer() {
-                var table = document.querySelector('table.do-list.list-col-resize-table[data-list-col-storage-key="doList"]');
-                if (!table) {
-                    return;
-                }
-                var scroll = table.closest('.do-list-scrollable');
-                if (!scroll || scroll.clientWidth < 100) {
-                    return;
-                }
-                var cols = getDoListCols(table);
-                if (!cols.length) {
-                    return;
-                }
-                var widths = cols.map(readColWidthPx);
-                var total = widths.reduce(function (sum, w) { return sum + w; }, 0);
-                var available = scroll.clientWidth - 2;
-                if (total <= available) {
-                    return;
-                }
-                var scale = available / total;
-                var newWidths = widths.map(function (w) {
-                    return Math.max(MIN_COL_PX, Math.floor(w * scale));
-                });
-                var remainder = available - newWidths.reduce(function (sum, w) { return sum + w; }, 0);
-                if (remainder !== 0) {
-                    var customerIdx = 2;
-                    newWidths[customerIdx] = Math.max(MIN_COL_PX, newWidths[customerIdx] + remainder);
-                }
-                cols.forEach(function (col, i) {
-                    col.style.width = Math.round(newWidths[i]) + 'px';
-                });
-            }
-
-            function scheduleFit() {
-                requestAnimationFrame(function () {
-                    requestAnimationFrame(fitDoListTableToContainer);
-                });
-            }
-
-            function afterColumnWidthsApplied() {
-                setTimeout(scheduleFit, 0);
-            }
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', afterColumnWidthsApplied);
-            } else {
-                afterColumnWidthsApplied();
-            }
-            document.addEventListener('livewire:navigated', afterColumnWidthsApplied);
-            document.addEventListener('livewire:init', function () {
-                if (typeof Livewire === 'undefined' || !Livewire.hook) {
-                    return;
-                }
-                Livewire.hook('morph.updated', function (payload) {
-                    var el = payload && payload.el;
-                    if (el && (el.matches && el.matches('table.do-list') || (el.querySelector && el.querySelector('table.do-list')))) {
-                        afterColumnWidthsApplied();
-                    }
-                });
-            });
-        })();
-    </script>
 </div>
