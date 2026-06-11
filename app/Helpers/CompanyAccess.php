@@ -34,6 +34,45 @@ class CompanyAccess
     }
 
     /**
+     * Department 1 company connections.
+     */
+    public static function department1Connections(): array
+    {
+        return ['ups', 'urs', 'ucs'];
+    }
+
+    /**
+     * Department 2 company connections.
+     */
+    public static function department2Connections(): array
+    {
+        return ['ups2', 'urs2', 'ucs2'];
+    }
+
+    /**
+     * Accessible companies grouped by department for UI (e.g. company switcher).
+     *
+     * @return array<string, list<string>>
+     */
+    public static function getGroupedAccessibleCompanies(?User $user = null): array
+    {
+        $accessible = self::getAccessibleCompanies($user);
+        $groups = [];
+
+        $dept1 = array_values(array_intersect(self::department1Connections(), $accessible));
+        if ($dept1 !== []) {
+            $groups['Department 1'] = $dept1;
+        }
+
+        $dept2 = array_values(array_intersect(self::department2Connections(), $accessible));
+        if ($dept2 !== []) {
+            $groups['Department 2'] = $dept2;
+        }
+
+        return $groups;
+    }
+
+    /**
      * Get all companies accessible by the given user
      *
      * @param User|null $user

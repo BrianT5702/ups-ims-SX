@@ -1,6 +1,6 @@
 
 @php
-    $defaultSidebarOpen = auth()->check() && auth()->user()->username === 'AhBee' ? false : true;
+    $defaultSidebarOpen = true;
 @endphp
 <div x-data="{
         isSidebarOpen: JSON.parse(localStorage.getItem('isSidebarOpen')) ?? {{ $defaultSidebarOpen ? 'true' : 'false' }},
@@ -31,11 +31,25 @@
     }" class="flex h-screen shrink-0 bg-gray-200 text-black sticky top-0" style="flex-shrink: 0; overflow-y: hidden; overflow-x: visible;">
 
     <!-- Sidebar: never flex-shrink (wide main content e.g. tables used to squeeze this to 0) -->
-    <div :class="isSidebarOpen ? 'w-60' : 'w-5'" class="bg-gray-200 text-black h-screen transition-all duration-300 ease-in-out sticky top-0 flex shrink-0 flex-col relative" style="flex-shrink: 0 !important; overflow-y: hidden; overflow-x: visible;" :style="isSidebarOpen ? 'width: 15rem !important; max-width: 15rem !important; min-width: 15rem !important;' : 'width: 1.25rem !important; max-width: 1.25rem !important; min-width: 1.25rem !important;'">
+    <div :class="isSidebarOpen ? 'w-60' : 'w-10'" class="bg-gray-200 text-black h-screen transition-all duration-300 ease-in-out sticky top-0 flex shrink-0 flex-col relative" style="flex-shrink: 0 !important; overflow-y: hidden; overflow-x: hidden;" :style="isSidebarOpen ? 'width: 15rem !important; max-width: 15rem !important; min-width: 15rem !important;' : 'width: 2.5rem !important; max-width: 2.5rem !important; min-width: 2.5rem !important;'">
 
-        <!-- Sidebar Header (Hidden when collapsed) - Fixed at top -->
-        <div x-show="isSidebarOpen" class="block hover:bg-gray-400 px-4 py-2 bg-gray-300 truncate flex-shrink-0">
-        <a href="{{route('dashboard')}}"> Dashboard </a>
+        <!-- Sidebar Header - toggle stays inside the panel so it is never clipped -->
+        <div class="flex shrink-0 items-center bg-gray-300 hover:bg-gray-400" :class="isSidebarOpen ? 'justify-between gap-2 px-3 py-2' : 'justify-center py-2'">
+            <a x-show="isSidebarOpen" href="{{ route('dashboard') }}" class="min-w-0 truncate text-sm font-medium">Dashboard</a>
+            <button
+                type="button"
+                @click="toggleSidebar"
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gray-400 bg-gray-200 shadow-sm hover:bg-gray-400 focus:outline-none"
+                :title="isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'"
+                aria-label="Toggle sidebar"
+            >
+                <svg x-show="isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+                <svg x-show="!isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+            </button>
         </div>
 
         <!-- Scrollable Content Area -->
@@ -76,9 +90,9 @@
                 @can('Manage Inventory')
                     <a href="{{route('show-import-form')}}" class="block px-2 py-1 hover:bg-gray-300">Import Excel</a>
                 @endcan
-                @can('Manage Inventory')
+                @if(auth()->check() && auth()->user()->hasRole('Super Admin'))
                     <a href="{{route('show-delete-form')}}" class="block px-2 py-1 hover:bg-gray-300 text-red-600">Delete Records</a>
-                @endcan
+                @endif
                      
             </div>
         </div>
@@ -186,16 +200,5 @@
             @endif
         </div>
 
-        <div class="absolute top-1/2 right-0 z-[100] -translate-y-1/2 translate-x-full transform" style="pointer-events: auto; margin-right: 0.12rem;">
-            <button @click="toggleSidebar" class="bg-gray-300 hover:bg-gray-400 rounded-full focus:outline-none shadow-md border border-gray-400" style="pointer-events: auto; width: 1.75rem; height: 1.75rem; display: flex; align-items: center; justify-content: center; padding: 0.25rem;">
-                <!-- Icon for collapsing/expanding -->
-                <svg x-show="isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 12H5" />
-                </svg>
-                <svg x-show="!isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l-7-7 7-7m0 14l7-7-7-7" />
-                </svg>
-            </button>
-        </div>
     </div>
 </div>

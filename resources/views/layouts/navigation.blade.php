@@ -38,32 +38,35 @@
 
                     <x-slot name="content">
                         @php
-                            $accessibleCompanies = \App\Helpers\CompanyAccess::getAccessibleCompanies(Auth::user());
+                            $groupedCompanies = \App\Helpers\CompanyAccess::getGroupedAccessibleCompanies(Auth::user());
+                            $currentCompany = strtolower(session('active_db', 'ups'));
                         @endphp
-                        @if(count($accessibleCompanies) > 0)
-                            @php
-                                $currentCompany = strtolower(session('active_db', 'ups'));
-                            @endphp
-                            @foreach($accessibleCompanies as $company)
-                                @php
-                                    $isCurrentCompany = strtolower($company) === $currentCompany;
-                                    $companyUpper = strtoupper($company);
-                                    $onclickValue = $isCurrentCompany 
-                                        ? "event.preventDefault(); event.stopPropagation();"
-                                        : "event.preventDefault(); event.stopPropagation(); if(confirm('Switch database to {$companyUpper}? You will be redirected to Dashboard.')) { this.closest('form').submit(); }";
-                                @endphp
-                                <form method="POST" action="{{ route('switch-db') }}" @click.stop>
-                                    @csrf
-                                    <input type="hidden" name="connection" value="{{ $company }}">
-                                    <x-dropdown-link href="#" 
-                                        class="{{ $isCurrentCompany ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : '' }}"
-                                        onclick="{{ $onclickValue }}">
-                                        {{ $companyUpper }}
-                                        @if($isCurrentCompany)
-                                            <span class="ml-2 text-xs">(Current)</span>
-                                        @endif
-                                    </x-dropdown-link>
-                                </form>
+                        @if(count($groupedCompanies) > 0)
+                            @foreach($groupedCompanies as $departmentLabel => $companies)
+                                <div class="px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-600">
+                                    {{ $departmentLabel }}
+                                </div>
+                                @foreach($companies as $company)
+                                    @php
+                                        $isCurrentCompany = strtolower($company) === $currentCompany;
+                                        $companyUpper = strtoupper($company);
+                                        $onclickValue = $isCurrentCompany
+                                            ? "event.preventDefault(); event.stopPropagation();"
+                                            : "event.preventDefault(); event.stopPropagation(); if(confirm('Switch database to {$companyUpper}? You will be redirected to Dashboard.')) { this.closest('form').submit(); }";
+                                    @endphp
+                                    <form method="POST" action="{{ route('switch-db') }}" @click.stop>
+                                        @csrf
+                                        <input type="hidden" name="connection" value="{{ $company }}">
+                                        <x-dropdown-link href="#"
+                                            class="{{ $isCurrentCompany ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : '' }}"
+                                            onclick="{{ $onclickValue }}">
+                                            {{ $companyUpper }}
+                                            @if($isCurrentCompany)
+                                                <span class="ml-2 text-xs">(Current)</span>
+                                            @endif
+                                        </x-dropdown-link>
+                                    </form>
+                                @endforeach
                             @endforeach
                         @else
                             <div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">

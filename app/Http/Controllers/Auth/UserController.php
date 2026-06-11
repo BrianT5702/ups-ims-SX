@@ -274,11 +274,19 @@ class UserController extends Controller
 
     public function showDeleteForm()
     {
+        if (!auth()->check() || !auth()->user()->hasRole('Super Admin')) {
+            abort(403, 'Access denied. Super Admin only.');
+        }
+
         return view('delete');
     }
 
     public function deleteRecords(Request $request)
     {
+        if (!$request->user() || !$request->user()->hasRole('Super Admin')) {
+            abort(403, 'Access denied. Super Admin only.');
+        }
+
         $accessibleCompanies = CompanyAccess::getAccessibleCompanies($request->user());
 
         $request->validate([
