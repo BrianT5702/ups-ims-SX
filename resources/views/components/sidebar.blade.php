@@ -1,6 +1,7 @@
 
 @php
     $defaultSidebarOpen = true;
+    $isDepartment2 = \App\Helpers\CompanyAccess::isDepartment2Connection();
 @endphp
 <div x-data="{
         isSidebarOpen: JSON.parse(localStorage.getItem('isSidebarOpen')) ?? {{ $defaultSidebarOpen ? 'true' : 'false' }},
@@ -78,15 +79,19 @@
                 @can('Manage Family')
                     <a href="{{route('families')}}" class="block px-2 py-1 hover:bg-gray-300">Family</a>
                 @endcan
-                @can('Manage Group')
-                    <a href="{{route('groups')}}" class="block px-2 py-1 hover:bg-gray-300">Group</a>
-                @endcan
+                @unless($isDepartment2)
+                    @can('Manage Group')
+                        <a href="{{route('groups')}}" class="block px-2 py-1 hover:bg-gray-300">Group</a>
+                    @endcan
+                @endunless
                 @can('Manage Customer')
                     <a href="{{route('customers')}}" class="block px-2 py-1 hover:bg-gray-300">Customer</a>
                 @endcan
-                @can('Manage Supplier')
-                    <a href="{{route('suppliers')}}" class="block px-2 py-1 hover:bg-gray-300">Supplier</a> 
-                @endcan
+                @unless($isDepartment2)
+                    @can('Manage Supplier')
+                        <a href="{{route('suppliers')}}" class="block px-2 py-1 hover:bg-gray-300">Supplier</a>
+                    @endcan
+                @endunless
                 @can('Manage Inventory')
                     <a href="{{route('show-import-form')}}" class="block px-2 py-1 hover:bg-gray-300">Import Excel</a>
                 @endcan
@@ -115,27 +120,29 @@
                 @can('Manage DO')
                     <a href="{{route('delivery-orders')}}" class="block px-2 py-1 hover:bg-gray-300">Delivery Order</a>
                 @endcan
-                @can('Manage DO')
-                    <a href="{{route('quotations')}}" class="block px-2 py-1 hover:bg-gray-300">Quotation</a>
-                @endcan
-                @can('Manage PO')
-                    <a href="{{route('purchase-orders')}}" class="block px-2 py-1 hover:bg-gray-300">Purchase Order</a>
-                @endcan
-                @can('Manage Restock List')
-                    <a href="{{route('restock-list')}}" class="block px-2 py-1 hover:bg-gray-300 relative">Restock List</a>
-                @endcan
-                @can('View Transaction Log')
-                    <a href="{{route('transaction-log.')}}" class="block px-2 py-1 hover:bg-gray-300">Transaction Log</a>
-                @endcan
-                {{-- @can('View Batch List')
-                    <a href="{{route('batch-list')}}" class="block px-2 py-1 hover:bg-gray-300">Batch List</a>
-                @endcan --}}
-                @can('Manage Warehouse')
-                    <a href="{{route('warehouses')}}" class="block px-2 py-1 hover:bg-gray-300">Warehouse</a>
-                @endcan
-                @can('Manage Location')
-                    <a href="{{route('locations')}}" class="block px-2 py-1 hover:bg-gray-300">Location</a>
-                @endcan
+                @unless($isDepartment2)
+                    @can('Manage DO')
+                        <a href="{{route('quotations')}}" class="block px-2 py-1 hover:bg-gray-300">Quotation</a>
+                    @endcan
+                    @can('Manage PO')
+                        <a href="{{route('purchase-orders')}}" class="block px-2 py-1 hover:bg-gray-300">Purchase Order</a>
+                    @endcan
+                    @can('Manage Restock List')
+                        <a href="{{route('restock-list')}}" class="block px-2 py-1 hover:bg-gray-300 relative">Restock List</a>
+                    @endcan
+                    @can('View Transaction Log')
+                        <a href="{{route('transaction-log.')}}" class="block px-2 py-1 hover:bg-gray-300">Transaction Log</a>
+                    @endcan
+                    {{-- @can('View Batch List')
+                        <a href="{{route('batch-list')}}" class="block px-2 py-1 hover:bg-gray-300">Batch List</a>
+                    @endcan --}}
+                    @can('Manage Warehouse')
+                        <a href="{{route('warehouses')}}" class="block px-2 py-1 hover:bg-gray-300">Warehouse</a>
+                    @endcan
+                    @can('Manage Location')
+                        <a href="{{route('locations')}}" class="block px-2 py-1 hover:bg-gray-300">Location</a>
+                    @endcan
+                @endunless
             </div>
         </div>
 
