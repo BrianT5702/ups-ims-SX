@@ -40,8 +40,6 @@
             font-size: 14px; /* Match print font-size (14px instead of 16px) */
             line-height: 1.3; /* Match print line-height (1.3 instead of 1.5) */
             zoom: 1; /* Force 1:1 zoom */
-            transform: scale(1); /* Additional normalization */
-            transform-origin: top left;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
@@ -348,13 +346,19 @@
 
         .preview-actions {
             position: fixed;
-            top: 0;
-            right: 0;
-            z-index: 1000;
+            top: 16px;
+            right: 16px;
+            z-index: 10001;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
             width: fit-content;
+            min-width: 120px;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.97);
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
         }
 
         .back-button,
@@ -389,7 +393,7 @@
         /* On-screen reminder for correct print formatting (match DO preview size) */
         .print-reminder {
             position: fixed;
-            top: 100px;
+            top: 132px;
             right: 20px;
             padding: 4px 8px;
             font-size: 10px;
@@ -405,7 +409,7 @@
         /* Force standard zoom detection warning */
         #zoom-warning {
             position: fixed;
-            top: 140px;
+            top: 172px;
             right: 20px;
             padding: 10px 15px;
             font-size: 13px;
@@ -443,22 +447,11 @@
         }
 
         .page-counter {
-            position: fixed;
-            top: 120px;
-            right: 20px;
-            padding: 10px 15px;
-            font-size: 14px;
-            font-weight: bold;
-            color: #0d6efd;
-            background: #e7f3ff;
-            border: 2px solid #0d6efd;
-            border-radius: 4px;
-            z-index: 1000;
-            display: none;
+            display: none !important;
         }
 
         .page-counter.show {
-            display: block;
+            display: none !important;
         }
 
         .pages-container .print-page {
@@ -954,9 +947,12 @@
     </style>
 </head>
 <body>
+    <div class="preview-actions">
+        <button type="button" onclick="triggerPrint()" class="print-button">Print</button>
+        <button type="button" onclick="history.back()" class="back-button">Back</button>
+    </div>
     <div class="print-reminder">✓ Optimized for Letter Size (8.5" × 11") paper</div>
     <div id="zoom-warning">⚠️ Browser zoom is not 100%! Press Ctrl+0 (Cmd+0 on Mac) to reset zoom for accurate printing.</div>
-    <div id="page-counter" class="page-counter">Calculating pages...</div>
     <div class="container">
         <div class="content">
             <div id="print-source">
@@ -1113,11 +1109,6 @@
                 <p class="signature-label">(Authorized Signature)</p>
             </div>
         </div>
-    </div>
-
-    <div class="preview-actions">
-        <button type="button" onclick="triggerPrint()" class="print-button">Print</button>
-        <button type="button" onclick="history.back()" class="back-button">Back</button>
     </div>
 
     <script>
@@ -1448,17 +1439,6 @@
                     }
 
                     source.style.display = 'none';
-
-                    var pageCounter = document.getElementById('page-counter');
-                    if (pageCounter) {
-                        var pageCount = renderedPages.length;
-                        if (pageCount > 0) {
-                            pageCounter.textContent = 'Total Pages: ' + pageCount + (pageCount === 1 ? ' page' : ' pages');
-                            pageCounter.classList.add('show');
-                        } else {
-                            pageCounter.classList.remove('show');
-                        }
-                    }
                 } finally {
                     building = false;
                 }

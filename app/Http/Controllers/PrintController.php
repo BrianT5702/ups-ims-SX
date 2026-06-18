@@ -231,6 +231,10 @@ class PrintController extends Controller
     public function previewQuotation($id)
     {
         $quotation = Quotation::with(['items.item', 'customerSnapshot', 'user', 'salesman'])->findOrFail($id);
+        $quotation->setRelation(
+            'items',
+            $quotation->items()->orderByRaw('row_index IS NULL, row_index')->orderBy('id')->get()
+        );
         $companyProfile = CompanyProfile::first();
         return view('quotations.preview', compact('quotation', 'companyProfile'));
     }

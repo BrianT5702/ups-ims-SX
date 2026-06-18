@@ -12,7 +12,10 @@ class QuotationItem extends BaseModel
     protected $fillable = [
         'quotation_id',
         'item_id',
+        'row_index',
+        'sequence_hidden',
         'custom_item_name',
+        'custom_um',
         'qty',
         'unit_price',
         'pricing_tier',
@@ -27,6 +30,6 @@ class QuotationItem extends BaseModel
 
     public function item()
     {
-        return $this->belongsTo(Item::class, 'item_id');
+        return $this->belongsTo(Item::class, 'item_id')->withDefault();
     }
 }
