@@ -45,7 +45,7 @@ class Customer extends BaseModel
 
     public function salesman()
     {
-        return $this->belongsTo(User::class, 'salesman_id');
+        return $this->belongsTo(CompanyUser::class, 'salesman_id');
     }
 
     /**

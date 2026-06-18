@@ -66,6 +66,6 @@ class BatchTracking extends BaseModel
 
     public function receivedBy()
     {
-        return $this->belongsTo(User::class, 'received_by');
+        return $this->belongsTo(CompanyUser::class, 'received_by');
     }
 }

@@ -78,7 +78,7 @@
 
                                 <div class="do-created-by mt-3 pt-2 border-top do-created-by-sep">
                                     <label for="created_by">Created By</label>
-                                    <p class="mb-0"><b>{{ Auth::user()->name }}</b></p>
+                                    <p class="mb-0"><b>{{ $deliveryOrder?->user?->name ?? Auth::user()->name }}</b></p>
                                 </div>
                             </div>
 

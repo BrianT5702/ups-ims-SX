@@ -41,16 +41,23 @@ class TenantUser
 
     private static function findLocalUser(User $authUser, string $connection): ?User
     {
-        return User::on($connection)
-            ->where(function ($q) use ($authUser) {
-                if ($authUser->username) {
-                    $q->whereRaw('LOWER(username) = ?', [strtolower($authUser->username)]);
-                }
-                if ($authUser->email) {
-                    $q->orWhereRaw('LOWER(email) = ?', [strtolower($authUser->email)]);
-                }
-            })
-            ->first();
+        if ($authUser->username) {
+            $byUsername = User::on($connection)
+                ->whereRaw('LOWER(username) = ?', [strtolower($authUser->username)])
+                ->first();
+
+            if ($byUsername) {
+                return $byUsername;
+            }
+        }
+
+        if ($authUser->email) {
+            return User::on($connection)
+                ->whereRaw('LOWER(email) = ?', [strtolower($authUser->email)])
+                ->first();
+        }
+
+        return null;
     }
 
     /**

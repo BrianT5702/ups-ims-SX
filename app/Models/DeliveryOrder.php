@@ -62,17 +62,17 @@ class DeliveryOrder extends BaseModel
 
     public function salesman()
     {
-        return $this->belongsTo(User::class, 'salesman_id');
+        return $this->belongsTo(CompanyUser::class, 'salesman_id');
     }
 
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(CompanyUser::class, 'user_id');
     }
 
     public function updatedBy()
     {
-        return $this->belongsTo(User::class, 'updated_by');
+        return $this->belongsTo(CompanyUser::class, 'updated_by');
     }
 
     public function deliveryOrder()

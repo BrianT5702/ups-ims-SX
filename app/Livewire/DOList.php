@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\DeliveryOrder;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Auth;
+use App\Support\TenantUser;
 use Livewire\Attributes\Title;
 use Carbon\Carbon;
 
@@ -90,9 +91,8 @@ class DOList extends Component
         
         $query = DeliveryOrder::with(['customer', 'user', 'updatedBy'])
             ->withCount('items')
-            ->when(!$isPrivileged, function($q) use ($user) {
-                // Non-admins (and non-super-admin) only see their own records
-                return $q->where('user_id', $user->id);
+            ->when(!$isPrivileged, function ($q) use ($user) {
+                return $q->where('user_id', TenantUser::resolveId($user));
             })
             ->when($this->filterCustomerId, function($q) {
                 return $q->where('cust_id', $this->filterCustomerId);
@@ -123,7 +123,7 @@ class DOList extends Component
 
         $countQuery = DeliveryOrder::query();
         if (!$isPrivileged) {
-            $countQuery->where('user_id', $user->id);
+            $countQuery->where('user_id', TenantUser::resolveId($user));
         }
         if ($this->filterCustomerId) {
             $countQuery->where('cust_id', $this->filterCustomerId);
