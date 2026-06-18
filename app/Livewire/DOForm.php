@@ -27,6 +27,7 @@ use App\Models\RestockList;
 use App\Models\BatchTracking;
 use App\Models\CustomerSnapshot;
 use App\Services\DoNumberService;
+use App\Support\TenantUser;
 use Carbon\Carbon;
 
 #[Title('UR | Manage Delivery Order')]
@@ -2913,7 +2914,7 @@ class DOForm extends Component
                 $this->deliveryOrder->total_amount = $this->total_amount;
                 $this->deliveryOrder->customer_snapshot_id = $customerSnapshot->id;
                 $this->deliveryOrder->status = $isDraft ? 'Save to Draft' : 'Completed';
-                $this->deliveryOrder->updated_by = auth()->id();
+                $this->deliveryOrder->updated_by = TenantUser::resolveId();
                 $this->deliveryOrder->save();
 
                 // Delete existing items
@@ -2949,7 +2950,7 @@ class DOForm extends Component
                     'ref_num' => $this->ref_num,
                     'date' => $this->date,
                     'cust_id' => $this->cust_id,
-                    'user_id' => auth()->id(),
+                    'user_id' => TenantUser::resolveId(),
                     'salesman_id' => $this->salesman_id,
                     'cust_po' => $this->cust_po,
                     'invoice_no' => $this->invoice_no,
@@ -3273,7 +3274,7 @@ class DOForm extends Component
                 'item_id' => $itemId,
                 'quantity' => 0,
                 'received_date' => now(),
-                'received_by' => auth()->id()
+                'received_by' => TenantUser::resolveId()
             ]);
             $batches = collect([$batch]);
         }
@@ -3294,7 +3295,7 @@ class DOForm extends Component
                     'item_id' => $itemId,
                     'quantity' => 0,
                     'received_date' => now(),
-                    'received_by' => auth()->id(),
+                    'received_by' => TenantUser::resolveId(),
                 ]);
             }
 
@@ -3310,7 +3311,7 @@ class DOForm extends Component
                 'qty_after' => $qtyAfter,
                 'transaction_qty' => $remainingDeductQty,
                 'transaction_type' => 'Stock Out',
-                'user_id' => auth()->id(),
+                'user_id' => TenantUser::resolveId(),
                 'source_type' => $isDraft ? 'DO Draft Delta' : 'DO',
                 'source_doc_num' => $this->do_num,
                 'batch_id' => $batch->id,
@@ -3344,7 +3345,7 @@ class DOForm extends Component
                 'qty_after' => $currentQtyOnHand,
                 'transaction_qty' => $take,
                 'transaction_type' => 'Stock Out',
-                'user_id' => auth()->id(),
+                'user_id' => TenantUser::resolveId(),
                 'source_type' => $isDraft ? 'DO Draft Delta' : 'DO',
                 'source_doc_num' => $this->do_num,
                 'batch_id' => $batch->id,
@@ -3372,7 +3373,7 @@ class DOForm extends Component
                 'qty_after' => $qtyAfter,
                 'transaction_qty' => $remainingDeductQty,
                 'transaction_type' => 'Stock Out',
-                'user_id' => auth()->id(),
+                'user_id' => TenantUser::resolveId(),
                 'source_type' => $isDraft ? 'DO Draft Delta' : 'DO',
                 'source_doc_num' => $this->do_num,
                 'batch_id' => $lastBatch->id,
@@ -3407,7 +3408,7 @@ class DOForm extends Component
                 'qty_after' => $qtyAfter,
                 'transaction_qty' => $restoreQty,
                 'transaction_type' => 'Stock In',
-                'user_id' => auth()->id(),
+                'user_id' => TenantUser::resolveId(),
                 'source_type' => 'DO Status Reversal',
                 'source_doc_num' => $this->do_num,
                 'batch_id' => $oldestBatch->id,
@@ -3451,7 +3452,7 @@ class DOForm extends Component
                 'qty_after' => $qtyAfter,
                 'transaction_qty' => $putBack,
                 'transaction_type' => 'Stock In',
-                'user_id' => auth()->id(),
+                'user_id' => TenantUser::resolveId(),
                 'source_type' => $isDraft ? 'DO Draft Delta' : 'DO Delta Reversal',
                 'source_doc_num' => $this->do_num,
                 'batch_id' => $txn->batch_id,
@@ -3478,7 +3479,7 @@ class DOForm extends Component
                     'qty_after' => $qtyAfter,
                     'transaction_qty' => $restoreQty,
                     'transaction_type' => 'Stock In',
-                    'user_id' => auth()->id(),
+                    'user_id' => TenantUser::resolveId(),
                     'source_type' => $isDraft ? 'DO Draft Delta' : 'DO Delta Reversal',
                     'source_doc_num' => $this->do_num,
                     'batch_id' => $oldestBatch->id,
@@ -3742,7 +3743,7 @@ class DOForm extends Component
         }
         $this->date = $this->date ?? now()->toDateString();
         // do_num is set in mount for new DOs; avoid overwriting here (would consume extra numbers)
-        $this->user_id = $this->user_id ?? auth()->id();
+        $this->user_id = $this->user_id ?? TenantUser::resolveId();
         $this->ensureSalesmenLoaded();
 
         $duplicateDoList = collect();
@@ -3771,7 +3772,7 @@ class DOForm extends Component
 
         return DeliveryOrder::with(['customerSnapshot', 'customer'])
             ->when(!$isPrivileged, function ($q) use ($user) {
-                return $q->where('user_id', $user->id);
+                return $q->where('user_id', TenantUser::resolveId($user));
             })
             ->when($this->duplicateDoSearchTerm, function ($q) {
                 return $q->where(function ($query) {
