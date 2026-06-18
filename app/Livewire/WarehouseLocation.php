@@ -105,6 +105,7 @@ class WarehouseLocation extends Component
 
         try {
             $warehouse->delete();
+            ItemForm::forgetCachedMasterData();
             $this->loadWarehouses();
             toastr()->success('Warehouse deleted successfully.');
         } catch (\Exception $e) {
@@ -137,6 +138,8 @@ class WarehouseLocation extends Component
             Warehouse::create([
                 'warehouse_name' => $this->warehouse_name
             ]);
+
+            ItemForm::forgetCachedMasterData();
             
             $this->reset(['warehouse_name']);
             $this->showWarehouseForm = false;
@@ -168,6 +171,8 @@ class WarehouseLocation extends Component
                 'position_x' => null,
                 'position_y' => null,
             ]);
+
+            ItemForm::forgetCachedMasterData();
 
             $this->reset(['location_name', 'warehouse_id']);
             $this->showLocationForm = false;

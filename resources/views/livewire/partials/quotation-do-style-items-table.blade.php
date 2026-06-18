@@ -2,8 +2,13 @@
     $rowToItemMap = $this->getQuotationRowToItemMap();
     $rowSequenceMap = $this->getQuotationRowToItemSequenceMap();
     $sequenceTotal = count($rowSequenceMap);
-    $rowsToShow = $this->getQuotationGridRowCount();
+    $printLayout = $this->quotationPrintLayout();
+    $layoutBaseRows = $printLayout->baseRowMap();
+    $rowsToShow = $this->getFormRowsToShow();
     $viewportRows = $this->getQuotationViewportRows();
+    $currentRowCount = $this->getCurrentRowCount();
+    $remainingRows = $this->getRemainingRowCount();
+    $maxPrintRows = $this->getQuotationMaxPrintRows();
     $printStatus = $this->getQuotationPrintPageStatus();
     $quotationPage2StartRow = $this->getQuotationPage2StartRowIndex();
 @endphp
@@ -12,8 +17,8 @@
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h6 class="mb-0">Quotation Items</h6>
         <small class="text-muted">
-            Used: <strong data-do-row-used>{{ $printStatus['lines'] }}</strong>
-            {{ $printStatus['lines'] === 1 ? 'line' : 'lines' }}
+            Used: <strong data-do-row-used>{{ $currentRowCount }}</strong> / {{ $maxPrintRows }} rows |
+            Remaining: <strong data-do-row-remaining>{{ $remainingRows }}</strong> rows
             · <strong data-quotation-print-pages>{{ $printStatus['pages'] }}</strong> Pages
         </small>
     </div>
@@ -32,20 +37,24 @@
                     <th style="width: 135px;" class="text-center">Amount</th>
                 </tr>
             </thead>
-            <tbody wire:key="quotation-form-tbody-{{ $rowsToShow }}">
+            <tbody wire:key="quotation-form-tbody-{{ $rowsToShow }}-{{ $currentRowCount }}">
                 @for($rowIndex = 0; $rowIndex < $rowsToShow; $rowIndex++)
                     @php
-                        $itemIndex = $rowToItemMap[$rowIndex] ?? null;
+                        $continuation = $printLayout->continuationAt($rowIndex);
+                        $itemIndex = $layoutBaseRows[$rowIndex] ?? null;
                         $item = $itemIndex !== null ? $stackedItems[$itemIndex] : null;
-                        $isEmptyRow = ($itemIndex === null);
-                        $freeFormRowData = $freeFormTextRows[$rowIndex] ?? null;
+                        $isContinuationRow = $continuation !== null;
+                        $isEmptyRow = ($itemIndex === null && ! $isContinuationRow);
+                        $freeFormPreferredKey = $this->quotationFreeFormPreferredKeyAtDisplayRow($rowIndex);
+                        $emptyRowAnchor = $this->quotationAnchorRowForDisplayRow($rowIndex);
+                        $freeFormRowData = $freeFormPreferredKey !== null ? ($freeFormTextRows[$freeFormPreferredKey] ?? null) : null;
                         $freeFormQty = is_array($freeFormRowData) ? (float) ($freeFormRowData['qty'] ?? 0) : 0;
                         $freeFormPrice = is_array($freeFormRowData) ? (float) ($freeFormRowData['price'] ?? 0) : 0;
                         $freeFormAmount = $freeFormQty * $freeFormPrice;
-                        $canMoveUp = $item && $rowIndex > 0 && !isset($rowToItemMap[$rowIndex - 1]) && !$this->quotationRowHasPendingFreeForm($rowIndex - 1);
-                        $canMoveDown = $item && $rowIndex < ($rowsToShow - 1) && !isset($rowToItemMap[$rowIndex + 1]) && !$this->quotationRowHasPendingFreeForm($rowIndex + 1);
+                        $canMoveUp = $item && $rowIndex > 0 && ! $printLayout->isOccupiedRow($rowIndex - 1) && ! $this->quotationRowHasPendingFreeForm($rowIndex - 1);
+                        $canMoveDown = $item && $rowIndex < ($rowsToShow - 1) && ! $printLayout->isOccupiedRow($rowIndex + 1) && ! $this->quotationRowHasPendingFreeForm($rowIndex + 1);
                     @endphp
-                    <tr class="item-row quotation-grid-page-{{ $rowIndex >= $quotationPage2StartRow ? 2 : 1 }}{{ $rowIndex === $quotationPage2StartRow ? ' quotation-grid-page-break' : '' }}"
+                    <tr class="item-row quotation-grid-page-{{ $rowIndex >= $quotationPage2StartRow ? 2 : 1 }}{{ $rowIndex === $quotationPage2StartRow ? ' quotation-grid-page-break' : '' }}{{ $isContinuationRow ? ' quotation-continuation-row' : '' }}"
                         data-row-index="{{ $rowIndex }}"
                         data-print-page="{{ $rowIndex >= $quotationPage2StartRow ? 2 : 1 }}"
                         wire:key="quotation-form-row-{{ $rowIndex }}-{{ $itemIndex === null ? 'empty' : $itemIndex }}">
@@ -93,14 +102,17 @@
                                         <div class="text-danger small text-end">!</div>
                                     @enderror
                                 @endif
+                            @elseif($isContinuationRow)
+                                &nbsp;
                             @elseif(!$isView && $isEmptyRow)
                                 <input type="text"
-                                    wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.qty"
+                                    wire:model.lazy="freeFormTextRows.{{ $emptyRowAnchor }}.qty"
                                     class="form-control form-control-sm"
                                     inputmode="decimal"
                                     autocomplete="off"
                                     data-do-role="qty"
-                                    data-quotation-free-form-field="qty">
+                                    data-quotation-free-form-field="qty"
+                                    data-quotation-free-form-anchor="{{ $emptyRowAnchor }}">
                             @elseif(!$isView)
                                 <input type="text" class="form-control form-control-sm" placeholder="Qty" disabled
                                     style="width: 100%; background-color: #f8f9fa;">
@@ -114,12 +126,15 @@
                                     placeholder="{{ ($item['item']['um'] ?? 'UNIT') === 'UNIT' ? 'UNITS' : ($item['item']['um'] ?? 'UOM') }}"
                                     {{ $isView ? 'disabled' : '' }}
                                     style="max-width: 86px; padding: 0.15rem 0.25rem;">
+                            @elseif($isContinuationRow)
+                                &nbsp;
                             @elseif(!$isView && $isEmptyRow)
-                                <input type="text" wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.um"
+                                <input type="text" wire:model.lazy="freeFormTextRows.{{ $emptyRowAnchor }}.um"
                                     {{ $isView ? 'disabled' : '' }}
                                     class="form-control form-control-sm"
                                     data-do-role="uom"
                                     data-quotation-free-form-field="um"
+                                    data-quotation-free-form-anchor="{{ $emptyRowAnchor }}"
                                     style="max-width: 86px; padding: 0.15rem 0.25rem;">
                             @endif
                         </td>
@@ -215,33 +230,17 @@
                                                 <button type="button" class="btn btn-sm p-0 px-1 btn-danger flex-shrink-0" wire:click="removeItem({{ $itemIndex }})" style="font-size: 0.7rem;">×</button>
                                             @endif
                                         </div>
-                                        @if(!empty($item['item']['details']))
-                                            <div class="mt-1 ms-0 text-muted" style="font-size: 0.85em;">
-                                                @foreach(explode("\n", $item['item']['details']) as $line)
-                                                    @if(trim($line) !== '')
-                                                        <div>• {{ $line }}</div>
-                                                    @endif
-                                                @endforeach
-                                            </div>
-                                        @endif
-                                        @if($isView && !empty($stackedItems[$itemIndex]['more_description']))
-                                            <div class="ms-0 text-muted" style="font-size: 0.85em; margin-top: 14px; margin-bottom: 14px;">
-                                                @foreach(explode("\n", $stackedItems[$itemIndex]['more_description']) as $line)
-                                                    @if(trim($line) !== '')
-                                                        <div>• {{ $line }}</div>
-                                                    @endif
-                                                @endforeach
-                                            </div>
-                                        @endif
                                         @if(!$isView)
                                             <div x-show="showDescription" class="mt-1 mb-1 p-1" style="background-color: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
                                                 <textarea wire:model.defer="stackedItems.{{ $itemIndex }}.more_description"
                                                     class="form-control form-control-sm" rows="1"
                                                     placeholder="Enter additional description"
+                                                    data-quotation-item-description="1"
+                                                    data-quotation-stacked-index="{{ $itemIndex }}"
                                                     style="font-size: 0.78em; resize: vertical; min-height: 28px; padding: 0.15rem 0.3rem; line-height: 1.15;"></textarea>
                                                 <div class="d-flex justify-content-between align-items-center mt-1">
                                                     <small class="text-muted" style="font-size: 0.7em;">
-                                                        Formula 1+N rows. Max 24 rows total.
+                                                        Formula 1+N rows. Max {{ $maxPrintRows }} rows total.
                                                     </small>
                                                     <button type="button"
                                                         wire:click="saveDescriptionAndValidate({{ $itemIndex }})"
@@ -254,15 +253,26 @@
                                         @endif
                                     </div>
                                 @endif
+                            @elseif($isContinuationRow)
+                                @if(in_array($continuation['kind'], ['detail', 'desc_line'], true))
+                                    <div class="ms-0 text-muted quotation-continuation-text" style="font-size: 0.85em; padding-left: 15px;">
+                                        • {{ $continuation['text'] }}
+                                    </div>
+                                @else
+                                    &nbsp;
+                                @endif
+                            @elseif($isContinuationRow)
+                                &nbsp;
                             @elseif(!$isView && $isEmptyRow)
                                 <div class="d-flex gap-2 align-items-center" style="position: relative; width: 100%;">
                                     <input type="text"
-                                        wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text"
+                                        wire:model.lazy="freeFormTextRows.{{ $emptyRowAnchor }}.text"
                                         class="form-control form-control-sm flex-grow-1"
                                         placeholder="Type anything here"
                                         style="font-size: 0.85em;"
                                         data-do-role="desc"
-                                        data-quotation-free-form-field="text">
+                                        data-quotation-free-form-field="text"
+                                        data-quotation-free-form-anchor="{{ $emptyRowAnchor }}">
                                     <button type="button"
                                         class="btn btn-sm btn-outline-primary"
                                         style="font-size: 0.7em; padding: 2px 6px; white-space: nowrap; flex-shrink: 0;"
@@ -321,13 +331,16 @@
                                     placeholder="0.00"
                                     data-do-role="price"
                                     style="width: 78px; font-size: 0.76em; text-align: right; margin-left: auto; display: block;">
+                            @elseif($isContinuationRow)
+                                &nbsp;
                             @elseif(!$isView && $isEmptyRow)
                                 <input type="text" inputmode="decimal"
-                                    wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.price"
+                                    wire:model.lazy="freeFormTextRows.{{ $emptyRowAnchor }}.price"
                                     class="form-control form-control-sm"
                                     placeholder="0.00"
                                     data-do-role="price"
                                     data-quotation-free-form-field="price"
+                                    data-quotation-free-form-anchor="{{ $emptyRowAnchor }}"
                                     style="width: 78px; font-size: 0.76em; text-align: right; margin-left: auto; display: block;">
                             @endif
                         </td>
@@ -336,6 +349,8 @@
                                 <span class="fw-bold do-amount-cell" style="font-size: 0.8em; color: #0d6efd; white-space: nowrap;">
                                     {{ number_format($stackedItems[$itemIndex]['amount'] ?? 0, 2) }}
                                 </span>
+                            @elseif($isContinuationRow)
+                                &nbsp;
                             @elseif(!$isView && $isEmptyRow && ($freeFormQty > 0 || $freeFormPrice > 0))
                                 <span class="fw-bold do-amount-cell" style="font-size: 0.8em; color: #0d6efd; white-space: nowrap;">
                                     {{ number_format($freeFormAmount, 2) }}
@@ -394,5 +409,14 @@
         line-height: 1.1;
         margin-bottom: 1px;
         white-space: nowrap;
+    }
+
+    .quotation-items-table-shell tr.quotation-continuation-row td {
+        background-color: #fafbfd;
+    }
+
+    .quotation-items-table-shell tr.quotation-continuation-row .quotation-continuation-text {
+        margin-top: 0;
+        margin-bottom: 0;
     }
 </style>

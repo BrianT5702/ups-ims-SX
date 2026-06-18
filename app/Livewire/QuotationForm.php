@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Models\CustomerSnapshot;
 use App\Rules\UniqueInCurrentDatabase;
 use App\Rules\ExistsInCurrentDatabase;
-use App\Services\QuotationNumberService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -53,6 +52,8 @@ class QuotationForm extends Component
 
     public array $lastValidDescriptions = [];
 
+    public string $lastValidRemark = '';
+
     public function mount(Quotation $quotation)
     {
         $this->isView = request()->routeIs('quotations.view');
@@ -66,10 +67,12 @@ class QuotationForm extends Component
             $this->salesman_id = $quotation->salesman_id;
             $this->date = $quotation->date;
             $this->remark = $quotation->remark;
+            $this->lastValidRemark = $quotation->remark ?? '';
             $this->status = $quotation->status;
             $this->total_amount = floatval($quotation->total_amount ?? 0);
 
             $this->stackedItems = [];
+            $this->freeFormTextRows = [];
             $fallbackRow = 0;
             foreach ($quotation->items()->orderByRaw('row_index IS NULL, row_index')->orderBy('id')->get() as $qItem) {
                 $rowIndex = $qItem->row_index;
@@ -80,8 +83,16 @@ class QuotationForm extends Component
                     $rowIndex = $fallbackRow;
                     $fallbackRow++;
                 }
+
+                if (empty($qItem->item_id)) {
+                    $this->hydrateQuotationFreeFormRowFromSaved($qItem, (int) $rowIndex);
+
+                    continue;
+                }
+
                 $this->stackedItems[] = $this->hydrateQuotationStackedItemFromSaved($qItem, (int) $rowIndex);
             }
+            $this->coalesceFreeFormTextRowsToAnchors();
             $this->pruneEmptyTextOnlyStackedItems();
             $this->seedQuotationLastValidDescriptions();
 
@@ -177,7 +188,7 @@ class QuotationForm extends Component
             }
         }
 
-        return false;
+        return isset($this->freeFormTextRows[$rowIndex]);
     }
 
     public function addItem($itemId, $rowIndex = null)
@@ -196,24 +207,41 @@ class QuotationForm extends Component
         $this->convertFreeFormTextToItems();
 
         if ($rowIndex === null) {
-            $rowIndex = $this->firstAvailableQuotationRowIndex();
-            if ($rowIndex === null) {
+            $displayRow = $this->firstAvailableQuotationRowIndex();
+            if ($displayRow === null) {
                 toastr()->error('Maximum of '.$this->getQuotationGridRowCount().' rows allowed per quotation.');
 
                 return;
             }
+        } else {
+            $displayRow = (int) $rowIndex;
         }
 
         [$rowToItemMap] = $this->buildQuotationRowMaps();
-        if (isset($rowToItemMap[$rowIndex])) {
+        if (isset($rowToItemMap[$displayRow]) || $this->isQuotationGridRowOccupied($displayRow) || $this->quotationRowHasPendingFreeForm($displayRow)) {
             toastr()->error('That row is already occupied. Choose an empty row.');
 
             return;
         }
 
-        $this->stackedItems[] = $this->makeQuotationStackedItemFromInventory($item, (int) $rowIndex);
+        $anchorRow = $this->quotationAnchorRowForDisplayRow($displayRow);
+        $this->stackedItems[] = $this->makeQuotationStackedItemFromInventory($item, $anchorRow);
         $this->recalculateTotals();
-        $this->dispatch('focus-qty-row', ['rowIndex' => (int) $rowIndex]);
+        $this->dispatch('focus-qty-row', ['rowIndex' => $displayRow]);
+    }
+
+    public function updatedRemark($value): void
+    {
+        $this->validateDescriptionLength();
+    }
+
+    public function validateDescriptionLength(): void
+    {
+        if ($this->isView) {
+            return;
+        }
+
+        $this->lastValidRemark = $this->remark ?? '';
     }
 
     public function removeItem($index)
@@ -386,10 +414,6 @@ class QuotationForm extends Component
             return;
         }
 
-        $this->convertFreeFormTextToItems();
-        $this->pruneEmptyTextOnlyStackedItems();
-        $this->normalizeQuotationDescriptions();
-
         if (! $this->hasQuotationGridContent()) {
             toastr()->error('At least one item is required to save the revision');
 
@@ -411,6 +435,10 @@ class QuotationForm extends Component
 
             return;
         }
+
+        $this->pruneEmptyTextOnlyStackedItems();
+        $this->normalizeQuotationDescriptions();
+        $this->seedQuotationLastValidDescriptions();
 
         try {
             $this->recalculateTotals();
@@ -464,10 +492,6 @@ class QuotationForm extends Component
             return false;
         }
 
-        $this->convertFreeFormTextToItems();
-        $this->pruneEmptyTextOnlyStackedItems();
-        $this->normalizeQuotationDescriptions();
-
         if (! $this->hasQuotationGridContent()) {
             toastr()->error('Please add at least one item or enter some text before saving.');
 
@@ -518,6 +542,10 @@ class QuotationForm extends Component
         if ($this->getErrorBag()->any()) {
             return false;
         }
+
+        $this->pruneEmptyTextOnlyStackedItems();
+        $this->normalizeQuotationDescriptions();
+        $this->seedQuotationLastValidDescriptions();
 
         $connection = session('active_db') ?: DB::getDefaultConnection();
 

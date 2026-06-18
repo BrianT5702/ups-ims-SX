@@ -125,159 +125,154 @@
                             <div class="col-lg-6">
                                 <div class="form-group mb-1">
                                     <label for="memo" class="form-label">Memo</label>
-                                    <textarea id="memo" wire:model.defer="memo" class="form-control form-control-sm rounded item-form-textarea" rows="2" placeholder="Memo / special handling" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
+                                    <textarea id="memo" wire:model.defer="memo" class="form-control form-control-sm rounded item-form-textarea" rows="4" placeholder="Memo / special handling" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
                                     @error('memo') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                             <div class="col-lg-6">
                                 <div class="form-group mb-1">
                                     <label for="details" class="form-label">Details</label>
-                                    <textarea id="details" wire:model.defer="details" class="form-control form-control-sm rounded item-form-textarea" rows="2" placeholder="Shown on DO" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
+                                    <textarea id="details" wire:model.defer="details" class="form-control form-control-sm rounded item-form-textarea" rows="4" placeholder="Shown on DO" style="font-family: inherit; font-size: inherit;" {{ $isView ? 'disabled' : '' }}></textarea>
                                     @error('details') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
                         @else
-                        <div class="item-form-section-title">Classification</div>
-                        <div class="row g-1 g-lg-2">
-                            <div class="col-lg-3 col-6">
-                                <div class="form-group mb-1">
-                                    <label for="category" class="form-label">Category</label>
-                                    <select wire:model.live="category" id="category" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="">— None —</option>
-                                        @foreach($categories as $category)
-                                            <option value="{{ $category->id }}">{{ $category->cat_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('category') <span class="text-danger">{{ $message }}</span> @enderror
+                        <div class="row g-2 item-form-groups-row">
+                            <div class="col-lg-3 col-md-6">
+                                <div class="item-form-group-panel h-100">
+                                    <div class="item-form-section-title item-form-section-title--panel">Inventory</div>
+                                    <div class="item-form-group-fields">
+                                        <div class="form-group mb-1">
+                                            <label for="qty" class="form-label">Stock</label>
+                                            <input type="number"
+                                                step="any"
+                                                wire:model.live="qty"
+                                                id="qty"
+                                                class="form-control form-control-sm rounded"
+                                                @disabled($isView || ! ($canEditQtyForUpsDervet ?? false))>
+                                            @error('qty') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div class="form-group mb-1">
+                                            <label for="um" class="form-label">Unit <span class="text-danger">*</span></label>
+                                            <input type="text" wire:model.live="um" id="um" class="form-control form-control-sm rounded" placeholder="e.g. PCS, BOX" {{ $isView ? 'disabled' : '' }}>
+                                            @error('um') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div class="form-group mb-1">
+                                            <label for="stock_alert_level" class="form-label">Min Stock</label>
+                                            <input type="number" wire:model.live="stock_alert_level" min="0" id="stock_alert_level" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                            @error('stock_alert_level') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-lg-3 col-6">
-                                <div class="form-group mb-1">
-                                    <label for="family" class="form-label">Family</label>
-                                    <select wire:model.live="family" id="family" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="">— None —</option>
-                                        @foreach($families as $family)
-                                            <option value="{{ $family->id }}">{{ $family->family_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('family') <span class="text-danger">{{ $message }}</span> @enderror
+
+                            <div class="col-lg-3 col-md-6">
+                                <div class="item-form-group-panel h-100">
+                                    <div class="item-form-section-title item-form-section-title--panel">Pricing</div>
+                                    <div class="item-form-group-fields">
+                                        <div class="form-group mb-1">
+                                            <label for="cash_price" class="form-label">Cash <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" wire:model.live="cash_price" min="0" id="cash_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                            @error('cash_price') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div class="form-group mb-1">
+                                            <label for="term_price" class="form-label">Term <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" wire:model.live="term_price" min="0" id="term_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                            @error('term_price') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div class="form-group mb-1">
+                                            <label for="cust_price" class="form-label">Customer <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" wire:model.live="cust_price" min="0" id="cust_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                            @error('cust_price') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div class="form-group mb-1">
+                                            <label for="cost" class="form-label">Cost <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" wire:model.live="cost" min="0" id="cost" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                            @error('cost') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-lg-3 col-6">
-                                <div class="form-group mb-1">
-                                    <label for="group" class="form-label">Group</label>
-                                    <select wire:model.live="group" id="group" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="">— None —</option>
-                                        @foreach($groups as $group)
-                                            <option value="{{ $group->id }}">{{ $group->group_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('group') <span class="text-danger">{{ $message }}</span> @enderror
+
+                            <div class="col-lg-3 col-md-6">
+                                <div class="item-form-group-panel h-100">
+                                    <div class="item-form-section-title item-form-section-title--panel">Classification</div>
+                                    <div class="item-form-group-fields">
+                                        <div class="form-group mb-1">
+                                            <label for="family" class="form-label">Family</label>
+                                            <select wire:model.live="family" id="family" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
+                                                <option value="">— None —</option>
+                                                @foreach($families as $family)
+                                                    <option value="{{ $family->id }}">{{ $family->family_name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('family') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div class="form-group mb-1">
+                                            <label for="group" class="form-label">Group</label>
+                                            <select wire:model.live="group" id="group" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
+                                                <option value="">— None —</option>
+                                                @foreach($groups as $group)
+                                                    <option value="{{ $group->id }}">{{ $group->group_name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('group') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div class="form-group mb-1">
+                                            <label for="category" class="form-label">Category</label>
+                                            <select wire:model.live="category" id="category" class="form-select form-select-sm" {{ $isView ? 'disabled' : '' }}>
+                                                <option value="">— None —</option>
+                                                @foreach($categories as $category)
+                                                    <option value="{{ $category->id }}">{{ $category->cat_name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('category') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-lg-3 col-6">
-                                <div class="form-group mb-1">
-                                    <label for="um" class="form-label">Unit <span class="text-danger">*</span></label>
-                                    <input type="text" wire:model.live="um" id="um" class="form-control form-control-sm rounded" placeholder="e.g. PCS, BOX" {{ $isView ? 'disabled' : '' }}>
-                                    @error('um') <span class="text-danger">{{ $message }}</span> @enderror
+
+                            <div class="col-lg-3 col-md-6">
+                                <div class="item-form-group-panel h-100">
+                                    <div class="item-form-section-title item-form-section-title--panel">Vendor &amp; Location</div>
+                                    <div class="item-form-group-fields">
+                                        <div class="form-group mb-1">
+                                            <label for="supplier" class="form-label">Supplier</label>
+                                            <select wire:model.live="supplier" id="supplier" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                                <option value="">— None —</option>
+                                                @foreach($suppliers as $supplier)
+                                                    <option value="{{ $supplier->id }}">{{ $supplier->sup_name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('supplier') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div class="form-group mb-1">
+                                            <label for="warehouse" class="form-label">Warehouse</label>
+                                            <select wire:model.live="warehouse" id="warehouse" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                                <option value="">— None —</option>
+                                                @foreach($warehouses as $wh)
+                                                    <option value="{{ $wh->id }}">{{ $wh->warehouse_name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('warehouse') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div class="form-group mb-1">
+                                            <label for="location" class="form-label">Location</label>
+                                            <select wire:model.live="location" id="location" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
+                                                <option value="">— None —</option>
+                                                @foreach($locations as $location)
+                                                    <option value="{{ $location->id }}">{{ $location->location_name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('location') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="item-form-section-title">Pricing</div>
-                        <div class="row g-1 g-lg-2">
-                            <div class="col-lg-3 col-6">
-                                <div class="form-group mb-1">
-                                    <label for="cost" class="form-label">Cost <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" wire:model.live="cost" min="0" id="cost" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                    @error('cost') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-6">
-                                <div class="form-group mb-1">
-                                    <label for="cash_price" class="form-label">Cash <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" wire:model.live="cash_price" min="0" id="cash_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                    @error('cash_price') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-6">
-                                <div class="form-group mb-1">
-                                    <label for="term_price" class="form-label">Term <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" wire:model.live="term_price" min="0" id="term_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                    @error('term_price') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-6">
-                                <div class="form-group mb-1">
-                                    <label for="cust_price" class="form-label">Cust. <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" wire:model.live="cust_price" min="0" id="cust_price" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                    @error('cust_price') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        @if($item && ($canEditQtyForUpsDervet ?? false))
-                        <div class="row g-1 g-lg-2">
-                            <div class="col-lg-3 col-md-6">
-                                <div class="form-group mb-1">
-                                    <label for="qty" class="form-label">Qty (direct)</label>
-                                    <input type="number" step="any" wire:model.live="qty" id="qty" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                    @error('qty') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                        </div>
-                        @endif
-
-                        <div class="item-form-section-title">Inventory</div>
-                        <div class="row g-1 g-lg-2">
-                            <div class="col-lg-3 col-md-6">
-                                <div class="form-group mb-1">
-                                    <label for="stock_alert_level" class="form-label">Stock alert</label>
-                                    <input type="number" wire:model.live="stock_alert_level" min="0" id="stock_alert_level" class="form-control form-control-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                    @error('stock_alert_level') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-md-6">
-                                <div class="form-group mb-1">
-                                    <label for="supplier" class="form-label">Supplier</label>
-                                    <select wire:model.live="supplier" id="supplier" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="">— None —</option>
-                                        @foreach($suppliers as $supplier)
-                                            <option value="{{ $supplier->id }}">{{ $supplier->sup_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('supplier') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-md-6">
-                                <div class="form-group mb-1">
-                                    <label for="warehouse" class="form-label">Warehouse</label>
-                                    <select wire:model.live="warehouse" id="warehouse" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="">— None —</option>
-                                        @foreach($warehouses as $wh)
-                                            <option value="{{ $wh->id }}">{{ $wh->warehouse_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('warehouse') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-md-6">
-                                <div class="form-group mb-1">
-                                    <label for="location" class="form-label">Location</label>
-                                    <select wire:model.live="location" id="location" class="form-select form-select-sm rounded" {{ $isView ? 'disabled' : '' }}>
-                                        <option value="">— None —</option>
-                                        @foreach($locations as $location)
-                                            <option value="{{ $location->id }}">{{ $location->location_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('location') <span class="text-danger">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="item-form-section-title">Notes</div>
-                        <div class="row g-1 g-lg-2">
+                        <div class="row g-1 g-lg-2 mt-1">
                             <div class="col-lg-6">
                                 <div class="form-group mb-1">
                                     <label for="memo" class="form-label">Memo</label>
@@ -315,10 +310,32 @@
                             <div class="col-lg-4 text-lg-end">
                                 @if($imagePreview || ($item && $item->image))
                                     <div class="d-inline-block position-relative item-form-image-thumb">
-                                        <img src="{{ $imagePreview }}" alt="Preview" class="rounded border">
+                                        <button type="button"
+                                            class="btn p-0 border-0 item-form-image-thumb-btn"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#item-image-preview-modal"
+                                            title="Click to enlarge">
+                                            <img src="{{ $imagePreview }}" alt="Preview" class="rounded border">
+                                        </button>
                                         @if(!$isView)
                                             <button type="button" wire:click="deleteImage" class="btn btn-danger btn-sm py-0 px-1 position-absolute top-0 end-0 m-1">×</button>
                                         @endif
+                                    </div>
+                                    <div class="modal fade" id="item-image-preview-modal" tabindex="-1" aria-labelledby="item-image-preview-modal-label" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered modal-xl">
+                                            <div class="modal-content item-form-image-modal-content border-0 bg-transparent">
+                                                <div class="modal-body p-2 p-md-3 text-center position-relative">
+                                                    <button type="button"
+                                                        class="btn-close item-form-image-modal-close"
+                                                        data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
+                                                    <img src="{{ $imagePreview }}"
+                                                        id="item-image-preview-modal-img"
+                                                        class="item-form-image-modal-img rounded shadow"
+                                                        alt="Item image enlarged">
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 @endif
                             </div>
@@ -471,6 +488,37 @@
             margin-bottom: 0.15rem;
         }
 
+        .item-form-page .item-form-groups-row {
+            margin-top: 0.15rem;
+        }
+
+        .item-form-page .item-form-group-panel {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #d8deea;
+            border-radius: 0.4rem;
+            background: #fafbfd;
+            padding: 0.45rem 0.55rem 0.55rem;
+        }
+
+        .item-form-page .item-form-section-title--panel {
+            border-top: none;
+            margin-top: 0;
+            padding-top: 0;
+            margin-bottom: 0.35rem;
+            color: #3d4d63;
+        }
+
+        .item-form-page .item-form-group-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .item-form-page .item-form-group-fields .form-group {
+            margin-bottom: 0 !important;
+        }
+
         .item-form-page .item-form-grid .form-label {
             font-size: 0.78rem;
             font-weight: 600;
@@ -487,7 +535,7 @@
         }
 
         .item-form-page .item-form-grid textarea.item-form-textarea {
-            min-height: 48px;
+            min-height: 100px;
             resize: vertical;
         }
 
@@ -497,6 +545,35 @@
             width: auto;
             height: auto;
             object-fit: cover;
+        }
+
+        .item-form-page .item-form-image-thumb-btn {
+            cursor: zoom-in;
+            line-height: 0;
+        }
+
+        .item-form-page .item-form-image-thumb-btn:hover img {
+            opacity: 0.92;
+        }
+
+        .item-form-page .item-form-image-modal-img {
+            max-width: 100%;
+            max-height: min(85vh, 900px);
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            background: #fff;
+        }
+
+        .item-form-page .item-form-image-modal-close {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            z-index: 2;
+            background-color: #fff;
+            border-radius: 50%;
+            padding: 0.55rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .item-form-page .item-form-batch-block .table {
@@ -642,6 +719,11 @@
                         }
                     }
 
+                    var modalImg = document.getElementById('item-image-preview-modal-img');
+                    if (modalImg && item.image_url) {
+                        modalImg.src = item.image_url;
+                    }
+
                     updateChrome(item);
                 }
 
@@ -758,4 +840,37 @@
         })();
     </script>
     @endif
+    <script>
+        (function () {
+            var imageModalListenerBound = false;
+
+            function syncItemImageModalSrc() {
+                var thumb = document.querySelector('.item-form-page .item-form-image-thumb img');
+                var modalImg = document.getElementById('item-image-preview-modal-img');
+                if (!thumb || !modalImg) return;
+                var src = thumb.getAttribute('src');
+                if (src) {
+                    modalImg.src = src;
+                }
+            }
+
+            function bindItemImagePreviewModal() {
+                if (imageModalListenerBound) return;
+                var page = document.querySelector('.item-form-page');
+                if (!page) return;
+                imageModalListenerBound = true;
+                page.addEventListener('show.bs.modal', function (e) {
+                    if (e.target && e.target.id === 'item-image-preview-modal') {
+                        syncItemImageModalSrc();
+                    }
+                });
+            }
+
+            document.addEventListener('livewire:init', bindItemImagePreviewModal);
+            document.addEventListener('livewire:navigated', bindItemImagePreviewModal);
+            if (document.readyState !== 'loading') {
+                bindItemImagePreviewModal();
+            }
+        })();
+    </script>
 </div>

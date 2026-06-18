@@ -283,6 +283,13 @@ class ItemForm extends Component
         $this->browsePosition = ($idx + 1) . ' of ' . $total;
     }
 
+    public static function forgetCachedMasterData(?string $connection = null): void
+    {
+        $db = strtolower((string) ($connection ?? session('active_db') ?? DB::getDefaultConnection()));
+        Cache::forget('item_form_master_data_' . $db);
+        Cache::forget('item_form_locations_by_wh_' . $db);
+    }
+
     private function loadFormMasterData(): void
     {
         $db = session('active_db', DB::getDefaultConnection());

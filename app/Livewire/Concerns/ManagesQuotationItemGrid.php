@@ -3,6 +3,7 @@
 namespace App\Livewire\Concerns;
 
 use App\Models\Item;
+use App\Support\QuotationPrintLayout;
 use App\Models\QuotationItem;
 use Livewire\Attributes\On;
 
@@ -45,26 +46,64 @@ trait ManagesQuotationItemGrid
         $this->addItem($itemId, $rowIndex);
     }
 
-    public function quotationRowHasPendingFreeForm(int $rowIndex): bool
+    public function quotationRowHasPendingFreeFormAtPreferred(int $preferredRow): bool
     {
-        if (! isset($this->freeFormTextRows[$rowIndex])) {
+        if (! isset($this->freeFormTextRows[$preferredRow])) {
             return false;
         }
 
-        $rowData = $this->freeFormTextRows[$rowIndex];
+        $rowData = $this->freeFormTextRows[$preferredRow];
         $text = is_array($rowData) ? ($rowData['text'] ?? '') : $rowData;
 
         return trim((string) $text) !== '';
     }
 
+    public function quotationFreeFormPreferredKeyAtDisplayRow(int $displayRow): ?int
+    {
+        $layout = $this->quotationPrintLayout();
+
+        foreach ($this->freeFormTextRows as $preferredRow => $rowData) {
+            $preferredRow = (int) $preferredRow;
+
+            if ($layout->resolvedRowForPreferred($preferredRow) !== $displayRow) {
+                continue;
+            }
+
+            if ($this->quotationRowHasPendingFreeFormAtPreferred($preferredRow)) {
+                return $preferredRow;
+            }
+        }
+
+        return null;
+    }
+
+    public function quotationRowHasPendingFreeForm(int $displayRow): bool
+    {
+        return $this->quotationFreeFormPreferredKeyAtDisplayRow($displayRow) !== null;
+    }
+
+    public function quotationAnchorRowForDisplayRow(int $displayRow): int
+    {
+        return $this->quotationPrintLayout()->anchorRowForDisplayRow($displayRow);
+    }
+
+    public function quotationDisplayRowForPreferred(int $preferredRow): int
+    {
+        return $this->quotationPrintLayout()->resolvedRowForPreferred($preferredRow);
+    }
+
     public function quotationRowShowsSequenceInput(int $rowIndex): bool
     {
-        [$rowToItemMap] = $this->buildQuotationRowMaps();
+        $layout = $this->quotationPrintLayout();
 
-        if (isset($rowToItemMap[$rowIndex])) {
-            $item = $this->stackedItems[$rowToItemMap[$rowIndex]] ?? null;
+        if (isset($layout->baseRowMap()[$rowIndex])) {
+            $item = $this->stackedItems[$layout->baseRowMap()[$rowIndex]] ?? null;
 
             return $item && $this->quotationStackedItemHasSequenceContent($item);
+        }
+
+        if ($layout->isOccupiedRow($rowIndex)) {
+            return false;
         }
 
         return $this->quotationRowHasPendingFreeForm($rowIndex);
@@ -80,11 +119,13 @@ trait ManagesQuotationItemGrid
             return ! empty($item['sequence_hidden']);
         }
 
-        if (! isset($this->freeFormTextRows[$rowIndex])) {
+        $preferredRow = $this->quotationFreeFormPreferredKeyAtDisplayRow($rowIndex);
+
+        if ($preferredRow === null) {
             return false;
         }
 
-        $rowData = $this->freeFormTextRows[$rowIndex];
+        $rowData = $this->freeFormTextRows[$preferredRow];
 
         return is_array($rowData) && ! empty($rowData['hide_sequence']);
     }
@@ -99,15 +140,17 @@ trait ManagesQuotationItemGrid
             return;
         }
 
-        if (! isset($this->freeFormTextRows[$rowIndex])) {
+        $preferredRow = $this->quotationFreeFormPreferredKeyAtDisplayRow($rowIndex);
+
+        if ($preferredRow === null) {
             return;
         }
 
-        if (! is_array($this->freeFormTextRows[$rowIndex])) {
-            $this->freeFormTextRows[$rowIndex] = ['text' => $this->freeFormTextRows[$rowIndex]];
+        if (! is_array($this->freeFormTextRows[$preferredRow])) {
+            $this->freeFormTextRows[$preferredRow] = ['text' => $this->freeFormTextRows[$preferredRow]];
         }
 
-        $this->freeFormTextRows[$rowIndex]['hide_sequence'] = $hidden;
+        $this->freeFormTextRows[$preferredRow]['hide_sequence'] = $hidden;
     }
 
     protected function textOnlyQtyForForm(mixed $qty): mixed
@@ -157,7 +200,27 @@ trait ManagesQuotationItemGrid
 
     public function getCurrentRowCount(): int
     {
-        return $this->estimateQuotationGridRows(false);
+        return $this->countOccupiedQuotationGridSlots();
+    }
+
+    public function getRemainingRowCount(): int
+    {
+        return max(0, self::QUOTATION_GRID_ROW_COUNT - $this->getCurrentRowCount());
+    }
+
+    public function getQuotationMaxPrintRows(): int
+    {
+        return $this->calculateQuotationMaxPrintRows();
+    }
+
+    public function quotationPrintLayout(): QuotationPrintLayout
+    {
+        return QuotationPrintLayout::fromStackedItems($this->stackedItems);
+    }
+
+    public function isQuotationGridRowOccupied(int $rowIndex): bool
+    {
+        return $this->quotationPrintLayout()->isOccupiedRow($rowIndex);
     }
 
     public function getQuotationRowToItemMap(): array
@@ -199,29 +262,12 @@ trait ManagesQuotationItemGrid
 
     protected function buildQuotationRowMaps(): array
     {
-        $rowToItemMap = [];
-        $regularItemIndex = 0;
-
-        foreach ($this->stackedItems as $idx => $item) {
-            if (isset($item['original_row_index']) && $item['original_row_index'] !== null) {
-                $originalRow = min(max(0, (int) $item['original_row_index']), self::QUOTATION_GRID_ROW_COUNT - 1);
-                if (! isset($rowToItemMap[$originalRow])) {
-                    $rowToItemMap[$originalRow] = $idx;
-
-                    continue;
-                }
-            }
-
-            while (isset($rowToItemMap[$regularItemIndex])) {
-                $regularItemIndex++;
-            }
-            $rowToItemMap[$regularItemIndex] = $idx;
-            $regularItemIndex++;
-        }
+        $layout = $this->quotationPrintLayout();
+        $rowToItemMap = $layout->baseRowMap();
 
         $itemToRowMap = [];
         foreach ($rowToItemMap as $rowIndex => $itemIndex) {
-            $itemToRowMap[$itemIndex] = (int) $rowIndex;
+            $itemToRowMap[(int) $itemIndex] = (int) $rowIndex;
         }
 
         return [$rowToItemMap, $itemToRowMap];
@@ -234,25 +280,114 @@ trait ManagesQuotationItemGrid
         }
 
         [, $itemToRowMap] = $this->buildQuotationRowMaps();
-        $currentRow = $itemToRowMap[$index] ?? null;
+        $layout = $this->quotationPrintLayout();
+        $currentAnchor = (int) ($this->stackedItems[$index]['original_row_index'] ?? ($itemToRowMap[$index] ?? 0));
+        $targetAnchor = $currentAnchor + $direction;
 
-        if ($currentRow === null) {
+        if ($targetAnchor < 0 || $targetAnchor >= self::QUOTATION_GRID_ROW_COUNT) {
             return;
         }
 
-        $targetRow = $currentRow + $direction;
-        if ($targetRow < 0 || $targetRow >= self::QUOTATION_GRID_ROW_COUNT) {
+        $targetDisplay = $layout->resolvedRowForPreferred($targetAnchor);
+
+        if ($targetDisplay < 0 || $targetDisplay >= self::QUOTATION_GRID_ROW_COUNT) {
             return;
         }
 
         [$rowToItemMap] = $this->buildQuotationRowMaps();
-        if (isset($rowToItemMap[$targetRow]) || $this->quotationRowHasPendingFreeForm($targetRow)) {
+        if (isset($rowToItemMap[$targetDisplay]) || $this->quotationRowHasPendingFreeForm($targetDisplay) || $layout->isOccupiedRow($targetDisplay)) {
             toastr()->warning('Target row is occupied. Move is only allowed into empty rows.');
 
             return;
         }
 
-        $this->stackedItems[$index]['original_row_index'] = $targetRow;
+        $this->stackedItems[$index]['original_row_index'] = $targetAnchor;
+    }
+
+    protected function coalesceFreeFormTextRowsToAnchors(): void
+    {
+        if ($this->freeFormTextRows === []) {
+            return;
+        }
+
+        $layout = $this->quotationPrintLayout();
+        $merged = [];
+
+        foreach ($this->freeFormTextRows as $key => $rowData) {
+            $key = (int) $key;
+
+            if (! is_array($rowData)) {
+                $rowData = ['text' => $rowData];
+            }
+
+            $anchor = $layout->anchorRowForDisplayRow($layout->resolvedRowForPreferred($key));
+
+            if (! isset($merged[$anchor])) {
+                $merged[$anchor] = $rowData;
+
+                continue;
+            }
+
+            foreach (['text', 'qty', 'um', 'price'] as $field) {
+                $existing = trim((string) ($merged[$anchor][$field] ?? ''));
+                $incoming = trim((string) ($rowData[$field] ?? ''));
+
+                if ($existing === '' && $incoming !== '') {
+                    $merged[$anchor][$field] = $rowData[$field];
+                }
+            }
+        }
+
+        $this->freeFormTextRows = $merged;
+    }
+
+    protected function hydrateQuotationFreeFormRowFromSaved($qItem, int $rowIndex): void
+    {
+        $name = trim((string) ($qItem->custom_item_name ?? ''));
+
+        if ($name === '') {
+            return;
+        }
+
+        $this->freeFormTextRows[$rowIndex] = [
+            'text' => $name,
+            'qty' => $this->textOnlyQtyForForm($qItem->qty),
+            'um' => $qItem->custom_um ?? '',
+            'price' => $qItem->unit_price ?? 0,
+            'hide_sequence' => (bool) ($qItem->sequence_hidden ?? false),
+        ];
+    }
+
+    protected function persistQuotationFreeFormRows(int $quotationId): void
+    {
+        $this->coalesceFreeFormTextRowsToAnchors();
+
+        foreach ($this->freeFormTextRows as $anchorRow => $rowData) {
+            $text = is_array($rowData) ? ($rowData['text'] ?? '') : $rowData;
+            $text = trim((string) $text);
+
+            if ($text === '') {
+                continue;
+            }
+
+            $qty = is_array($rowData) ? (float) ($rowData['qty'] ?? 0) : 0;
+            $price = is_array($rowData) ? (float) ($rowData['price'] ?? 0) : 0;
+            $um = is_array($rowData) ? trim((string) ($rowData['um'] ?? '')) : '';
+
+            QuotationItem::create([
+                'quotation_id' => $quotationId,
+                'item_id' => null,
+                'row_index' => (int) $anchorRow,
+                'sequence_hidden' => is_array($rowData) && ! empty($rowData['hide_sequence']),
+                'custom_item_name' => $text,
+                'custom_um' => $um !== '' ? $um : null,
+                'qty' => $qty,
+                'unit_price' => $price,
+                'pricing_tier' => null,
+                'more_description' => null,
+                'amount' => $qty * $price,
+            ]);
+        }
     }
 
     protected function convertFreeFormTextToItems(): void
@@ -342,40 +477,52 @@ trait ManagesQuotationItemGrid
     {
         [$rowToItemMap] = $this->buildQuotationRowMaps();
         $occupied = array_fill_keys(array_keys($rowToItemMap), true);
+        $layout = $this->quotationPrintLayout();
 
-        foreach ($this->freeFormTextRows as $rowIndex => $rowData) {
-            $rowIndex = (int) $rowIndex;
-            if (isset($occupied[$rowIndex])) {
+        foreach ($this->freeFormTextRows as $preferredRow => $rowData) {
+            $preferredRow = (int) $preferredRow;
+            $displayRow = $layout->resolvedRowForPreferred($preferredRow);
+
+            if (isset($occupied[$displayRow])) {
                 continue;
             }
-            if ($this->quotationRowHasPendingFreeForm($rowIndex)) {
-                $occupied[$rowIndex] = true;
+
+            if ($this->quotationRowHasPendingFreeFormAtPreferred($preferredRow)) {
+                $occupied[$displayRow] = true;
             }
         }
 
         return count($occupied);
     }
 
-    public function countQuotationPrintLines(): int
+    public function countQuotationGridLines(): int
     {
         [$rowToItemMap] = $this->buildQuotationRowMaps();
+        $layout = $this->quotationPrintLayout();
         $maxRow = -1;
 
         foreach (array_keys($rowToItemMap) as $rowIndex) {
             $maxRow = max($maxRow, (int) $rowIndex);
         }
 
-        foreach ($this->freeFormTextRows as $rowIndex => $rowData) {
-            $rowIndex = (int) $rowIndex;
-            if ($this->quotationRowHasPendingFreeForm($rowIndex)) {
-                $maxRow = max($maxRow, $rowIndex);
+        foreach ($this->freeFormTextRows as $preferredRow => $rowData) {
+            $preferredRow = (int) $preferredRow;
+
+            if ($this->quotationRowHasPendingFreeFormAtPreferred($preferredRow)) {
+                $maxRow = max($maxRow, $layout->resolvedRowForPreferred($preferredRow));
             }
         }
 
-        // Match quotations/preview.blade.php: rows 1..N through the last used line (gaps count).
         $lines = $maxRow >= 0 ? $maxRow + 1 : 0;
 
         return min($lines, self::QUOTATION_GRID_ROW_COUNT);
+    }
+
+    public function countQuotationPrintLines(): int
+    {
+        $layout = $this->quotationPrintLayout();
+
+        return max($this->countQuotationGridLines(), $layout->maxUsedRowIndex() + 1);
     }
 
     protected function quotationStackedItemHasSequenceContent(array $item): bool
@@ -396,20 +543,22 @@ trait ManagesQuotationItemGrid
      */
     public function getQuotationRowToItemSequenceMap(): array
     {
-        [$rowToItemMap] = $this->buildQuotationRowMaps();
+        $layout = $this->quotationPrintLayout();
         $occupiedRows = [];
 
-        foreach ($rowToItemMap as $rowIndex => $itemIndex) {
+        foreach ($layout->baseRowMap() as $rowIndex => $itemIndex) {
             $item = $this->stackedItems[$itemIndex] ?? null;
-            if ($item && $this->quotationStackedItemHasSequenceContent($item) && ! $this->isQuotationRowSequenceHidden((int) $rowIndex)) {
+            if ($item && $this->quotationStackedItemHasSequenceContent($item) && empty($item['sequence_hidden'])) {
                 $occupiedRows[] = (int) $rowIndex;
             }
         }
 
         foreach ($this->freeFormTextRows as $rowIndex => $rowData) {
-            $rowIndex = (int) $rowIndex;
-            if (! isset($rowToItemMap[$rowIndex]) && $this->quotationRowHasPendingFreeForm($rowIndex) && ! $this->isQuotationRowSequenceHidden($rowIndex)) {
-                $occupiedRows[] = $rowIndex;
+            $preferredRow = (int) $rowIndex;
+            $displayRow = $layout->resolvedRowForPreferred($preferredRow);
+
+            if (! $layout->isOccupiedRow($displayRow) && $this->quotationRowHasPendingFreeFormAtPreferred($preferredRow) && ! $this->isQuotationRowSequenceHidden($displayRow)) {
+                $occupiedRows[] = $displayRow;
             }
         }
 
@@ -470,6 +619,7 @@ trait ManagesQuotationItemGrid
         }
 
         [$rowToItemMap] = $this->buildQuotationRowMaps();
+        $layout = $this->quotationPrintLayout();
         $rowSlots = array_keys($sequenceMap);
         sort($rowSlots, SORT_NUMERIC);
 
@@ -483,11 +633,12 @@ trait ManagesQuotationItemGrid
                     'payload' => null,
                 ];
             } else {
+                $preferredKey = $this->quotationFreeFormPreferredKeyAtDisplayRow($row);
                 $entries[] = [
                     'type' => 'freeform',
                     'itemIndex' => null,
                     'row' => $row,
-                    'payload' => $this->freeFormTextRows[$row] ?? null,
+                    'payload' => $preferredKey !== null ? ($this->freeFormTextRows[$preferredKey] ?? null) : null,
                 ];
             }
         }
@@ -509,16 +660,23 @@ trait ManagesQuotationItemGrid
         $newSequence = min($newSequence, count($entries) + 1);
         array_splice($entries, $newSequence - 1, 0, [$moving]);
 
-        foreach ($rowSlots as $row) {
-            unset($this->freeFormTextRows[$row]);
+        foreach ($entries as $entry) {
+            if ($entry['type'] !== 'freeform') {
+                continue;
+            }
+
+            $preferredKey = $this->quotationFreeFormPreferredKeyAtDisplayRow($entry['row']);
+            if ($preferredKey !== null) {
+                unset($this->freeFormTextRows[$preferredKey]);
+            }
         }
 
-        foreach ($rowSlots as $i => $targetRow) {
+        foreach ($rowSlots as $i => $targetDisplayRow) {
             $entry = $entries[$i];
             if ($entry['type'] === 'stacked') {
-                $this->stackedItems[$entry['itemIndex']]['original_row_index'] = $targetRow;
+                $this->stackedItems[$entry['itemIndex']]['original_row_index'] = $layout->anchorRowForDisplayRow($targetDisplayRow);
             } elseif ($entry['payload'] !== null) {
-                $this->freeFormTextRows[$targetRow] = $entry['payload'];
+                $this->freeFormTextRows[$layout->anchorRowForDisplayRow($targetDisplayRow)] = $entry['payload'];
             }
         }
     }
@@ -543,7 +701,10 @@ trait ManagesQuotationItemGrid
             return;
         }
 
-        unset($this->freeFormTextRows[$rowIndex]);
+        $preferredKey = $this->quotationFreeFormPreferredKeyAtDisplayRow($rowIndex);
+        if ($preferredKey !== null) {
+            unset($this->freeFormTextRows[$preferredKey]);
+        }
     }
 
     public function estimateQuotationPrintPageCount(?int $lineCount = null): int
@@ -590,20 +751,21 @@ trait ManagesQuotationItemGrid
      */
     public function getQuotationPrintPageStatus(): array
     {
-        $lines = $this->countQuotationPrintLines();
+        $layout = $this->quotationPrintLayout();
+        $gridLines = max($this->countQuotationGridLines(), $layout->maxUsedRowIndex() + 1);
 
         return [
-            'lines' => $lines,
-            'pages' => $this->estimateQuotationPrintPageCount($lines),
+            'lines' => $gridLines,
+            'pages' => $this->estimateQuotationPrintPageCount($gridLines),
         ];
     }
 
     protected function firstAvailableQuotationRowIndex(): ?int
     {
-        [$rowToItemMap] = $this->buildQuotationRowMaps();
+        $layout = $this->quotationPrintLayout();
 
         for ($rowIndex = 0; $rowIndex < self::QUOTATION_GRID_ROW_COUNT; $rowIndex++) {
-            if (! isset($rowToItemMap[$rowIndex]) && ! $this->quotationRowHasPendingFreeForm($rowIndex)) {
+            if (! $layout->isOccupiedRow($rowIndex) && ! $this->quotationRowHasPendingFreeForm($rowIndex)) {
                 return $rowIndex;
             }
         }
@@ -710,13 +872,12 @@ trait ManagesQuotationItemGrid
 
     protected function persistQuotationStackedItems(int $quotationId): void
     {
-        $itemToRowMap = $this->buildQuotationItemToRowMap();
-
         QuotationItem::where('quotation_id', $quotationId)->delete();
 
         foreach ($this->stackedItems as $idx => $item) {
             $isTextOnly = ! empty($item['is_text_only']) || empty($item['item']['id']);
-            $rowIndex = $itemToRowMap[$idx] ?? ($item['original_row_index'] ?? null);
+            // Persist anchor rows — the layout engine derives pushed display rows from these.
+            $rowIndex = (int) ($item['original_row_index'] ?? 0);
 
             if ($isTextOnly) {
                 $name = trim((string) ($item['custom_item_name'] ?? ''));
@@ -763,6 +924,8 @@ trait ManagesQuotationItemGrid
                 'amount' => floatval($item['item_qty'] ?? 0) * floatval($item['item_unit_price'] ?? 0),
             ]);
         }
+
+        $this->persistQuotationFreeFormRows($quotationId);
     }
 
     protected function seedQuotationLastValidDescriptions(): void
@@ -786,60 +949,9 @@ trait ManagesQuotationItemGrid
         }
     }
 
-    protected function quotationDescriptionCharsPerRow(): int
+    public function calculateQuotationMaxPrintRows(): int
     {
-        return max(1, (int) config('do.description_chars_per_row', 80));
-    }
-
-    protected function wrappedQuotationDescriptionLineCount(string $line): int
-    {
-        return max(1, (int) ceil(strlen($line) / $this->quotationDescriptionCharsPerRow()));
-    }
-
-    /**
-     * Estimate print rows for page-limit checks (matches DO estimateTotalRows).
-     */
-    protected function estimateQuotationPrintRows(bool $includeNewItem = false): int
-    {
-        $totalRows = 0;
-
-        foreach ($this->stackedItems as $stackedItem) {
-            if (! empty($stackedItem['is_text_only'])) {
-                $totalRows += 1;
-
-                continue;
-            }
-
-            $totalRows += 1;
-
-            $desc = $stackedItem['more_description'] ?? '';
-            if (! empty($desc)) {
-                $lines = explode("\n", $desc);
-                $totalDescRows = 0;
-                foreach ($lines as $line) {
-                    $totalDescRows += $this->wrappedQuotationDescriptionLineCount($line);
-                }
-                $totalRows += 1 + $totalDescRows;
-            }
-        }
-
-        if ($includeNewItem) {
-            $totalRows += 1;
-        }
-
-        $remark = (string) ($this->remark ?? '');
-        if (trim($remark) !== '') {
-            $remarkLines = preg_split('/\r\n|\r|\n/', trim($remark));
-            $lineCount = max(1, count(array_filter($remarkLines, fn ($line) => trim((string) $line) !== '')));
-            $totalRows += 2 + $lineCount;
-        }
-
-        return $totalRows;
-    }
-
-    protected function calculateQuotationMaxPrintRows(): int
-    {
-        return 24;
+        return QuotationPrintLayout::GRID_ROW_COUNT;
     }
 
     public function validateDescriptionRowsOnShow(int $index): void
@@ -855,31 +967,7 @@ trait ManagesQuotationItemGrid
             return;
         }
 
-        $maxRows = $this->calculateQuotationMaxPrintRows();
         $currentDesc = $this->stackedItems[$index]['more_description'] ?? '';
-        $lastValidDesc = $this->lastValidDescriptions[$index] ?? '';
-
-        $this->stackedItems[$index]['more_description'] = $lastValidDesc;
-        $rowsWithoutNewDesc = $this->estimateQuotationPrintRows(false);
-
-        $descLines = 0;
-        if (! empty($currentDesc)) {
-            $lines = explode("\n", $currentDesc);
-            foreach ($lines as $line) {
-                $descLines += $this->wrappedQuotationDescriptionLineCount($line);
-            }
-        }
-
-        $this->stackedItems[$index]['more_description'] = $currentDesc;
-        $estimatedRows = $this->estimateQuotationPrintRows(false);
-
-        if ($estimatedRows > $maxRows) {
-            $this->stackedItems[$index]['more_description'] = $lastValidDesc;
-            toastr()->error('⚠️ Description exceeds page limit! Description has '.$descLines.' line(s) = '.$descLines.' rows. Total would be: '.$estimatedRows.' rows (max: '.$maxRows.'). Please remove items or shorten descriptions.');
-            $this->dispatch('show-limit-error', ['message' => 'Description: '.$descLines.' rows. Total: '.$estimatedRows.'/'.$maxRows.' rows.']);
-
-            return;
-        }
 
         if ($currentDesc !== null && trim($currentDesc) === '') {
             $currentDesc = null;
@@ -887,12 +975,5 @@ trait ManagesQuotationItemGrid
         }
 
         $this->lastValidDescriptions[$index] = $currentDesc;
-        $remainingRows = $maxRows - $estimatedRows;
-
-        if ($currentDesc === null || trim((string) $currentDesc) === '') {
-            toastr()->success('Description removed. Total: '.$estimatedRows.'/'.$maxRows.' rows (remaining: '.$remainingRows.' rows).');
-        } else {
-            toastr()->success('Description saved: '.$descLines.' line(s) = '.$descLines.' rows. Total: '.$estimatedRows.'/'.$maxRows.' rows (remaining: '.$remainingRows.' rows).');
-        }
     }
 }

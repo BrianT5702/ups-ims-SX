@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Quotation Preview</title>
+    @include('partials.preview-document-header-styles')
     <style>
         /* Force consistent rendering across all browsers and settings */
         html {
@@ -36,40 +37,14 @@
             -moz-osx-font-smoothing: grayscale;
         }
         .container { max-width: 1000px; margin: 20px auto; border: 1px solid #000; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); background-color: #fff; min-height: 100vh; position: relative; display: flex; flex-direction: column; }
-        .content { padding: 24px 20px 20px; flex: 1; position: relative; display: flex; flex-direction: column; }
         .table-area { position: relative; display: flex; flex-direction: column; }
         .print-page .table-area { flex: 0 0 auto; }
-        .company-info { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 6px; }
-        .company-info-left { display: flex; align-items: flex-start; gap: 12px; text-align: left; width: 70%; }
-        .company-logo-wrap { flex-shrink: 0; max-height: 75px; line-height: 0; }
-        .company-logo-wrap img { max-height: 75px; width: auto; object-fit: contain; display: block; }
-        .company-info-left h2 { font-size: calc(1.1em + 1px); margin-bottom: 8px; line-height: 1.2; white-space: nowrap; }
-        .company-info-right { text-align: right; margin-top: 0; width: 28%; min-width: 300px; flex-shrink: 0; color: #000; }
-        .company-info-right h2 { margin-bottom: 6px; white-space: nowrap; font-weight: 700; font-size: calc(1.0em + 1px); text-transform: uppercase; color: #000; }
-        .company-info h2 { margin-bottom: 6px; color: #000; font-weight: bold; font-size: calc(1.1em + 1px); white-space: nowrap; text-transform: uppercase; }
-        .company-info p { margin: 0; font-size: calc(0.78em + 1px); }
-        .company-info-right p { color: #000; margin: 2px 0; font-size: calc(0.8em + 1px); white-space: nowrap; }
-        .company-info-right strong { text-transform: uppercase; font-weight: bold; }
-        .customer-info { display: flex; justify-content: space-between; margin-bottom: 0; }
-        .customer-info-frame {
-            border: 1px solid #000;
-            padding: 4px;
-            padding-left: 30px;
-            width: 100%;
-            font-size: 0.9em;
-            height: 110px;
-            overflow: hidden;
-            line-height: 1.1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .customer-info-frame p { margin: 0; }
-        .customer-info-frame p:first-child { text-indent: -26px; }
         .items-table { width: 100%; border-collapse: collapse; margin-bottom: 0; padding-bottom: 0; table-layout: fixed; font-size: 0.9em; position: relative; }
         .items-table th { padding: 4px 8px; text-align: left; border-bottom: 1px solid #000; border-top: 1px solid #000; font-weight: bold; text-transform: uppercase; font-size: 0.75em; line-height: 1.3; vertical-align: middle; }
         .items-table td { padding: 3.7px 8px; text-align: left; vertical-align: top; border-bottom: none; font-size: 1.06em; line-height: 1.15; word-wrap: break-word; word-break: break-word; }
         .items-table td .item-detail-lines { padding-left: 0 !important; margin-top: 5px; font-size: 1em; color: #000; }
+        .items-table td .quotation-more-description { padding-left: 15px; font-size: 1.0em; color: #000; margin-top: 0; margin-bottom: 0; }
+        .items-table tr.quotation-continuation-row td { line-height: 1.15; }
         .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 5%; text-align: center; }
         .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 60%; }
         .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 8%; text-align: right; white-space: nowrap; }
@@ -152,6 +127,7 @@
             line-height: 1.2;
             width: 100%;
             flex: 0 0 auto;
+            position: relative;
         }
         .signature-section p, .signature-section strong { text-transform: uppercase; margin: 0; padding: 0; line-height: 1.2; }
         .signature-left, .signature-right {
@@ -185,6 +161,28 @@
         }
         .signature-line { border-bottom: 1px solid #000 !important; margin-top: 0 !important; margin-bottom: 4px !important; }
         .signature-label { font-size: 0.9em !important; color: #000 !important; text-transform: uppercase; font-weight: bold !important; text-align: center !important; line-height: 1.2; }
+        .signature-label-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            width: 100%;
+            gap: 8px;
+        }
+        .signature-label-row .signature-label {
+            flex: 1 1 auto;
+            text-align: center !important;
+        }
+        .print-page-number {
+            flex: 0 0 auto;
+            font-size: 0.7em;
+            font-family: Tahoma, Arial, sans-serif;
+            color: #000;
+            line-height: 1.2;
+            text-transform: none;
+            font-weight: normal;
+            white-space: nowrap;
+            pointer-events: none;
+        }
         .button-container { text-align: right; padding: 20px; position: relative; }
         .preview-actions {
             position: fixed;
@@ -257,9 +255,6 @@
                 line-height: 1.45 !important;
             }
             
-            .company-info h2, .company-info-right h2 { white-space: nowrap !important; font-size: 1.2em !important; color: #000 !important; }
-            .company-info-right p { white-space: nowrap !important; overflow: visible !important; text-overflow: clip !important; color: #000 !important; }
-            .company-info-right { min-width: 250px !important; width: auto !important; flex-shrink: 0 !important; }
             .preview-actions { display: none !important; }
             html, body {
                 height: auto;
@@ -303,8 +298,6 @@
                 margin: 0 !important;
                 padding: 20px 20px 4px 20px !important;
                 box-sizing: border-box !important;
-                height: calc(11in - 0.75cm - 0.15cm) !important;
-                max-height: calc(11in - 0.75cm - 0.15cm) !important;
                 min-height: calc(11in - 0.75cm - 0.15cm) !important;
                 overflow: hidden !important;
             }
@@ -500,65 +493,33 @@
             page-break-after: auto;
         }
 
-        /* Page number indicator on each page */
-        .print-page::after {
-            content: 'Page ' attr(data-page-number) ' of ' attr(data-total-pages);
-            position: absolute;
-            bottom: 0.15cm;
-            right: 0.75cm;
-            font-size: 0.7em;
-            font-family: Tahoma, Arial, sans-serif;
-            color: #000;
-        }
-
         @media print {
-            .print-page::after {
-                display: block;
-                bottom: 0.12cm !important;
-                right: 0.5cm !important;
+            .print-page--last {
+                page-break-after: auto;
             }
-        }
 
-        .print-page--first {
-            margin-top: 20px;
-        }
-
-        @media print {
-            /* Remove top margin from first page in print to prevent blank page */
-            .print-page--first {
-                margin-top: 0 !important;
-                page-break-before: auto !important;
-            }
-            
-            /* Ensure first page doesn't have unnecessary page break */
-            .pages-container > .print-page:first-child {
-                page-break-before: auto !important;
-                margin-top: 0 !important;
-            }
-            
-            /* Ensure signature stays with content on the same page */
             .print-page-footer {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
                 orphans: 3;
                 widows: 3;
             }
-            
+
             .print-page-footer .signature-section {
                 page-break-before: avoid !important;
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
-            
-            /* Ensure last page content stays together with signature */
+
+            .print-page-number {
+                display: block !important;
+                visibility: visible !important;
+            }
+
             .print-page--last .print-page-body {
                 page-break-after: avoid !important;
             }
-        }
-
-        .print-page--last {
-            page-break-after: auto;
         }
 
         .print-page-body {
@@ -632,11 +593,11 @@
                         </div>
                         <div class="company-info-right">
                             <h2>Quotation</h2>
-                            <p class="gap"><strong>Quotation No:</strong> <strong>{{ $quotation->quotation_num }}</strong></p>
-                            <p class="gap"><strong>Date:</strong> {{ \Carbon\Carbon::parse($quotation->date)->format('d/m/Y') }}</p>
-                            <p class="gap"><strong>Reference No:</strong> {{ $quotation->ref_num ?? '-' }}</p>
-                            <p class="gap"><strong>Terms:</strong> {{ $quotation->customerSnapshot->term ?? $quotation->customer->term ?? 'N/A' }}</p>
-                            <p class="gap"><strong>Salesman:</strong> {{ strtoupper($quotation->salesman->username ?? 'N/A') }}</p>
+                            <p><strong>Quotation No:</strong> <strong>{{ $quotation->quotation_num }}</strong></p>
+                            <p><strong>Date:</strong> {{ \Carbon\Carbon::parse($quotation->date)->format('d/m/Y') }}</p>
+                            <p><strong>Reference No:</strong> {{ $quotation->ref_num ?? '-' }}</p>
+                            <p><strong>Terms:</strong> {{ $quotation->customerSnapshot->term ?? $quotation->customer->term ?? 'N/A' }}</p>
+                            <p><strong>Salesman:</strong> {{ strtoupper($quotation->salesman->username ?? 'N/A') }}</p>
                         </div>
                     </div>
 
@@ -678,32 +639,20 @@
                         </thead>
                         <tbody>
                             @php
-                                $rowToItemMap = [];
-                                $itemsWithoutRowIndex = [];
-                                foreach ($quotation->items as $item) {
-                                    if ($item->row_index !== null && $item->row_index >= 0) {
-                                        $rowToItemMap[$item->row_index] = $item;
-                                    } else {
-                                        $itemsWithoutRowIndex[] = $item;
-                                    }
-                                }
-                                $nextAvailableRow = 0;
-                                foreach ($itemsWithoutRowIndex as $item) {
-                                    while (isset($rowToItemMap[$nextAvailableRow])) {
-                                        $nextAvailableRow++;
-                                    }
-                                    $rowToItemMap[$nextAvailableRow] = $item;
-                                    $nextAvailableRow++;
-                                }
+                                use App\Support\QuotationPrintLayout;
 
-                                $maxItemRowIndex = !empty($rowToItemMap) ? max(array_keys($rowToItemMap)) : -1;
-                                // Print only through the last used row — do not pad to 24 empty lines like the edit form.
-                                $rowsToShow = $maxItemRowIndex >= 0 ? ($maxItemRowIndex + 1) : 0;
+                                $printLayout = QuotationPrintLayout::fromQuotationItems($quotation->items);
+                                $layoutBaseRows = $printLayout->baseRowMap();
+                                $itemsById = $quotation->items->keyBy('id');
+                                $rowsToShow = $printLayout->previewRowsToShow();
 
-                                // Match form # column: sequential 1, 2, 3… for rows with content (not grid line numbers).
                                 $rowSequenceMap = [];
                                 $occupiedRows = [];
-                                foreach ($rowToItemMap as $rowIndex => $seqItem) {
+                                foreach ($layoutBaseRows as $rowIndex => $itemId) {
+                                    $seqItem = $itemsById->get($itemId);
+                                    if (! $seqItem) {
+                                        continue;
+                                    }
                                     $hasSequenceContent = $seqItem->item_id !== null
                                         || trim((string) ($seqItem->custom_item_name ?? '')) !== '';
                                     $sequenceHidden = (bool) ($seqItem->sequence_hidden ?? false);
@@ -717,8 +666,13 @@
                                 }
                             @endphp
                             @for($rowIndex = 0; $rowIndex < $rowsToShow; $rowIndex++)
-                                @php $item = $rowToItemMap[$rowIndex] ?? null; @endphp
-                                <tr>
+                                @php
+                                    $continuation = $printLayout->continuationAt($rowIndex);
+                                    $itemId = $layoutBaseRows[$rowIndex] ?? null;
+                                    $item = $itemId ? $itemsById->get($itemId) : null;
+                                    $isContinuationRow = $continuation !== null;
+                                @endphp
+                                <tr class="{{ $isContinuationRow ? 'quotation-continuation-row' : '' }}">
                                     @if($item)
                                         <td>
                                             @if(isset($rowSequenceMap[$rowIndex]))
@@ -727,27 +681,7 @@
                                                 &nbsp;
                                             @endif
                                         </td>
-                                        <td>
-                                            {{ $item->custom_item_name ?? ($item->item->item_name ?? 'N/A') }}
-                                            @if($item->item_id && !empty($item->item->details))
-                                                <div class="item-detail-lines">
-                                                    @foreach(explode("\n", $item->item->details) as $line)
-                                                        @if(trim($line) !== '')
-                                                            <div>• {{ $line }}</div>
-                                                        @endif
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                            @if(!empty($item->more_description))
-                                                <div class="item-detail-lines">
-                                                    @foreach(explode("\n", $item->more_description) as $line)
-                                                        @if(trim($line) !== '')
-                                                            <div>• {{ $line }}</div>
-                                                        @endif
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </td>
+                                        <td>{{ $item->custom_item_name ?? ($item->item->item_name ?? 'N/A') }}</td>
                                         <td>
                                             @if($item->item_id === null)
                                                 @if($item->qty > 0)
@@ -771,6 +705,20 @@
                                         </td>
                                         <td>{{ ($item->unit_price ?? 0) > 0 ? number_format($item->unit_price, 2) : '' }}</td>
                                         <td>{{ ($item->amount ?? 0) > 0 ? number_format($item->amount, 2) : '' }}</td>
+                                    @elseif($isContinuationRow)
+                                        <td>&nbsp;</td>
+                                        <td>
+                                            @if(in_array($continuation['kind'], ['detail', 'desc_line'], true))
+                                                <div class="quotation-more-description" style="margin-top: 0; padding-left: 15px;">
+                                                    • {{ $continuation['text'] }}
+                                                </div>
+                                            @else
+                                                &nbsp;
+                                            @endif
+                                        </td>
+                                        <td>&nbsp;</td>
+                                        <td>&nbsp;</td>
+                                        <td>&nbsp;</td>
                                     @else
                                         <td>&nbsp;</td>
                                         <td>&nbsp;</td>
@@ -1155,6 +1103,42 @@
                 }).join('<br>');
             }
 
+            function ensurePageNumberElement(signatureSection) {
+                if (!signatureSection) {
+                    return null;
+                }
+
+                var existing = signatureSection.querySelector('.print-page-number');
+                var signatureLabel = signatureSection.querySelector('.signature-right .signature-label');
+                var labelRow = signatureSection.querySelector('.signature-label-row');
+
+                if (existing && labelRow && labelRow.contains(existing)) {
+                    return existing;
+                }
+
+                if (!existing) {
+                    existing = document.createElement('div');
+                    existing.className = 'print-page-number';
+                    existing.setAttribute('aria-hidden', 'true');
+                }
+
+                if (signatureLabel && signatureLabel.parentNode) {
+                    if (!labelRow) {
+                        labelRow = document.createElement('div');
+                        labelRow.className = 'signature-label-row';
+                        signatureLabel.parentNode.insertBefore(labelRow, signatureLabel);
+                        labelRow.appendChild(signatureLabel);
+                    }
+                    labelRow.appendChild(existing);
+
+                    return existing;
+                }
+
+                signatureSection.appendChild(existing);
+
+                return existing;
+            }
+
             function appendSignatureFooter(page, signatureTemplate) {
                 if (!page || !signatureTemplate) {
                     return;
@@ -1166,6 +1150,8 @@
                     page.appendChild(bottom);
                 }
                 if (bottom.querySelector('.print-page-footer')) {
+                    ensurePageNumberElement(bottom.querySelector('.signature-section'));
+
                     return;
                 }
                 var footerWrapper = document.createElement('div');
@@ -1173,8 +1159,27 @@
                 var signature = signatureTemplate.cloneNode(true);
                 signature.style.display = '';
                 removeIds(signature);
+                ensurePageNumberElement(signature);
                 footerWrapper.appendChild(signature);
                 bottom.appendChild(footerWrapper);
+            }
+
+            function applyPageNumberLabels(pages) {
+                pages.forEach(function (page, index) {
+                    var number = index + 1;
+                    var total = pages.length;
+                    page.classList.remove('print-page--last');
+                    page.setAttribute('data-page-number', number);
+                    page.setAttribute('data-total-pages', total);
+                    var label = ensurePageNumberElement(page.querySelector('.signature-section'));
+                    if (label) {
+                        label.textContent = 'Page ' + number + ' of ' + total;
+                    }
+                });
+
+                if (pages.length > 0) {
+                    pages[pages.length - 1].classList.add('print-page--last');
+                }
             }
 
             function ensurePrintPageBottom(page) {
@@ -1494,25 +1499,14 @@
 
                     renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
                     if (renderedPages.length > 0) {
-                        renderedPages.forEach(function (page, index) {
-                            page.classList.remove('print-page--last');
-                            page.setAttribute('data-page-number', index + 1);
-                            page.setAttribute('data-total-pages', renderedPages.length);
-                        });
-                        var lastPage = renderedPages[renderedPages.length - 1];
-                        lastPage.classList.add('print-page--last');
+                        applyPageNumberLabels(renderedPages);
                         if (isPrintLayout) {
                             enforceFirstPageRowBudget();
                             if (!singlePageDoc && rows.length > FIXED_TWO_PAGE_MAX_LINES) {
                                 fitLastPageWithFooter();
                             }
                             renderedPages = Array.from(pagesContainer.querySelectorAll('.print-page'));
-                            renderedPages.forEach(function (page, index) {
-                                page.classList.remove('print-page--last');
-                                page.setAttribute('data-page-number', index + 1);
-                                page.setAttribute('data-total-pages', renderedPages.length);
-                            });
-                            renderedPages[renderedPages.length - 1].classList.add('print-page--last');
+                            applyPageNumberLabels(renderedPages);
                         } else {
                             clearPrintLayoutOverrides(renderedPages);
                         }

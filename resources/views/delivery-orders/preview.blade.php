@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Delivery Order Preview</title>
+    @include('partials.preview-document-header-styles')
 
     <style>
         /* Force consistent rendering across all browsers and settings */
@@ -81,6 +82,14 @@
     -webkit-print-color-adjust: exact;
 }
 
+        .container {
+            position: relative; /* Move vertical line to container level */
+        }
+
+        .content {
+            min-height: calc(100vh - 200px);
+        }
+
         .table-area {
             position: relative;
             display: flex;
@@ -89,156 +98,6 @@
 
         .print-page .table-area {
             flex: 0 0 auto;
-        }
-
-        .content {
-            padding: 24px 20px 20px;
-            flex: 1;
-            position: relative; /* Ensure vertical line positions correctly */
-            min-height: calc(100vh - 200px); /* Provide enough height for vertical line */
-            display: flex;
-            flex-direction: column;
-        }
-
-        .container {
-            position: relative; /* Move vertical line to container level */
-        }
-
-        .company-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 1px solid #000;
-            padding-bottom: 4px;
-            margin-bottom: 6px;
-        }
-
-        .company-info-left {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            text-align: left;
-            width: 70%; /* Match PO width */
-        }
-
-        /* Company logo: fixed max-height so header height stays the same */
-        .company-logo-wrap {
-            flex-shrink: 0;
-            max-height: 75px;
-            line-height: 0;
-        }
-        .company-logo-wrap img {
-            max-height: 75px;
-            width: auto;
-            object-fit: contain;
-            display: block;
-        }
-        
-        .company-info-left h2 {
-            font-size: calc(1.1em + 1px); /* +1px increase */
-            margin-bottom: 8px;
-            line-height: 1.2;
-            white-space: nowrap;
-        }
-
-        .company-info-right {
-            text-align: right;
-            margin-top: 0; /* Align with company name like PO */
-            width: 28%; /* Match PO width */
-            min-width: 300px; /* Increased to match print width and prevent wrapping */
-            flex-shrink: 0; /* Prevent shrinking to ensure text stays on one line */
-        }
-
-        .company-info h2 {
-            margin-bottom: 6px;
-            color: #000; /* Changed from #333 to black */
-            font-weight: bold;
-            font-size: calc(1.1em + 1px); /* +1px increase - match PO */
-            white-space: nowrap;
-            text-transform: uppercase;
-        }
-
-        /* Right DO info heading to match PO */
-        .company-info-right h2 {
-            margin-bottom: 6px;
-            white-space: nowrap;
-            font-weight: 700;
-            font-size: calc(1.0em + 1px); /* +1px increase */
-            text-transform: uppercase;
-        }
-
-        .company-info p {
-            margin: 0;
-            font-size: calc(0.78em + 1px);
-        }
-
-        @media print {
-            .company-info h2,
-            .company-info-right h2 {
-                white-space: nowrap !important;
-                font-size: 1.2em !important;
-                color: #000 !important; /* Ensure black in print */
-            }
-            
-            /* Ensure Salesman and Customer PO No stay on one line in print */
-            .company-info-right p {
-                white-space: nowrap !important;
-                overflow: visible !important;
-                text-overflow: clip !important;
-            }
-            
-            /* Ensure company-info-right has enough width in print to prevent wrapping */
-            .company-info-right {
-                min-width: 250px !important;
-                width: auto !important;
-                flex-shrink: 0 !important;
-            }
-        }
-
-        /* Top-right details: ensure black and match PO styling */
-        .company-info-right { color: #000; }
-        .company-info-right h2 { color: #000; }
-        .company-info-right p { 
-            color: #000; 
-            margin: 2px 0; 
-            font-size: calc(0.8em + 1px); /* +1px increase */
-            white-space: nowrap; /* Prevent wrapping to match browser print behavior */
-        }
-        .company-info-right strong { 
-            text-transform: uppercase; 
-            font-weight: bold;
-        }
-
-        .customer-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0;
-        }
-
-        .customer-info-frame {
-            border: 1px solid #000;
-            padding: 4px;
-            padding-left: 30px; /* Indent entire block */
-            width: 100%;
-            font-size: 0.9em;
-            
-            /* FIX: Lock the height so the table NEVER moves down */
-            height: 110px; /* Adjust this number if you want the table higher/lower */
-            overflow: hidden; /* Ensures text never pushes the box open */
-            
-            /* Tighter lines to ensure 4-line addresses fit in the fixed box */
-            line-height: 1.1; 
-            display: flex;
-            flex-direction: column;
-            justify-content: center; /* Optional: Centers content vertically if short */
-        }
-
-        .customer-info-frame p {
-            margin: 0;
-        }
-
-        .customer-info-frame p:first-child {
-            text-indent: -26px; /* Pull 'To:' back to the left margin */
         }
 
         /* Table styles matching Quotation */
@@ -428,30 +287,7 @@
             }
         }
 
-        .print-page--first {
-            margin-top: 20px;
-        }
-
         @media print {
-            /* Remove top margin from first page in print to prevent blank page */
-            .print-page--first {
-                margin-top: 0 !important;
-                page-break-before: auto !important;
-            }
-            
-            /* Ensure first page doesn't have unnecessary page break */
-            .pages-container > .print-page:first-child {
-                page-break-before: auto !important;
-                margin-top: 0 !important;
-                padding-top: 0 !important;
-            }
-            
-            /* Ensure pages-container first child has no top margin/padding */
-            .pages-container:first-child .print-page--first {
-                margin-top: 0 !important;
-                padding-top: 20px !important;
-            }
-            
             /* Ensure signature stays with content on the same page */
             .print-page-footer {
                 page-break-inside: avoid !important;

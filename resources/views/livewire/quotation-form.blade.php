@@ -200,11 +200,20 @@
 
                 row.querySelectorAll('[data-quotation-free-form-field]').forEach(function (input) {
                     var field = input.getAttribute('data-quotation-free-form-field');
+                    var anchorKey = input.getAttribute('data-quotation-free-form-anchor') || rowIndex;
                     if (!field || input.disabled) {
                         return;
                     }
-                    sets.push(wire.set('freeFormTextRows.' + rowIndex + '.' + field, input.value));
+                    sets.push(wire.set('freeFormTextRows.' + anchorKey + '.' + field, input.value));
                 });
+            });
+
+            form.querySelectorAll('[data-quotation-item-description]').forEach(function (textarea) {
+                var idx = textarea.getAttribute('data-quotation-stacked-index');
+                if (idx === null || textarea.disabled) {
+                    return;
+                }
+                sets.push(wire.set('stackedItems.' + idx + '.more_description', textarea.value));
             });
 
             form.querySelectorAll('[data-quotation-text-only-name]').forEach(function (input) {

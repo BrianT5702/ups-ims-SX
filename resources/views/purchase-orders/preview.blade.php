@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Purchase Order Preview</title>
+    @include('partials.preview-document-header-styles')
 
     <style>
         /* Force consistent rendering across all browsers and settings */
@@ -57,90 +58,7 @@
         }
 
         .content {
-            padding: 24px 20px 20px;
             flex: 0 0 auto; /* Don't grow */
-        }
-
-        .company-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 1px solid #000;
-            padding-bottom: 6px;
-            margin-bottom: 10px;
-        }
-
-        .company-info-left {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            text-align: left;
-            width: 70%;  /* Give more space to company info */
-        }
-
-        .company-logo-wrap {
-            flex-shrink: 0;
-            max-height: 75px;
-            line-height: 0;
-        }
-        .company-logo-wrap img {
-            max-height: 75px;
-            width: auto;
-            object-fit: contain;
-            display: block;
-        }
-        
-        .company-info-left h2 {
-            font-size: calc(1.1em + 1px); /* Match DO font size */
-            margin-bottom: 8px;
-            line-height: 1.2;
-        }
-
-        .company-info-right {
-            text-align: right;
-            margin-top: 0;
-            width: 28%;  /* Fixed width for right side */
-            min-width: 200px; /* Ensure minimum width */
-        }
-
-        .company-info-right h2 {
-            margin-bottom: 6px;
-            white-space: nowrap;
-            font-size: calc(1.0em + 1px); /* Match DO font size */
-            text-transform: uppercase;
-        }
-
-        .company-info-right p {
-            margin: 2px 0;
-            font-size: calc(0.78em + 1px); /* Match DO font size */
-            line-height: 1.3; /* Explicitly set to match print */
-        }
-
-        .company-info h2 {
-            margin-bottom: 6px;
-            color: #000; /* Changed from #333 to black */
-            font-weight: bold;
-            font-size: calc(1.1em + 1px); /* Match DO font size */
-            white-space: nowrap;
-            text-transform: uppercase;
-        }
-
-        .company-info p {
-            margin: 1px 0;
-            font-size: calc(0.78em + 1px); /* Match DO font size */
-            line-height: 1.3; /* Explicitly set to match print */
-        }
-
-        /* Removed duplicate print media query - using the one at line 549 instead */
-
-        /* Ensure PO top-right info section is fully black */
-        .company-info-right { color: #000; }
-        .company-info-right h2 { color: #000; }
-        .company-info-right p { color: #000; }
-        .company-info-right strong { text-transform: uppercase; }
-        @media print {
-            .company-info-right h2 { color: #000 !important; }
-            .company-info-right p { color: #000 !important; }
         }
 
         .header {
@@ -158,7 +76,7 @@
         .supplier-info {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 0;
         }
 
         /* Hang indent: first line (To: + name) pulled left; address lines use smaller hang so they sit less far right */
@@ -518,21 +436,7 @@
             }
         }
 
-        .print-page--first {
-            margin-top: 20px;
-        }
-
         @media print {
-            .print-page--first {
-                margin-top: 0 !important;
-                page-break-before: auto !important;
-            }
-            
-            .pages-container > .print-page:first-child {
-                page-break-before: auto !important;
-                margin-top: 0 !important;
-            }
-            
             .print-page-footer {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
@@ -611,42 +515,9 @@
                 font-size: 14px !important;
                 line-height: 1.3 !important;
             }
-            
-            /* Match on-screen preview typography (avoid print-only 1.2em jump) */
-            .company-info-left h2,
-            .company-info .company-info-text h2 {
-                white-space: nowrap !important;
-                font-size: calc(1.1em + 1px) !important;
-                color: #000 !important;
-                line-height: 1.2 !important;
-            }
-            .company-info-right h2 {
-                white-space: nowrap !important;
-                font-size: calc(1.0em + 1px) !important;
-                color: #000 !important;
-                line-height: 1.2 !important;
-            }
-            
-            .company-info p, .company-info-right p {
-                font-size: calc(0.78em + 1px) !important;
-                line-height: 1.3 !important;
-            }
-            
-            /* Compact vertical rhythm so one logical preview page fits one physical sheet */
-            .pages-container .company-info {
-                padding-bottom: 2px !important;
-                margin-bottom: 6px !important;
-            }
-            .pages-container .company-logo-wrap img {
-                max-height: 58px !important;
-            }
-            .pages-container .company-info-left h2,
-            .pages-container .company-info .company-info-text h2 {
-                margin-bottom: 4px !important;
-            }
 
             .supplier-info {
-                margin-bottom: 10px !important;
+                margin-bottom: 0 !important;
             }
             
             /*
