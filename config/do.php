@@ -13,7 +13,7 @@ return [
         'urs' => 1,       // 000001
         'ucs' => 1,       // 000001
         'ups2' => 1,
-        'urs2' => 30395,  // 030395 — adjust via: php artisan do:set-next-number urs2 {n}
+        'urs2' => 30398,  // 030398 — adjust via: php artisan do:set-next-number urs2 {n}
         'ucs2' => 1,
     ],
 
