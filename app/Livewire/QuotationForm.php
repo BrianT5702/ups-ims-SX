@@ -10,11 +10,12 @@ use App\Models\QuotationItem;
 use App\Models\DeliveryOrderItem;
 use App\Models\Customer;
 use App\Models\Item;
-use App\Models\User;
 use App\Models\CustomerSnapshot;
 use App\Rules\UniqueInCurrentDatabase;
 use App\Rules\ExistsInCurrentDatabase;
 use App\Services\QuotationNumberService;
+use App\Support\TenantDatabase;
+use App\Support\TenantSalesperson;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -483,7 +484,7 @@ class QuotationForm extends Component
         }
 
         if ($this->quotation && $this->quotation->id) {
-            return redirect()->route('print.quotation.preview', $this->quotation->id);
+            return redirect()->route('print.quotation.preview', TenantDatabase::previewRouteParams($this->quotation->id));
         }
     }
 
@@ -637,9 +638,8 @@ class QuotationForm extends Component
     public function render()
     {
         $this->date = $this->date ?? now()->toDateString();
-        // Use current database connection (not just 'ups') to match validation
         $connection = session('active_db') ?: DB::getDefaultConnection();
-        $this->salesmen = User::on($connection)->role('Salesperson')->orderBy('name','asc')->get();
+        $this->salesmen = TenantSalesperson::list($connection);
         return view('livewire.quotation-form')->layout('layouts.app');
     }
 }

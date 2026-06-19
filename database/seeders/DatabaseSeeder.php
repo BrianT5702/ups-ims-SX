@@ -537,6 +537,18 @@ class DatabaseSeeder extends Seeder
                 'company_name' => 'UNITED COLD-SYSTEM (M) SDN. BHD.',
                 'company_no' => '748674-K',
             ],
+            'ups2' => [
+                'company_name' => 'UNITED PANEL-SYSTEM (M) SDN. BHD.',
+                'company_no' => '772009-A',
+            ],
+            'urs2' => [
+                'company_name' => 'UNITED REFRIGERATION-SYSTEM (M) SDN. BHD.',
+                'company_no' => '772011-D',
+            ],
+            'ucs2' => [
+                'company_name' => 'UNITED COLD-SYSTEM (M) SDN. BHD.',
+                'company_no' => '748674-K',
+            ],
         ][$conn] ?? [
             'company_name' => 'UNITED REFRIGERATION SYSTEM (M) SDN BHD',
             'company_no' => '772011-D',

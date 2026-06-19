@@ -904,7 +904,7 @@
         function triggerPrint() {
             try { paginateQuotation(true, true); } catch (e) {}
             // Mark as printed before opening print dialog
-            fetch('{{ route('quotations.mark-printed', $quotation->id) }}', {
+            fetch('{{ route('quotations.mark-printed', ['id' => $quotation->id, 'db' => $connection ?? session('active_db')]) }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',

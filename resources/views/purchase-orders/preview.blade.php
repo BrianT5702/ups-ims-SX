@@ -1020,7 +1020,7 @@
         function triggerPrint() {
             try { paginatePO(true); } catch (e) {}
             // Mark as printed before opening print dialog
-            fetch('{{ route('purchase-orders.mark-printed', $purchaseOrder->id) }}', {
+            fetch('{{ route('purchase-orders.mark-printed', ['id' => $purchaseOrder->id, 'db' => $connection ?? session('active_db')]) }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',

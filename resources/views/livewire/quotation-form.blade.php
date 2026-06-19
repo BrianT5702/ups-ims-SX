@@ -165,7 +165,7 @@
                             </div>
                             <div class="text-end">
                                 <a href="{{ route('quotations.edit', $quotation->id) }}" class="btn btn-primary me-2">Edit</a>
-                                <a href="{{ route('print.quotation.preview', $quotation->id) }}" class="btn btn-info">Preview</a>
+                                <a href="{{ route('print.quotation.preview', \App\Support\TenantDatabase::previewRouteParams($quotation->id)) }}" class="btn btn-info">Preview</a>
                             </div>
                         </div>
                         @endif

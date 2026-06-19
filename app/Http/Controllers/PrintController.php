@@ -12,48 +12,59 @@ use App\Models\Quotation;
 use App\Models\BatchTracking;
 use App\Models\Transaction;
 use App\Models\Item;
+use App\Support\TenantDatabase;
 use Illuminate\Support\Facades\DB;
 
 class PrintController extends Controller
 {
+    private function bootTenantFromRequest(Request $request): string
+    {
+        return TenantDatabase::resolveAndApply($request);
+    }
+
     private function markPrinted($model)
     {
         $model->printed = 'Y';
         $model->save();
         return response()->json(['success' => true]);
     }
-    public function previewPO($id)
+    public function previewPO(Request $request, $id)
     {
-        $purchaseOrder = PurchaseOrder::with(['items.item', 'supplierSnapshot', 'user'])->findOrFail($id);
-        $companyProfile = CompanyProfile::first();
-        return view('purchase-orders.preview', compact('purchaseOrder', 'companyProfile'));
+        $connection = $this->bootTenantFromRequest($request);
+        $purchaseOrder = PurchaseOrder::on($connection)->with(['items.item', 'supplierSnapshot', 'user'])->findOrFail($id);
+        $companyProfile = CompanyProfile::on($connection)->first();
+        return view('purchase-orders.preview', compact('purchaseOrder', 'companyProfile', 'connection'));
     }
 
-    public function markPOPrinted($id)
+    public function markPOPrinted(Request $request, $id)
     {
-        $purchaseOrder = PurchaseOrder::findOrFail($id);
+        $connection = $this->bootTenantFromRequest($request);
+        $purchaseOrder = PurchaseOrder::on($connection)->findOrFail($id);
         return $this->markPrinted($purchaseOrder);
     }
 
-    public function previewDO($id)
+    public function previewDO(Request $request, $id)
     {
-        $deliveryOrder = DeliveryOrder::with(['items.item', 'customerSnapshot', 'user'])->findOrFail($id);
+        $connection = $this->bootTenantFromRequest($request);
+        $deliveryOrder = DeliveryOrder::on($connection)->with(['items.item', 'customerSnapshot', 'user'])->findOrFail($id);
         // Order items by row_index to preserve absolute row positions (nulls last for backward compatibility)
         $deliveryOrder->setRelation('items', $deliveryOrder->items()->orderByRaw('row_index IS NULL, row_index')->get());
-        $companyProfile = CompanyProfile::first();
-        return view('delivery-orders.preview', compact('deliveryOrder', 'companyProfile'));
+        $companyProfile = CompanyProfile::on($connection)->first();
+        return view('delivery-orders.preview', compact('deliveryOrder', 'companyProfile', 'connection'));
     }
 
-    public function markDOPrinted($id)
+    public function markDOPrinted(Request $request, $id)
     {
-        $deliveryOrder = DeliveryOrder::findOrFail($id);
+        $connection = $this->bootTenantFromRequest($request);
+        $deliveryOrder = DeliveryOrder::on($connection)->findOrFail($id);
         return $this->markPrinted($deliveryOrder);
     }
 
-    public function postDO($id)
+    public function postDO(Request $request, $id)
     {
         try {
-            $deliveryOrder = DeliveryOrder::with('items.item')->findOrFail($id);
+            $connection = $this->bootTenantFromRequest($request);
+            $deliveryOrder = DeliveryOrder::on($connection)->with('items.item')->findOrFail($id);
             
             // Only post if status is not already "Completed"
             if ($deliveryOrder->status !== 'Completed') {
@@ -228,20 +239,22 @@ class PrintController extends Controller
         }
     }
 
-    public function previewQuotation($id)
+    public function previewQuotation(Request $request, $id)
     {
-        $quotation = Quotation::with(['items.item', 'customerSnapshot', 'user', 'salesman'])->findOrFail($id);
+        $connection = $this->bootTenantFromRequest($request);
+        $quotation = Quotation::on($connection)->with(['items.item', 'customerSnapshot', 'user', 'salesman'])->findOrFail($id);
         $quotation->setRelation(
             'items',
             $quotation->items()->orderByRaw('row_index IS NULL, row_index')->orderBy('id')->get()
         );
-        $companyProfile = CompanyProfile::first();
-        return view('quotations.preview', compact('quotation', 'companyProfile'));
+        $companyProfile = CompanyProfile::on($connection)->first();
+        return view('quotations.preview', compact('quotation', 'companyProfile', 'connection'));
     }
 
-    public function markQuotationPrinted($id)
+    public function markQuotationPrinted(Request $request, $id)
     {
-        $quotation = Quotation::findOrFail($id);
+        $connection = $this->bootTenantFromRequest($request);
+        $quotation = Quotation::on($connection)->findOrFail($id);
         return $this->markPrinted($quotation);
     }
 

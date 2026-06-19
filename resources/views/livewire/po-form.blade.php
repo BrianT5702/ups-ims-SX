@@ -571,7 +571,7 @@
                                         </a>
                                     @endif
                                     <a href="{{ route('purchase-orders.edit', $purchaseOrder->id) }}" class="btn btn-primary me-2">Edit</a>
-                                    <a href="{{ route('print.purchase-order.preview', $purchaseOrder->id) }}" class="btn btn-info">Preview</a>
+                                    <a href="{{ route('print.purchase-order.preview', \App\Support\TenantDatabase::previewRouteParams($purchaseOrder->id)) }}" class="btn btn-info">Preview</a>
                                 </div>
                             </div>
                             @endif

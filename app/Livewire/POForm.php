@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Title;
 use Illuminate\Support\Facades\DB;
 use App\Models\SupplierSnapshot;
+use App\Support\TenantDatabase;
 
 
 #[Title('UR | Manage Purchase Order')]
@@ -1012,7 +1013,7 @@ class POForm extends Component
         $this->saveDraft();
         $this->isPreviewMode = false;
         if ($this->purchaseOrder && $this->purchaseOrder->id) {
-            return redirect()->route('print.purchase-order.preview', $this->purchaseOrder->id);
+            return redirect()->route('print.purchase-order.preview', TenantDatabase::previewRouteParams($this->purchaseOrder->id));
         }
     }
 

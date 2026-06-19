@@ -27,6 +27,8 @@ use App\Models\RestockList;
 use App\Models\BatchTracking;
 use App\Models\CustomerSnapshot;
 use App\Services\DoNumberService;
+use App\Support\TenantDatabase;
+use App\Support\TenantSalesperson;
 use App\Support\TenantUser;
 use Carbon\Carbon;
 
@@ -656,7 +658,7 @@ class DOForm extends Component
             if ($this->selectedCustomer && $this->selectedCustomer->salesman_id) {
                 $this->salesman_id = $this->selectedCustomer->salesman_id;
                 $connection = session('active_db') ?: DB::getDefaultConnection();
-                $this->salesmanSearchTerm = optional(User::on($connection)->find($this->salesman_id))->name;
+                $this->salesmanSearchTerm = optional(TenantSalesperson::find($this->salesman_id, $connection))->name;
 
                 // Clear salesperson validation error when it has been auto-filled.
                 $this->resetErrorBag(['salesman_id']);
@@ -694,9 +696,9 @@ class DOForm extends Component
     {
         if (!$this->isView) {
             $connection = session('active_db') ?: DB::getDefaultConnection();
-            $this->selectedSalesman = User::on($connection)->find($salesmanId);
-    
-            if ($this->selectedSalesman && $this->selectedSalesman->hasRole('Salesperson')) {
+            $this->selectedSalesman = TenantSalesperson::find((int) $salesmanId, $connection);
+
+            if ($this->selectedSalesman) {
                 $this->salesman_id = $salesmanId;
                 $this->salesmanSearchTerm = $this->selectedSalesman->name;
                 $this->salesmanSearchResults = [];
@@ -3526,10 +3528,9 @@ class DOForm extends Component
      */
     private function redirectToDeliveryOrderPreview(int $deliveryOrderId)
     {
-        return redirect()->route('print.delivery-order.preview', [
-            'id' => $deliveryOrderId,
+        return redirect()->route('print.delivery-order.preview', TenantDatabase::previewRouteParams($deliveryOrderId, [
             'return' => route('delivery-orders.edit', $deliveryOrderId),
-        ]);
+        ]));
     }
 
     /**
@@ -3597,7 +3598,7 @@ class DOForm extends Component
             } elseif ($sourceDo->customer->salesman_id) {
                 $this->salesman_id = $sourceDo->customer->salesman_id;
                 $connection = session('active_db') ?: DB::getDefaultConnection();
-                $salesman = User::on($connection)->find($this->salesman_id);
+                $salesman = TenantSalesperson::find($this->salesman_id, $connection);
                 $this->salesmanSearchTerm = $salesman ? $salesman->name : '';
             } else {
                 $this->salesman_id = null;
@@ -3728,12 +3729,8 @@ class DOForm extends Component
     
     private function ensureSalesmenLoaded(): void
     {
-        if (!empty($this->salesmen)) {
-            return;
-        }
-
         $connection = session('active_db') ?: DB::getDefaultConnection();
-        $this->salesmen = User::on($connection)->role('Salesperson')->orderBy('name', 'asc')->get();
+        $this->salesmen = TenantSalesperson::list($connection);
     }
 
     public function render()

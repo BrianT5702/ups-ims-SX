@@ -747,7 +747,7 @@
                                 </div>
                                 <div class="text-end">
                                     <a href="{{ route('delivery-orders.edit', ['deliveryOrder' => $deliveryOrder->id, 'restore' => 1]) }}" class="btn btn-primary me-2">Edit</a>
-                                    <a href="{{ route('print.delivery-order.preview', ['id' => $deliveryOrder->id, 'return' => request()->fullUrl()]) }}" class="btn btn-info">Preview</a>
+                                    <a href="{{ route('print.delivery-order.preview', \App\Support\TenantDatabase::previewRouteParams($deliveryOrder->id, ['return' => request()->fullUrl()])) }}" class="btn btn-info">Preview</a>
                                 </div>
                             </div>
                             @endif
@@ -805,7 +805,7 @@
                         {{-- Right: Preview --}}
                         <div class="col-md-8" style="min-height: 400px;">
                             @if($duplicateSelectedDoId)
-                                <iframe src="{{ route('print.delivery-order.preview', $duplicateSelectedDoId) }}" 
+                                <iframe src="{{ route('print.delivery-order.preview', \App\Support\TenantDatabase::previewRouteParams($duplicateSelectedDoId)) }}" 
                                         class="w-100 border-0" 
                                         style="height: 500px; min-height: 400px;"
                                         title="DO Preview"></iframe>

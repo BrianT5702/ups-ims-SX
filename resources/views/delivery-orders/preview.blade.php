@@ -1039,7 +1039,7 @@
             try { paginateDeliveryOrder(true); } catch (e) {}
             
             // First, post the DO (change status to Completed and update stock)
-            fetch('{{ route('delivery-orders.post', $deliveryOrder->id) }}', {
+            fetch('{{ route('delivery-orders.post', ['id' => $deliveryOrder->id, 'db' => $connection ?? session('active_db')]) }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -1050,7 +1050,7 @@
                 return response.json();
             }).then(function(data) {
                 // Then mark as printed
-                return fetch('{{ route('delivery-orders.mark-printed', $deliveryOrder->id) }}', {
+                return fetch('{{ route('delivery-orders.mark-printed', ['id' => $deliveryOrder->id, 'db' => $connection ?? session('active_db')]) }}', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}',

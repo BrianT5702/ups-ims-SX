@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Rules\UniqueInCurrentDatabase;
 use App\Rules\ExistsInCurrentDatabase;
+use App\Support\TenantSalesperson;
 use Livewire\Attributes\Title;
 
 #[Title('UR | Manage Customer')]
@@ -183,6 +184,9 @@ class CustomerForm extends Component
     }
 
     public function render() {
-        return view('livewire.customer-form')->layout('layouts.app');
+        $connection = session('active_db') ?: \Illuminate\Support\Facades\DB::getDefaultConnection();
+        $salespersons = TenantSalesperson::list($connection);
+
+        return view('livewire.customer-form', compact('salespersons'))->layout('layouts.app');
     }
 }

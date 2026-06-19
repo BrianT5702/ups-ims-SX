@@ -197,10 +197,6 @@
                                         <label for="salesman_id" class="form-label">Salesperson <span class="text-danger">*</span></label>
                                         <select id="salesman_id" class="form-select form-select-sm rounded" wire:model.live="salesman_id" {{ $isView ? 'disabled' : ''}}>
                                             <option value="">Select Salesperson</option>
-                                            @php
-                                                $connection = session('active_db') ?: config('database.default');
-                                                $salespersons = \App\Models\User::on($connection)->role('Salesperson')->orderBy('name','asc')->get();
-                                            @endphp
                                             @foreach($salespersons as $user)
                                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
                                             @endforeach
