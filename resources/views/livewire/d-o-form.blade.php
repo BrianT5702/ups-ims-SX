@@ -561,7 +561,6 @@
                                                             <input type="text"
                                                                 wire:model.lazy="freeFormTextRows.{{ $rowIndex }}.text" {{ ($isView || $this->isPosted) ? 'disabled' : '' }}
                                                                 class="form-control form-control-sm flex-grow-1"
-                                                                placeholder="Type anything here"
                                                                 style="font-size: 0.85em;"
                                                                 data-do-role="desc">
                                                             <button type="button"
