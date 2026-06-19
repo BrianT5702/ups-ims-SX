@@ -12,6 +12,7 @@ use App\Models\Quotation;
 use App\Models\BatchTracking;
 use App\Models\Transaction;
 use App\Models\Item;
+use App\Support\TenantCompanyProfile;
 use App\Support\TenantDatabase;
 use Illuminate\Support\Facades\DB;
 
@@ -32,7 +33,7 @@ class PrintController extends Controller
     {
         $connection = $this->bootTenantFromRequest($request);
         $purchaseOrder = PurchaseOrder::on($connection)->with(['items.item', 'supplierSnapshot', 'user'])->findOrFail($id);
-        $companyProfile = CompanyProfile::on($connection)->first();
+        $companyProfile = TenantCompanyProfile::resolve($connection);
         return view('purchase-orders.preview', compact('purchaseOrder', 'companyProfile', 'connection'));
     }
 
@@ -49,7 +50,7 @@ class PrintController extends Controller
         $deliveryOrder = DeliveryOrder::on($connection)->with(['items.item', 'customerSnapshot', 'user'])->findOrFail($id);
         // Order items by row_index to preserve absolute row positions (nulls last for backward compatibility)
         $deliveryOrder->setRelation('items', $deliveryOrder->items()->orderByRaw('row_index IS NULL, row_index')->get());
-        $companyProfile = CompanyProfile::on($connection)->first();
+        $companyProfile = TenantCompanyProfile::resolve($connection);
         return view('delivery-orders.preview', compact('deliveryOrder', 'companyProfile', 'connection'));
     }
 
@@ -247,7 +248,7 @@ class PrintController extends Controller
             'items',
             $quotation->items()->orderByRaw('row_index IS NULL, row_index')->orderBy('id')->get()
         );
-        $companyProfile = CompanyProfile::on($connection)->first();
+        $companyProfile = TenantCompanyProfile::resolve($connection);
         return view('quotations.preview', compact('quotation', 'companyProfile', 'connection'));
     }
 

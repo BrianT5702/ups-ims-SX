@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\CompanyProfile;
+use App\Support\TenantCompanyProfile;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Validate;
 
@@ -42,7 +43,7 @@ class Profile extends Component
     // Mount method to load existing data
     public function mount()
     {
-        $profile = CompanyProfile::first();
+        $profile = TenantCompanyProfile::resolve();
         
         if ($profile) {
             $this->company_name = $profile->company_name;
@@ -67,7 +68,7 @@ class Profile extends Component
 
         try {
             // Find the first company profile or create a new one
-            $profile = CompanyProfile::first() ?? new CompanyProfile();
+            $profile = TenantCompanyProfile::resolve() ?? new CompanyProfile();
 
             // Update the profile with validated data
             $profile->company_name = $this->company_name;

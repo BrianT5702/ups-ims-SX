@@ -522,56 +522,8 @@ class DatabaseSeeder extends Seeder
             DB::connection($connection)->table('customers')->where('account', 'CUST003')->update(['salesman_id' => $createdSalespersons[2]->id]);
         }
 
-        //Seed data for company profile (varies per DB)
-        $conn = $connection;
-        $company = [
-            'ups' => [
-                'company_name' => 'UNITED PANEL-SYSTEM (M) SDN. BHD.',
-                'company_no' => '772009-A',
-            ],
-            'urs' => [
-                'company_name' => 'UNITED REFRIGERATION-SYSTEM (M) SDN. BHD.',
-                'company_no' => '772011-D',
-            ],
-            'ucs' => [
-                'company_name' => 'UNITED COLD-SYSTEM (M) SDN. BHD.',
-                'company_no' => '748674-K',
-            ],
-            'ups2' => [
-                'company_name' => 'UNITED PANEL-SYSTEM (M) SDN. BHD.',
-                'company_no' => '772009-A',
-            ],
-            'urs2' => [
-                'company_name' => 'UNITED REFRIGERATION-SYSTEM (M) SDN. BHD.',
-                'company_no' => '772011-D',
-            ],
-            'ucs2' => [
-                'company_name' => 'UNITED COLD-SYSTEM (M) SDN. BHD.',
-                'company_no' => '748674-K',
-            ],
-        ][$conn] ?? [
-            'company_name' => 'UNITED REFRIGERATION SYSTEM (M) SDN BHD',
-            'company_no' => '772011-D',
-        ];
-
-        DB::connection($connection)->table('company_profiles')->updateOrInsert([
-            'company_name'  => $company['company_name'],
-            'company_no' => $company['company_no'],
-        ], [
-            'company_name'  => $company['company_name'],
-            'company_no' => $company['company_no'],
-            'gst_no' => '000537624576',
-            'address_line1' => 'PTD 124299, JALAN KEMPAS LAMA',
-            'address_line2' => 'KAMPUNG SEELONG JAYA',
-            'address_line3' => 'SKUDAI, 81300 JOHOR BAHRU, JOHOR',
-            'address_line4' => '',
-            'phone_num1'     => '+607 5951588',
-            'phone_num2'     => '+607 5951288',
-            'fax_num'       => '+607 5951177 / 5951122',
-            'email'         => 'united@ur.com.my',
-            'created_at'    => now(),
-            'updated_at'    => now(),
-        ]);
+        // Company profile — one canonical row per tenant (Dept 2 must not keep old URS fallback row)
+        \App\Support\TenantCompanyProfile::sync($connection);
 
         // Use real FK targets — never assume suppliers.id / users.id === 1 after updateOrInsert
         $seedSupplierId = DB::connection($connection)
