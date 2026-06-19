@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\CustomerSnapshot;
 use App\Rules\UniqueInCurrentDatabase;
 use App\Rules\ExistsInCurrentDatabase;
+use App\Services\QuotationNumberService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 

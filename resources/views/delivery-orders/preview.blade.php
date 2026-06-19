@@ -175,12 +175,20 @@
 
         /* Fixed column widths (favoring more space for Item Name) */
         .items-table th:nth-child(1), .items-table td:nth-child(1) { width: var(--qty-col-width); }   /* QTY */
-        /* QTY column: slightly smaller font */
-        .items-table td:nth-child(1) { font-size: calc(1em - 0.5px); }
+        /* QTY column: tighter horizontal padding + keep qty/UOM on one line */
+        .items-table th:nth-child(1) {
+            padding: 4px 2px 4px 4px;
+            white-space: nowrap;
+        }
+        .items-table td:nth-child(1) {
+            font-size: calc(1em - 0.5px);
+            padding: 3.7px 2px 3.7px 4px;
+            white-space: nowrap;
+            word-wrap: normal;
+            word-break: normal;
+            overflow-wrap: normal;
+        }
         .items-table th:nth-child(2), .items-table td:nth-child(2) { width: auto; }   /* Item Name - fill all remaining space */
-        
-        /* Ensure consistent padding and alignment */
-        .items-table th:nth-child(1), .items-table td:nth-child(1) { padding-right: 4px; }
         .items-table th:nth-child(2), .items-table td:nth-child(2) { padding-left: 8px; }
 
         /* Vertical separator between Qty and Description - removed, using container::after instead */
@@ -595,9 +603,18 @@
                 font-size: 1.06em !important;
                 line-height: 1.14 !important;
             }
-            /* QTY column: slightly smaller font - match preview */
+            /* QTY column: tighter padding + single line in print */
+            .items-table th:nth-child(1) {
+                padding: 4px 2px 4px 4px !important;
+                white-space: nowrap !important;
+            }
             .items-table td:nth-child(1) {
                 font-size: calc(1em - 0.5px) !important;
+                padding: 3.7px 2px 3.7px 4px !important;
+                white-space: nowrap !important;
+                word-wrap: normal !important;
+                word-break: normal !important;
+                overflow-wrap: normal !important;
             }
 
             /* Ensure NOTES row has minimal padding in print - MUST come after general td rule to override */

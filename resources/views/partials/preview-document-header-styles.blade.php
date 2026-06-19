@@ -153,8 +153,9 @@
             margin-bottom: 6px !important;
         }
 
+        .pages-container .company-logo-wrap,
         .pages-container .company-logo-wrap img {
-            max-height: 58px !important;
+            max-height: 75px !important;
         }
 
         .pages-container .company-info-left h2,
