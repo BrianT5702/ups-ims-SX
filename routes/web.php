@@ -231,6 +231,9 @@ Route::middleware(['auth', 'preventBackHistory', 'switchdb'])->group(function ()
    Route::prefix('print')->name('print')->group(function () {
         Route::get('/purchase-order/{id}/preview', [PrintController::class, 'previewPO'])->name('.purchase-order.preview');
         Route::get('/delivery-order/{id}/preview', [PrintController::class, 'previewDO'])->name('.delivery-order.preview');
+        Route::get('/delivery-orders/list', [PrintController::class, 'previewDOList'])
+            ->middleware('permission:Manage DO')
+            ->name('.delivery-orders.list');
         Route::get('/quotation/{id}/preview', [PrintController::class, 'previewQuotation'])->name('.quotation.preview');
         Route::get('/stock-movement/{id}/preview', [PrintController::class, 'previewStockMovement'])->name('.stock-movement.preview');
         // Route::get('/purchase-order/{id}/download', [PrintController::class, 'download'])->name('.purchase-order.download');

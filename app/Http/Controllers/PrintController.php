@@ -14,6 +14,9 @@ use App\Models\Transaction;
 use App\Models\Item;
 use App\Support\TenantCompanyProfile;
 use App\Support\TenantDatabase;
+use App\Services\DeliveryOrderListQuery;
+use App\Helpers\CompanyAccess;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class PrintController extends Controller
@@ -59,6 +62,48 @@ class PrintController extends Controller
         $connection = $this->bootTenantFromRequest($request);
         $deliveryOrder = DeliveryOrder::on($connection)->findOrFail($id);
         return $this->markPrinted($deliveryOrder);
+    }
+
+    public function previewDOList(Request $request)
+    {
+        $connection = $this->bootTenantFromRequest($request);
+        $user = auth()->user();
+
+        $searchTerm = $request->query('search');
+        $filterCustomerId = $request->query('customer') ? (int) $request->query('customer') : null;
+        $startDate = $request->query('start');
+        $endDate = $request->query('end');
+
+        $deliveryOrders = DeliveryOrderListQuery::build(
+            $user,
+            $searchTerm ?: null,
+            $filterCustomerId,
+            $startDate ?: null,
+            $endDate ?: null,
+        )->get();
+
+        $showInvoiceNoColumn = CompanyAccess::showsDoInvoiceNo($connection);
+        $filteredCustomer = $filterCustomerId
+            ? \App\Models\Customer::on($connection)->find($filterCustomerId)
+            : null;
+
+        $periodLabel = null;
+        if ($startDate && $endDate) {
+            $periodLabel = Carbon::parse($startDate)->format('d/m/Y')
+                . ' – '
+                . Carbon::parse($endDate)->format('d/m/Y');
+        }
+
+        $printedAt = Carbon::now('Asia/Kuala_Lumpur')->format('d/m/Y H:i');
+
+        return view('delivery-orders.list-print', compact(
+            'deliveryOrders',
+            'showInvoiceNoColumn',
+            'filteredCustomer',
+            'periodLabel',
+            'searchTerm',
+            'printedAt',
+        ));
     }
 
     public function postDO(Request $request, $id)

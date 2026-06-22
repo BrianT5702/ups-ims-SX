@@ -4,11 +4,12 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\DeliveryOrder;
+use App\Services\DeliveryOrderListQuery;
+use App\Support\DdMmYyyyInput;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Auth;
 use App\Support\TenantUser;
 use Livewire\Attributes\Title;
-use Carbon\Carbon;
 
 #[Title('UR | Delivery Order List')]
 class DOList extends Component
@@ -19,49 +20,42 @@ class DOList extends Component
     public $filterCustomerId = null;
     public $startDate = null;
     public $endDate = null;
+    public $startDateInput = null;
+    public $endDateInput = null;
 
     public function updatingDOSearchTerm()
     {
         $this->resetPage();
     }
 
-    public function updatingStartDate()
+    public function applyDateFilter()
     {
-        $this->resetPage();
-    }
+        $start = DdMmYyyyInput::toIso($this->startDateInput);
+        $end = DdMmYyyyInput::toIso($this->endDateInput);
 
-    public function updatingEndDate()
-    {
-        $this->resetPage();
-    }
+        if ($this->startDateInput && !$start) {
+            toastr()->error('Invalid from date. Use dd/mm/yyyy');
 
-    public function updatedStartDate($value)
-    {
-        if ($this->endDate && $value > $this->endDate) {
-            $this->endDate = $value;
+            return;
         }
-    }
 
-    public function updatedEndDate($value)
-    {
-        if ($this->startDate && $value < $this->startDate) {
-            $this->endDate = $this->startDate;
-            toastr()->error('End date cannot be earlier than start date');
+        if ($this->endDateInput && !$end) {
+            toastr()->error('Invalid to date. Use dd/mm/yyyy');
+
+            return;
         }
-    }
 
-    public function mount($customerId = null)
-    {
-        $this->filterCustomerId = $customerId;
-        $this->endDate = $this->defaultEndDateForGmtPlus8();
-    }
+        if ($start && $end && $start > $end) {
+            toastr()->error('From date cannot be later than to date');
 
-    /**
-     * "To date" filter default: today in GMT+8 (business locale).
-     */
-    private function defaultEndDateForGmtPlus8(): string
-    {
-        return Carbon::now('Asia/Singapore')->format('Y-m-d');
+            return;
+        }
+
+        $this->startDate = $start;
+        $this->endDate = $end;
+        $this->startDateInput = DdMmYyyyInput::toDisplay($start);
+        $this->endDateInput = DdMmYyyyInput::toDisplay($end);
+        $this->resetPage();
     }
 
     public function clearFilters()
@@ -71,51 +65,29 @@ class DOList extends Component
             'filterCustomerId',
             'startDate',
             'endDate',
+            'startDateInput',
+            'endDateInput',
         ]);
-        $this->endDate = $this->defaultEndDateForGmtPlus8();
+        $this->resetPage();
+    }
+
+    public function mount($customerId = null)
+    {
+        $this->filterCustomerId = $customerId;
     }
 
     public function render()
     {
         $user = Auth::user();
-        $isPrivileged = $user && (
-            $user->hasRole('Admin')
-            || $user->hasRole('Super Admin')
-            || $user->hasRole('Department1')
-            || $user->hasRole('Department 1')
-            || $user->hasRole('Department2')
-            || $user->hasRole('Department 2')
-            || $user->hasRole('Department2 Admin')
-            || $user->hasRole('Department 2 Admin')
-        );
-        
-        $query = DeliveryOrder::with(['customer', 'user', 'updatedBy'])
-            ->withCount('items')
-            ->when(!$isPrivileged, function ($q) use ($user) {
-                return $q->where('user_id', TenantUser::resolveId($user));
-            })
-            ->when($this->filterCustomerId, function($q) {
-                return $q->where('cust_id', $this->filterCustomerId);
-            })
-            ->when($this->doSearchTerm, function($q) {
-              return  $q->where(function($query) {
-                    $query->where('do_num', 'like', '%' . $this->doSearchTerm . '%')
-                      ->orWhereHas('customer', function($subQuery) {
-                          $subQuery->where('cust_name', 'like', '%' . $this->doSearchTerm . '%')
-                              ->orWhere('account', 'like', '%' . $this->doSearchTerm . '%');
-                      });
-                });
-            })
-            ->when($this->startDate && $this->endDate, function($q) {
-                return $q->whereBetween('date', [
-                    Carbon::parse($this->startDate)->toDateString(),
-                    Carbon::parse($this->endDate)->toDateString(),
-                ]);
-            });
+        $isPrivileged = DeliveryOrderListQuery::isPrivilegedUser($user);
 
-        $delivery_orders = $query->orderByDesc('date')
-            ->orderByDesc('created_at')
-            ->paginate(15);
+        $delivery_orders = DeliveryOrderListQuery::build(
+            $user,
+            $this->doSearchTerm,
+            $this->filterCustomerId ? (int) $this->filterCustomerId : null,
+            $this->startDate,
+            $this->endDate,
+        )->paginate(15);
 
         $filteredCustomer = $this->filterCustomerId
         ? \App\Models\Customer::findOrFail($this->filterCustomerId) 

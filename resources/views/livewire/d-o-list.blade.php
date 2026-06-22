@@ -22,22 +22,154 @@
                         </div>
                     </div>
                     <div class="card-body px-2 pb-3 transaction-log-card-body">
-                        <div class="row mb-1 g-2 align-items-end list-page-unified-filters">
+                        <div
+                            class="row mb-1 g-2 align-items-end list-page-unified-filters"
+                            x-data="{
+                                isoFromDisplay(value) {
+                                    const m = (value || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                                    return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+                                },
+                                displayFromIso(iso) {
+                                    const m = (iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                                    return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+                                },
+                                formatDdMmYyyy(event, prop) {
+                                    const digits = event.target.value.replace(/\D/g, '').slice(0, 8);
+                                    const formatted = digits.length <= 2
+                                        ? digits
+                                        : digits.length <= 4
+                                            ? digits.slice(0, 2) + '/' + digits.slice(2)
+                                            : digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+                                    if (event.target.value !== formatted) {
+                                        event.target.value = formatted;
+                                        $wire.set(prop, formatted);
+                                    }
+                                },
+                                openDatePicker(pickerRef, prop) {
+                                    const picker = this.$refs[pickerRef];
+                                    if (!picker) return;
+                                    const iso = this.isoFromDisplay($wire.get(prop));
+                                    if (iso) picker.value = iso;
+                                    try {
+                                        picker.showPicker();
+                                    } catch (e) {
+                                        picker.focus();
+                                        picker.click();
+                                    }
+                                },
+                                onPickerSelect(event, prop, nextFocusRef = null) {
+                                    const formatted = this.displayFromIso(event.target.value);
+                                    if (!formatted) return;
+                                    $wire.set(prop, formatted);
+                                    if (nextFocusRef) {
+                                        $nextTick(() => this.$refs[nextFocusRef]?.focus());
+                                    }
+                                },
+                                focusToDateOnTab(event) {
+                                    if (event.shiftKey) return;
+                                    event.preventDefault();
+                                    this.$refs.doListToDateText?.focus();
+                                }
+                            }"
+                        >
                             <div class="col-md-4">
                                 <label class="form-label">Search</label>
                                 <input type="text" wire:model.live.debounce.100ms="doSearchTerm" class="form-control form-control-sm rounded" placeholder="Search DO number or customer...">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label">From Date</label>
-                                <input type="date" wire:model.live="startDate" class="form-control form-control-sm rounded">
+                                <div class="input-group input-group-sm">
+                                    <input
+                                        type="text"
+                                        inputmode="numeric"
+                                        placeholder="dd/mm/yyyy"
+                                        maxlength="10"
+                                        autocomplete="off"
+                                        wire:model="startDateInput"
+                                        wire:keydown.enter="applyDateFilter"
+                                        x-on:input="formatDdMmYyyy($event, 'startDateInput')"
+                                        x-on:keydown.tab="focusToDateOnTab($event)"
+                                        class="form-control rounded-start"
+                                    >
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-secondary"
+                                        title="Pick date"
+                                        tabindex="-1"
+                                        x-on:click="openDatePicker('startDatePicker', 'startDateInput')"
+                                    >
+                                        <i class="far fa-calendar-alt"></i>
+                                    </button>
+                                </div>
+                                <input
+                                    type="date"
+                                    x-ref="startDatePicker"
+                                    class="visually-hidden"
+                                    tabindex="-1"
+                                    x-on:change="onPickerSelect($event, 'startDateInput', 'doListToDateText')"
+                                >
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label">To Date</label>
-                                <input type="date" wire:model.live="endDate" class="form-control form-control-sm rounded">
+                                <div class="input-group input-group-sm">
+                                    <input
+                                        type="text"
+                                        inputmode="numeric"
+                                        placeholder="dd/mm/yyyy"
+                                        maxlength="10"
+                                        autocomplete="off"
+                                        wire:model="endDateInput"
+                                        wire:keydown.enter="applyDateFilter"
+                                        x-ref="doListToDateText"
+                                        x-on:input="formatDdMmYyyy($event, 'endDateInput')"
+                                        class="form-control rounded-start"
+                                    >
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-secondary"
+                                        title="Pick date"
+                                        tabindex="-1"
+                                        x-on:click="openDatePicker('endDatePicker', 'endDateInput')"
+                                    >
+                                        <i class="far fa-calendar-alt"></i>
+                                    </button>
+                                </div>
+                                <input
+                                    type="date"
+                                    x-ref="endDatePicker"
+                                    class="visually-hidden"
+                                    tabindex="-1"
+                                    x-on:change="onPickerSelect($event, 'endDateInput')"
+                                >
+                            </div>
+                            <div class="col-auto d-flex align-items-end">
+                                <button
+                                    wire:click="applyDateFilter"
+                                    wire:loading.attr="disabled"
+                                    type="button"
+                                    class="btn btn-outline-primary btn-sm transaction-log-reset-btn px-2"
+                                >
+                                    <span wire:loading.remove wire:target="applyDateFilter">Apply</span>
+                                    <span wire:loading wire:target="applyDateFilter">…</span>
+                                </button>
                             </div>
                         </div>
                         <div class="row transaction-log-reset-toolbar mb-1">
-                            <div class="col-12 d-flex justify-content-end py-0">
+                            <div class="col-12 d-flex justify-content-end gap-2 py-0">
+                                <a
+                                    href="{{ route('print.delivery-orders.list', array_filter([
+                                        'search' => $doSearchTerm,
+                                        'customer' => $filterCustomerId,
+                                        'start' => $startDate,
+                                        'end' => $endDate,
+                                    ], fn ($v) => filled($v))) }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="btn btn-outline-secondary btn-sm"
+                                    title="Print all delivery orders matching current filters"
+                                >
+                                    <i class="fas fa-print me-1"></i> Print
+                                </a>
                                 <button wire:click="clearFilters" type="button" class="btn btn-outline-secondary btn-sm transaction-log-reset-btn">Reset</button>
                             </div>
                         </div>
