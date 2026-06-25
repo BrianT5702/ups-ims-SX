@@ -904,13 +904,6 @@
                     @foreach ($purchaseOrder->items as $index => $item)
                     @php
                         $poDescLines = [];
-                        if ($item->item && !empty($item->item->details)) {
-                            foreach (explode("\n", $item->item->details) as $line) {
-                                if (trim($line) !== '') {
-                                    $poDescLines[] = trim($line);
-                                }
-                            }
-                        }
                         if (!empty($item->more_description)) {
                             foreach (explode("\n", $item->more_description) as $line) {
                                 if (trim($line) !== '') {

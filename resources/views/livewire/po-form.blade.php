@@ -245,7 +245,7 @@
                                                         </button>
                                                     @endif
                                                 </div>
-                                                {{-- Hide item master details in PO form UI (preview/print still uses item->details + more_description). --}}
+                                                {{-- Item master details are DO-only; PO shows more_description only. --}}
                                                 @if($isView && !empty($stackedItems[$index]['more_description']))
                                                     <div class="mt-1 ms-3 text-muted" style="font-size: 0.85em;">
                                                         @foreach(explode("\n", $stackedItems[$index]['more_description']) as $line)

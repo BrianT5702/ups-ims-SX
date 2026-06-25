@@ -99,21 +99,7 @@ final class QuotationPrintLayout
         $this->occupiedRows[$base] = true;
         $row = $base;
 
-        if (! $entry['is_text_only'] && ! empty($entry['item_id'])) {
-            foreach ($this->normalizeDetailsLines($entry['details']) as $line) {
-                $row = $this->nextFreeRow($row + 1);
-                if ($row >= self::GRID_ROW_COUNT) {
-                    break;
-                }
-                $this->continuations[$row] = [
-                    'kind' => 'detail',
-                    'key' => $entry['key'],
-                    'text' => $line,
-                ];
-                $this->occupiedRows[$row] = true;
-            }
-        }
-
+        // Item master details are shown on DO only, not on quotations.
         $description = trim((string) ($entry['more_description'] ?? ''));
         if ($description !== '') {
             $row = $this->nextFreeRow($row + 1);

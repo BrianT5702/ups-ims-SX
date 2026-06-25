@@ -708,7 +708,7 @@
                                     @elseif($isContinuationRow)
                                         <td>&nbsp;</td>
                                         <td>
-                                            @if(in_array($continuation['kind'], ['detail', 'desc_line'], true))
+                                            @if($continuation['kind'] === 'desc_line')
                                                 <div class="quotation-more-description" style="margin-top: 0; padding-left: 15px;">
                                                     • {{ $continuation['text'] }}
                                                 </div>

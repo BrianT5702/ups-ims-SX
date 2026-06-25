@@ -254,7 +254,7 @@
                                     </div>
                                 @endif
                             @elseif($isContinuationRow)
-                                @if(in_array($continuation['kind'], ['detail', 'desc_line'], true))
+                                @if($continuation['kind'] === 'desc_line')
                                     <div class="ms-0 text-muted quotation-continuation-text" style="font-size: 0.85em; padding-left: 15px;">
                                         • {{ $continuation['text'] }}
                                     </div>
